@@ -1,0 +1,15 @@
+{
+  "originHash" : "53c7488ba14e892a65d69c8673f52b3b943a75edc193cd7783045397123ca271",
+  "pins" : [
+    {
+      "identity" : "printer-sdk-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/netumscan/printer-sdk-ios.git",
+      "state" : {
+        "revision" : "b629ccc1aeddf0370a3845cfb3f47152df0e9a5d",
+        "version" : "0.2.0-preview.2"
+      }
+    }
+  ],
+  "version" : 3
+}

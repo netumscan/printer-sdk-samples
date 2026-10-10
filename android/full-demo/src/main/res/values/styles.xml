@@ -1,0 +1,103 @@
+<resources>
+    <color name="title_text">#15223B</color>
+    <color name="body_text">#424C5E</color>
+    <color name="help_text">#526174</color>
+    <color name="action_accent">#1955B8</color>
+    <color name="action_surface">#FFFFFF</color>
+    <color name="error_text">#B3261E</color>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">@color/action_accent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">#F6F7FA</item>
+        <item name="android:colorControlHighlight">#201955B8</item>
+    </style>
+    <style name="FieldLabel">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/body_text</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:layout_marginTop">8dp</item>
+    </style>
+    <style name="HelpText" parent="FieldLabel">
+        <item name="android:textColor">@color/help_text</item>
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+    <style name="StatusLabel" parent="FieldLabel">
+        <item name="android:textColor">@color/action_accent</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+    <style name="ErrorLabel" parent="FieldLabel">
+        <item name="android:textColor">@color/error_text</item>
+        <item name="android:layout_marginTop">2dp</item>
+    </style>
+    <style name="Field">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:importantForAutofill">no</item>
+        <item name="android:imeOptions">actionNext</item>
+    </style>
+    <style name="Selector">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+    <style name="AppTitleBase">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/title_text</item>
+    </style>
+    <style name="AppTitle" parent="AppTitleBase" />
+    <style name="SectionBase" parent="FieldLabel">
+        <item name="android:textSize">19sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/title_text</item>
+        <item name="android:layout_marginTop">24dp</item>
+    </style>
+    <style name="Section" parent="SectionBase" />
+    <style name="InsetPanel">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:background">@drawable/panel_background</item>
+    </style>
+    <style name="SecondaryButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/secondary_button_text</item>
+        <item name="android:backgroundTint">@color/secondary_button_background</item>
+    </style>
+    <style name="PrimaryButton" parent="SecondaryButton">
+        <item name="android:textColor">@color/primary_button_text</item>
+        <item name="android:backgroundTint">@color/primary_button_background</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="QuietButton" parent="SecondaryButton">
+        <item name="android:backgroundTint">@color/quiet_button_background</item>
+    </style>
+    <style name="TextButton" parent="SecondaryButton">
+        <item name="android:background">?android:attr/selectableItemBackground</item>
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:minWidth">48dp</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+    </style>
+    <style name="DisclosureButton" parent="QuietButton">
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

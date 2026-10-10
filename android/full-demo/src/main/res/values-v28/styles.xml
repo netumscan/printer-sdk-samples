@@ -1,0 +1,8 @@
+<resources>
+    <style name="AppTitle" parent="AppTitleBase">
+        <item name="android:accessibilityHeading">true</item>
+    </style>
+    <style name="Section" parent="SectionBase">
+        <item name="android:accessibilityHeading">true</item>
+    </style>
+</resources>
