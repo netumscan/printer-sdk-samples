@@ -1,6 +1,6 @@
 {
   "files_sha256": {
-    ".github/workflows/samples.yml": "9de11781806c70a4508589ccca0631cf805d37384adce366e8ed3235f058f241",
+    ".github/workflows/samples.yml": "a4649deabe983f76b3a6205a3bb4c29f343aa5d6926b54e0fb7678ba7abf54d7",
     ".gitignore": "8d7ca14666cfc127739d8f56e5bc708d4113b0d5625287bc94cd5f95a56e06e3",
     "LICENSE": "ccbe9c8257b2f0702b165aabfcb43fee6965253f0ab5008f405add3552c8daa7",
     "LICENSING.md": "8a699d743ac3e26bd2c1aea3fe8cf177cfeb09b203f69bd0674be7cd9b460042",
@@ -82,7 +82,7 @@
     "ios/quick-start/QuickStartModel.swift": "fb5edb09e335495cd33b04c334f30a93c44c595d8533c8bc13158382720b41ca",
     "ios/quick-start/README.md": "4527f55589af448aa590dd2dfcc1d77c59509d2670b328e5f7397a1cd17e9667",
     "ios/tests/PrinterSamplesTests.swift": "b0c380c9b65b045df65524e7d2a1e2ec9fccf20187d6a9a91a65a724b9af9b16",
-    "ios/verify.py": "15211361a6d0243f85da8d252a5b65299a8ffd7895acd9a1a07470641b610709",
+    "ios/verify.py": "602719674cd8750d4446836adff69bd60617ed951285f780c43d2ee41b9c29cb",
     "ios/verify.sh": "36c677a8b53d47b35ef96fd47fb4202ab6804ab1fd62c2ae12c20a544af43c7a",
     "sdk-lock.json": "a12101703319092f31945e96f5ca9a2bac37231f56ea69567c8956bb3f911206",
     "tools/check-samples.py": "f40f2c35ec5c1239dc1b239619791cd87a926270947b18a8a5b53bea549aeed1"

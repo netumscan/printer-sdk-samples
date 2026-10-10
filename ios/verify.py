@@ -140,8 +140,8 @@ def main():
                 raise SystemExit("Unexpected sample application identity")
             if framework_info.get("CFBundleIdentifier") != "com.netumscan.printersdk.core":
                 raise SystemExit("Unexpected embedded SDK identity")
-            run(["xcrun", "lipo", "-verify_arch", arch, app / scheme])
-            run(["xcrun", "lipo", "-verify_arch", arch, framework / "CPrinterSDK"])
+            run(["xcrun", "lipo", app / scheme, "-verify_arch", arch])
+            run(["xcrun", "lipo", framework / "CPrinterSDK", "-verify_arch", arch])
             symbols = run(["xcrun", "nm", "-gU", framework / "CPrinterSDK"])
             exports = set(re.findall(r"\b(_psdk_[A-Za-z0-9_]+)\s*$", symbols, re.MULTILINE))
             if len(exports) != 49:
