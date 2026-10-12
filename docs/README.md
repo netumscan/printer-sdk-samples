@@ -25,6 +25,12 @@ Full Demo 增加图片处理、显式配置、取消、Raw 和本地诊断。
 一致性。检查器可离线运行；它检查文档与审定基线的对应关系，不代替编译、在线制品运行
 或硬件验收。`docs/api-reference.json` 保存基线与说明，不包含 SDK 实现。
 
+`docs/api-history.json` 保存固定公开历史提交的 Git 对象证明。在仓库根目录执行
+`python3 tools/check-api-history.py` 可离线核对已发布 Java／Swift 声明快照与当前参考；
+同时修改当前基线和摘要不能重置历史锚。缺失历史为 `not_verified`，漂移为失败。
+公开检查不验证下载二进制的完整 ABI 或实现行为；C ABI 的历史冻结由 SDK 发布前的
+独立门禁核对。文档更新通过新的 main 提交发布，已有 SDK 标签、Release 和制品保持。
+
 这是开发预览，**`hardware_verified=false`**。构建、签名校验和模拟器通过不能证明
 某台打印机、固件、纸张或手机组合已完成验收。`DATA_SENT` 仅表示数据传输完成；
 连接中断后 SDK 不自动续打、重放或重试。当前限制和确认方法见[兼容性](compatibility.md)。

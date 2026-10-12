@@ -136,8 +136,9 @@
     "android/scripts/verify-runtime.py": "5d37ddec306da4b642dd98cf4ce9d9fff20306f4d309c4ced547790c4104f3d0",
     "android/settings.gradle.kts": "9925250fca731dfb35f08e3cb946e7edd7c1a8aa6a01329c1af8de8cc0852ee2",
     "android/verify.sh": "47fc1170d1564051b7a63cffd8ce3ab7196168d4e37900930e3dc079b2e48929",
-    "docs/README.md": "464061d79e8f18072fb22f9dab78b0ab1cd91bee2731b8f1eb79a28871e4543c",
+    "docs/README.md": "d92177909e0dc55cda558f2aca233ccafa4cb10752c4cffee302c25d6825db3b",
     "docs/android-java-api.md": "5078f86d4586d635776251e2f851b4f7fbabc705b27dc97115bd76645b3523c8",
+    "docs/api-history.json": "b21e63366e16425e4632e4ab8758afb9679eaea857c5944707234f5d5474ce60",
     "docs/api-lifecycle.md": "32a4f807d08aa66745f8c50fd5fc5f29fc27288a6a14af3fd1d3f7d04bf819e5",
     "docs/api-reference.json": "bb3ff88d988aebd7c6513922e57474caad9e1f81cae284dc699e055d11f031ce",
     "docs/compatibility.md": "c46de2fd3ab7eb58a47d878f617ef342239854445e154d109000b4fef70b369f",
@@ -176,8 +177,9 @@
     "ios/verify.py": "34754e0d4f00a4103acca9c121b1175a7c999a4bcdcae887c15bb1d6cc0dfa3e",
     "ios/verify.sh": "36c677a8b53d47b35ef96fd47fb4202ab6804ab1fd62c2ae12c20a544af43c7a",
     "sdk-lock.json": "0169c7ddda8b447912fc13ffae5e5cc9c7fe8d8345860853d9441bf8006ad599",
+    "tools/check-api-history.py": "3ddedb0ae8d402b199b2be4185fc08c5cbfe0b3445c2e5696061d218efefee73",
     "tools/check-api-reference.py": "ea8a928ba1619f0d12e32a25b63f4765df24b4a5a6d17b1b36c5314f7670c411",
-    "tools/check-samples.py": "94d3ce2ea2f2ed8af36c6741bc26fde3bf502a8ca2508cd05c7e9fa65258de99",
+    "tools/check-samples.py": "dfe656ef980e46467741f1f657d19cba29163de2997aff77ceb411490d2add7d",
     "tools/collect-evidence.py": "a38ab954cca010099ec6587a7025adaae887d598f7d8a169a17dc4e303d08553"
   },
   "generated_build_identity": {

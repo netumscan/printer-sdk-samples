@@ -144,9 +144,17 @@ def check(root):
     reference.__file__ = str(reference_tool)
     exec(compile(reference_tool.read_bytes(), str(reference_tool), "exec"), reference.__dict__)
     reference_report = reference.check(root)
+    history_tool = root / "tools/check-api-history.py"
+    if history_tool.is_symlink() or not history_tool.is_file():
+        raise ValueError("Missing published API history checker")
+    history = types.ModuleType("samples_api_history_gate")
+    history.__file__ = str(history_tool)
+    exec(compile(history_tool.read_bytes(), str(history_tool), "exec"), history.__dict__)
+    history_report = history.check(root)
     # Only these exact, fully verified outputs may contain reviewed compiler
     # identifiers (for example c:@T@NSTimeInterval), never arbitrary templates.
-    reference_files = {"docs/api-reference.json", "docs/android-java-api.md", "docs/ios-swift-api.md"}
+    reference_files = {"docs/api-reference.json", "docs/android-java-api.md", "docs/ios-swift-api.md",
+                       "docs/api-history.json"}
     prohibited = re.compile(
         r"/Users/[A-Za-z0-9_.-]+/|/home/[A-Za-z0-9_.-]+/|XCLocalSwiftPackageReference|mavenLocal\s*\(|"
         r"implementation\s*\(\s*project\s*\(|"
@@ -179,7 +187,7 @@ def check(root):
                 if target and (not linked.is_relative_to(root.resolve()) or not linked.exists()):
                     raise ValueError("Broken sample documentation link in " + name + ": " + link)
     return {"verified": True, "sdk_version": version, "files_verified": len(actual), "hardware_verified": False,
-            "api_reference": reference_report}
+            "api_reference": reference_report, "api_history": history_report}
 
 
 if __name__ == "__main__":
