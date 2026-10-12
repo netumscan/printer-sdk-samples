@@ -13,12 +13,53 @@ import zipfile
 from pathlib import Path
 
 IOS = Path(__file__).resolve().parent
-VERSION = "0.2.0-preview.2"
-REVISION = "b629ccc1aeddf0370a3845cfb3f47152df0e9a5d"
-CHECKSUM = "c0e7afc018ef533ab5868867446897d77b6f6b0f6531c8639b1d3699287fdeab"
+SDK_LOCK = json.loads((IOS.parent / "sdk-lock.json").read_text())
+VERSION = SDK_LOCK["version"]
+REVISION = SDK_LOCK["ios"]["revision"]
+CHECKSUM = SDK_LOCK["ios"]["xcframework_sha256"]
 REPOSITORY = "https://github.com/netumscan/printer-sdk-ios"
 ARTIFACT_URL = REPOSITORY + "/releases/download/v" + VERSION + "/PrinterSDK.xcframework.zip"
 SCHEMES = {"PrinterQuickStart": "quickstart", "PrinterFullDemo": "fulldemo"}
+
+
+def verify_runtime_compatibility(container, app, previous_journal=b""):
+    resource = json.loads((app / "printer-sdk-samples-build.json").read_text())
+    identity = resource.get("identity") if isinstance(resource, dict) else None
+    abi = SDK_LOCK.get("c_abi")
+    abi = re.fullmatch(r"([1-9][0-9]*)/r([1-9][0-9]*)", abi) if isinstance(abi, str) else None
+    if (not isinstance(resource, dict) or type(resource.get("schema_version")) is not int
+            or resource["schema_version"] != 1 or not isinstance(identity, dict) or abi is None):
+        raise SystemExit("Full Demo diagnostic identity resource differs from the SDK lock")
+    expected = {"distribution_version": VERSION, "release_commit": REVISION, "artifact_sha256": CHECKSUM,
+                "core_version": SDK_LOCK["native_sdk_version"],
+                "abi_version": int(abi[1]), "abi_revision": int(abi[2])}
+    if {key: identity.get("sdk_" + key) for key in expected} != expected:
+        raise SystemExit("Full Demo diagnostic identity resource differs from the SDK lock")
+    expected.update(identity_source="distribution_manifest", abi_source="runtime")
+    journal = Path(container) / "Library/Application Support/NETUMPrinterDemo/logs/journal-0.log"
+    for attempt in range(20):
+        if journal.is_file() and journal.stat().st_size <= 1024 * 1024:
+            current_journal = journal.read_bytes()
+            if current_journal == previous_journal:
+                time.sleep(0.25)
+                continue
+            added = current_journal[len(previous_journal):] if current_journal.startswith(previous_journal) else current_journal
+            lines = added.decode().splitlines()
+            records = [line.split("compatibility_record=", 1)[1] for line in lines if "compatibility_record=" in line]
+            if records:
+                record = json.loads(records[-1])
+                if (not isinstance(record, dict) or type(record.get("schema_version")) is not int
+                        or record["schema_version"] != 1 or record.get("sdk") != expected
+                        or record.get("demo") != {"source_fingerprint": identity["demo_source_fingerprint"],
+                                                   "build_version": identity["demo_build_version"]}
+                        or record.get("hardware_verified") is not False
+                        or record.get("runtime", {}).get("platform") != "ios"
+                        or record.get("runtime", {}).get("transport") != "bluetooth_ble"
+                        or record.get("known_limitations") != ["hardware_acceptance_deferred", "data_sent_is_not_printed", "no_automatic_replay"]):
+                    raise SystemExit("Running Full Demo diagnostic identity differs from the verified public SDK")
+                return {"record": record, "journal_sha256": hashlib.sha256(current_journal).hexdigest()}
+        time.sleep(0.25)
+    raise SystemExit("Running Full Demo did not produce its compatibility record")
 
 
 def digest(path):
@@ -81,6 +122,7 @@ def main():
     validate_pin(resolved)
     pinned_bytes = resolved.read_bytes()
     common = ["xcodebuild", "-project", project, "-disablePackageRepositoryCache",
+              "-packageAuthorizationProvider", "netrc",
               "-packageCachePath", output / "package-cache", "-clonedSourcePackagesDirPath", output / "source-packages",
               "-onlyUsePackageVersionsFromResolvedFile"]
     run(common + ["-scheme", "PrinterQuickStart", "-resolvePackageDependencies"])
@@ -140,6 +182,10 @@ def main():
                 raise SystemExit("Unexpected sample application identity")
             if framework_info.get("CFBundleIdentifier") != "com.netumscan.printersdk.core":
                 raise SystemExit("Unexpected embedded SDK identity")
+            if scheme == "PrinterFullDemo":
+                identity = "printer-sdk-samples-build.json"
+                if (app / identity).read_bytes() != (IOS / "full-demo" / identity).read_bytes():
+                    raise SystemExit("Diagnostic build identity was not embedded unchanged")
             run(["xcrun", "lipo", app / scheme, "-verify_arch", arch])
             run(["xcrun", "lipo", framework / "CPrinterSDK", "-verify_arch", arch])
             symbols = run(["xcrun", "nm", "-gU", framework / "CPrinterSDK"])
@@ -156,10 +202,12 @@ def main():
             if sdk == "iphonesimulator" and arch == simulator_arch:
                 simulator_apps[scheme] = app
     evidence = {"success": True, "sdk_version": VERSION, "sdk_revision": REVISION,
+                "compatibility_identity_verified": True,
                 "repository_url": REPOSITORY, "artifact_url": ARTIFACT_URL, "binary_sha256": CHECKSUM,
                 "online_only": True, "fresh_package_cache": True, "download_matches_swiftpm_artifact": True,
                 "builds": builds, "hardware_verified": False, "physical_device_installed": False,
                 "simulator_runtime": False}
+    evidence["runtime_compatibility_verified"] = False
     if not args.skip_runtime:
         devices = json.loads(run(["xcrun", "simctl", "list", "devices", "available", "--json"]))["devices"]
         candidates = [device for runtime, group in devices.items() if ".iOS-" in runtime
@@ -189,6 +237,10 @@ def main():
             run(["codesign", "--force", "--deep", "--sign", "-", app])
             run(["xcrun", "simctl", "install", udid, app])
             bundle_id = "com.netumscan.printersdk.samples." + SCHEMES[scheme]
+            if scheme == "PrinterFullDemo":
+                container = run(["xcrun", "simctl", "get_app_container", udid, bundle_id, "data"]).strip()
+                journal = Path(container) / "Library/Application Support/NETUMPrinterDemo/logs/journal-0.log"
+                previous_journal = journal.read_bytes() if journal.is_file() else b""
             run(["xcrun", "simctl", "launch", "--terminate-running-process", udid, bundle_id])
             time.sleep(1)
             processes = run(["xcrun", "simctl", "spawn", udid, "launchctl", "list"])
@@ -196,6 +248,9 @@ def main():
                 raise SystemExit("Sample app exited during simulator launch: " + scheme)
             run(["xcrun", "simctl", "io", udid, "screenshot", output / (scheme + ".png")])
             launched.append(scheme)
+            if scheme == "PrinterFullDemo":
+                evidence["runtime_compatibility"] = verify_runtime_compatibility(container, app, previous_journal)
+                evidence["runtime_compatibility_verified"] = True
         evidence.update(simulator_runtime=True, simulator_name=simulator["name"], tests_passed=4, tests_failed=0,
                         tests_skipped=0, simulator_apps_launched=launched)
     if resolved.read_bytes() != pinned_bytes:

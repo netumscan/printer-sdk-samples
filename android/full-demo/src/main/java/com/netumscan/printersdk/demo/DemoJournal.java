@@ -17,7 +17,7 @@ final class DemoJournal implements AutoCloseable {
     interface Clock { long wall(); long elapsed(); }
     private static final DateTimeFormatter UTC = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
     private static final Pattern PRIVATE = Pattern.compile("(?i)(?:content|file|https?)://|[0-9a-f]{2}(?::[0-9a-f]{2}){5}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|(?:^|\\s)/(?:[^\\s/]+/)+[^\\s]*");
-    private static final Pattern PRIVATE_FIELD = Pattern.compile("(?i)(?:image(?:name|path)?|file(?:name|path)|uri|path|exif|raw(?:bytes|payload)?|pixels|device(?:name|id|address)?|address|identifier|mac)\\s*[:=]");
+    private static final Pattern PRIVATE_FIELD = Pattern.compile("(?i)(?:image(?:name|path|content)?|file(?:name|path)|uri|path|exif|raw(?:bytes|payload|input)?|pixels|device(?:name|id|address|serial)?|address|identifier|mac|serial(?:number|_number)?|print(?:content|payload)|signing(?:identity|certificate|key|team)?|teamid|certificate|privatekey)\\s*[:=]");
     private static final Pattern WALL = Pattern.compile("(?:^| )utc_ms=(\\d+) "), SEQUENCE = Pattern.compile(" seq=(\\d+) ");
     private static final Pattern RECORD = Pattern.compile("^utc=[0-9TZ:.\\-]+ utc_ms=[0-9]+ elapsed_ms=[0-9]+ run=[0-9a-f]{16} connection=[0-9]+ seq=[0-9]+ message=.*$");
     private static final ExecutorService worker = Executors.newSingleThreadExecutor(task -> {

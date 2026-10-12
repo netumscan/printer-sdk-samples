@@ -1,6 +1,6 @@
 # printer-sdk-samples
 
-NETUM 打印机 SDK 的 MIT 许可应用示例。Android 与 iOS 均固定接入在线 SDK **0.2.0-preview.2**。
+NETUM 打印机 SDK 的 MIT 许可应用示例。Android 与 iOS 均固定接入在线 SDK **0.2.0-preview.3**。
 克隆本仓库即可构建，无需访问 SDK 私有开发仓库。
 
 | 平台 | 最小接入 | 完整示例 |
@@ -11,12 +11,15 @@ NETUM 打印机 SDK 的 MIT 许可应用示例。Android 与 iOS 均固定接入
 Quick Start 展示最小的发现/选择、连接、显式提交、状态与释放流程。Full Demo 提供
 标签/小票图片、配置、取消、Raw 命令与诊断界面。打印只在用户明确操作后发生。
 
+[客户指南](docs/README.md) 统一说明 SDK 接入与权限、API 生命周期和 FeatureSupport、
+纸张配置、错误码、兼容诊断、迁移及安全反馈；平台构建命令仍见各端指南。
+
 ## 构建
 
 - Android：JDK 17、Gradle 8.13、Android SDK Platform 35。见 [Android 指南](android/README.md)。
 - iOS：Xcode 15+（Swift 5.9+）、iOS 15+。见 [iOS 指南](ios/README.md)。
-- Android SDK：`com.netumscan:printer-sdk-android:0.2.0-preview.2`，来自 Maven Central。
-- iOS SDK：`https://github.com/netumscan/printer-sdk-ios`，Exact Version `0.2.0-preview.2`。
+- Android SDK：`com.netumscan:printer-sdk-android:0.2.0-preview.3`，来自 Maven Central。
+- iOS SDK：`https://github.com/netumscan/printer-sdk-ios`，Exact Version `0.2.0-preview.3`。
 
 依赖的版本、SDK 许可地址和已发布制品 SHA-256 见 [sdk-lock.json](sdk-lock.json)。
 仓库只包含应用示例源码；SDK 实现及二进制由对应的在线分发入口提供。
@@ -31,7 +34,7 @@ CI 不连接打印机、不发布 APK/IPA，也不使用任何签名密钥。
 两端 Full Demo 的功能源码统一从开发仓库的主 Demo 导出，来源路径及逐文件 SHA-256
 记录在 `samples-manifest.json` 的 `canonical_full_demos` 中。维护者的一键同步流程先
 验证来源一致性及两端在线接入，再推送 `codex/samples-sync-*` 候选分支；双端 CI 通过后
-才快进更新 `main`。现有标签与 Release 保持原样，SDK 依赖继续固定为 `0.2.0-preview.2`。
+才快进更新 `main`。现有标签与 Release 保持原样，SDK 依赖继续固定为 `0.2.0-preview.3`。
 请在开发仓库修改 Demo 后同步；直接修改公开导出文件会被完整性检查拒绝。
 
 版本发布包含四个示例的一致快照。请在

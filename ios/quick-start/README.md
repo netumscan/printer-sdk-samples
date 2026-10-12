@@ -1,5 +1,7 @@
 # iOS Quick Start
 
+See the shared [customer guide](../../docs/README.md) for SDK permissions and API lifecycle.
+
 Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
 `PrinterQuickStart` scheme and run on iOS 15+. Xcode 15+ resolves the exact public
 `PrinterSDK` version `0.2.0-preview.2`; no local SDK checkout is needed.

@@ -1,5 +1,7 @@
 # Android Full Demo
 
+统一诊断字段、兼容性边界和反馈方式见[客户指南](../../docs/README.md)。
+
 完整诊断应用提供 SPP / BLE 连接、已配对设备和 BLE 发现、图片导入与画布预览、CPCL 标签 / ESC/POS 小票、取消、Raw 命令及日志导出。示例不会自动重连或重放。
 
 ```sh

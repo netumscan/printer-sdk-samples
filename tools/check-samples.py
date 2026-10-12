@@ -37,19 +37,38 @@ def check(root):
         changes = [p for p in sorted(set(actual) | set(expected)) if actual.get(p) != expected.get(p)]
         raise ValueError("Sample snapshot differs: " + ", ".join(changes))
     canonical = manifest.get("canonical_full_demos", {})
+    generated = manifest.get("generated_build_identity", {})
+    identities = {"android/full-demo/src/main/assets/printer-sdk-samples-build.json",
+                  "ios/full-demo/printer-sdk-samples-build.json"}
+    if set(generated) != identities or any(actual.get(name) != checksum for name, checksum in generated.items()):
+        raise ValueError("Missing or changed generated diagnostic identity")
     origins = {"platform/android/demo/src/main": "android/full-demo/src/main/",
                "platform/ios/Demo": "ios/full-demo/"}
     if set(canonical) != set(origins):
         raise ValueError("Missing canonical Full Demo source inventory")
     for origin, target in origins.items():
         files = {name: value for name, value in actual.items()
-                 if name.startswith(target) and (origin.endswith("src/main") or name.endswith(".swift"))}
+                 if name.startswith(target) and name not in generated and (origin.endswith("src/main") or name.endswith(".swift"))}
         if not files or canonical[origin] != {"target": target, "files_sha256": files}:
             raise ValueError("Full Demo provenance differs from exported sources: " + origin)
     lock = json.loads((root / "sdk-lock.json").read_text())
     version = manifest["sdk_version"]
     if lock["version"] != version or lock["hardware_verified"] is not False:
         raise ValueError("SDK lock differs from sample version")
+    fingerprint = hashlib.sha256(json.dumps(canonical, sort_keys=True).encode()).hexdigest()
+    for platform, name in [("android", "android/full-demo/src/main/assets/printer-sdk-samples-build.json"),
+                           ("ios", "ios/full-demo/printer-sdk-samples-build.json")]:
+        resource = json.loads((root / name).read_text())
+        if resource.get("schema_version") != 1 or set(resource) != {"schema_version", "identity"}:
+            raise ValueError("Invalid diagnostic build identity resource")
+        identity = resource["identity"]
+        sdk = lock.get(platform, {})
+        if identity != {"sdk_distribution_version": version, "sdk_core_version": lock.get("native_sdk_version"),
+                        "sdk_abi_version": 2, "sdk_abi_revision": 10, "sdk_release_commit": sdk.get("revision"),
+                        "sdk_artifact_sha256": sdk.get("aar_sha256" if platform == "android" else "xcframework_sha256"),
+                        "demo_source_fingerprint": fingerprint,
+                        "demo_build_version": version + "+samples." + fingerprint[:12]}:
+            raise ValueError("Diagnostic identity differs from SDK pin or canonical source fingerprint")
     if "Permission is hereby granted, free of charge" not in (root / "LICENSE").read_text():
         raise ValueError("Missing MIT sample license")
     for sample in ("quick-start", "full-demo"):

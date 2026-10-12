@@ -1,5 +1,7 @@
 # Android 示例
 
+SDK 权限、生命周期、FeatureSupport、错误码和诊断字段见[客户指南](../docs/README.md)。
+
 两个独立 App 固定从 Maven Central 获取 `com.netumscan:printer-sdk-android:0.2.0-preview.2`，不依赖本地 SDK 源码或 AAR。
 
 | 示例 | 用途 | applicationId |

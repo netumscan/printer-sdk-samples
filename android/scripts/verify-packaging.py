@@ -11,8 +11,9 @@ import struct
 import subprocess
 import zipfile
 
-VERSION = "0.2.0-preview.2"
-AAR_SHA256 = "3e8c8ceb60df1c94187a95cf776d9776284a41db495b9a96dccdb17a00a85d0b"
+VERSION = "0.2.0-preview.3"
+SDK_LOCK = json.loads((Path(__file__).resolve().parents[2] / "sdk-lock.json").read_text())
+AAR_SHA256 = SDK_LOCK["android"]["aar_sha256"]
 ABIS = ("arm64-v8a", "armeabi-v7a", "x86_64")
 MODULES = {
     "quick-start": "com.netumscan.printersdk.samples.quickstart",
@@ -94,6 +95,10 @@ def inspect(root, module, application_id):
     if digest(aar) != AAR_SHA256:
         raise SystemExit(f"{module}: online AAR differs from pinned SDK {VERSION}")
     with zipfile.ZipFile(apk) as application, zipfile.ZipFile(aar) as library:
+        if module == "full-demo":
+            identity = "assets/printer-sdk-samples-build.json"
+            if application.read(identity) != (root / module / "src/main" / identity).read_bytes():
+                raise SystemExit("Diagnostic build identity was not embedded unchanged")
         abis = {name.split("/")[1] for name in application.namelist()
                 if name.startswith("lib/") and name.endswith(".so")}
         if abis != set(ABIS):
@@ -153,6 +158,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     report = {"version": VERSION, "coordinate": "com.netumscan:printer-sdk-android:" + VERSION,
+              "compatibility_identity_verified": True,
               "repository": "https://repo.maven.apache.org/maven2", "cpu_abis": list(ABIS),
               "hardware_verified": False,
               "applications": {name: inspect(args.android_root, name, app_id)

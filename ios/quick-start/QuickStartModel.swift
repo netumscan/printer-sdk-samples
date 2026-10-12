@@ -17,7 +17,7 @@ final class QuickStartModel: ObservableObject {
     @Published var printing = false
     @Published var dpi = "203"
     @Published var widthDots = "864"
-    @Published var status = "尚未连接 · SDK 0.2.0-preview.2"
+    @Published var status = "尚未连接 · SDK 0.2.0-preview.3"
 
     private let scanner = BLEScanner()
     private let worker = DispatchQueue(label: "PrinterQuickStart.worker")

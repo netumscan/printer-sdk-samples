@@ -53,6 +53,7 @@ public final class MainActivity extends Activity {
     private Runnable permissionAction;
     private int permissionRequest = PERMISSIONS, nextPermissionRequest = PERMISSIONS;
     private String exportText;
+    private DemoBuildIdentity buildIdentity = DemoBuildIdentity.unknown();
     private boolean scanning, previewing, utilityBusy, applyingFields, diskWarningShown, showingLogs;
     private boolean showingRaw, syncingCopies;
     private boolean pendingImportAfterDisconnect, imagePickerOpen, followingLogs = true, renderingLogs;
@@ -316,7 +317,8 @@ public final class MainActivity extends Activity {
             public void afterTextChanged(Editable value) { }
         });
         boolean restoredDraft = restoreEditDraft(saved);
-        log("SDK ABI 2/r10 / Android API " + Build.VERSION.SDK_INT + " / CPCL + ESC/POS");
+        buildIdentity = readBuildIdentity();
+        log("compatibility_record=" + compatibilityRecord().json());
         transportChanged(); updateButtons(PrinterController.Phase.OFFLINE);
         if (restoredDraft) {
             status("已保留填写参数；请重新选择设备并更新预览");
@@ -1145,9 +1147,10 @@ public final class MainActivity extends Activity {
     private void export() {
         if (!idle()) return;
         utilityBusy = true; updateButtons(controller.phase());
+        CompatibilityRecord compatibility = compatibilityRecord();
         images.execute(() -> {
             try {
-                String snapshot = journal.snapshot().get();
+                String snapshot = compatibility.exporting(journal.snapshot().get());
                 main.post(() -> {
                     if (isDestroyed()) return;
                     if (!started) { exportText = null; utilityFinished("已离开页面；未打开日志保存选择器"); return; }
@@ -1158,6 +1161,24 @@ public final class MainActivity extends Activity {
                 });
             } catch (InterruptedException | ExecutionException failure) { main.post(() -> utilityFinished("日志快照失败")); }
         });
+    }
+    private CompatibilityRecord compatibilityRecord() {
+        return new CompatibilityRecord(buildIdentity, Build.VERSION.RELEASE, ble() ? "bluetooth_ble" : "bluetooth_spp");
+    }
+    private DemoBuildIdentity readBuildIdentity() {
+        try (InputStream input = getAssets().open(DemoBuildIdentity.RESOURCE)) {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream(); byte[] chunk = new byte[1024]; int count;
+            while ((count = input.read(chunk)) != -1) {
+                if (bytes.size() + count > 16384) return DemoBuildIdentity.unknown();
+                bytes.write(chunk, 0, count);
+            }
+            org.json.JSONObject document = new org.json.JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
+            if (!DemoBuildIdentity.supportsSchema(document.opt("schema_version"))) return DemoBuildIdentity.unknown();
+            org.json.JSONObject identity = document.getJSONObject("identity");
+            Map<String, Object> values = new LinkedHashMap<>();
+            for (Iterator<String> keys = identity.keys(); keys.hasNext();) { String key = keys.next(); values.put(key, identity.get(key)); }
+            return new DemoBuildIdentity(values);
+        } catch (IOException | org.json.JSONException error) { return DemoBuildIdentity.unknown(); }
     }
     private void clearLogs() {
         if (!idle()) return;

@@ -38,7 +38,7 @@ public final class MainActivity extends Activity {
         button(content, "打印测试条纹（1 份）", view -> session.print());
         button(content, "查看连接状态", view -> session.connectionState());
         button(content, "关闭连接", view -> session.disconnect());
-        status = text(content, "未连接；SDK 0.2.0-preview.2，hardware_verified=false");
+        status = text(content, "未连接；SDK 0.2.0-preview.3，hardware_verified=false");
         session = new QuickStartSession(this, message -> runOnUiThread(() -> {
             if (!destroyed) status.setText(message);
         }));

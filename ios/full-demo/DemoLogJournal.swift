@@ -1,4 +1,99 @@
 import Foundation
+import CoreFoundation
+import CPrinterSDK
+
+/// Optional generated distribution identity; source builds leave unavailable facts nil.
+struct DemoBuildIdentity {
+    static let resource = "printer-sdk-samples-build"
+    let sdkDistributionVersion: String?
+    let sdkReleaseCommit: String?
+    let sdkArtifactSha256: String?
+    let sdkCoreVersion: String?
+    let sdkAbiVersion: Int?
+    let sdkAbiRevision: Int?
+    let demoSourceFingerprint: String?
+    let demoBuildVersion: String?
+
+    init(_ identity: [String: Any] = [:]) {
+        sdkDistributionVersion = Self.version(identity["sdk_distribution_version"])
+        sdkReleaseCommit = Self.digest(identity["sdk_release_commit"], count: 40)
+        sdkArtifactSha256 = Self.digest(identity["sdk_artifact_sha256"], count: 64)
+        sdkCoreVersion = Self.version(identity["sdk_core_version"])
+        sdkAbiVersion = Self.unsigned(identity["sdk_abi_version"])
+        sdkAbiRevision = Self.unsigned(identity["sdk_abi_revision"])
+        demoSourceFingerprint = Self.digest(identity["demo_source_fingerprint"], count: 64)
+        demoBuildVersion = Self.token(identity["demo_build_version"])
+    }
+    static func read(_ data: Data?) -> DemoBuildIdentity {
+        guard let data, data.count <= 16384,
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              unsigned(root["schema_version"]) == 1,
+              let identity = root["identity"] as? [String: Any] else { return DemoBuildIdentity() }
+        return DemoBuildIdentity(identity)
+    }
+    static func bundled(_ bundle: Bundle = .main) -> DemoBuildIdentity {
+        guard let resource = bundle.url(forResource: resource, withExtension: "json"),
+              let size = (try? resource.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, size <= 16384 else {
+            return DemoBuildIdentity()
+        }
+        return read(try? Data(contentsOf: resource))
+    }
+    var hasSDKIdentity: Bool {
+        sdkDistributionVersion != nil || sdkReleaseCommit != nil || sdkArtifactSha256 != nil ||
+            sdkCoreVersion != nil || sdkAbiVersion != nil || sdkAbiRevision != nil
+    }
+    private static func token(_ value: Any?) -> String? {
+        guard let value = value as? String,
+              value.range(of: "^[A-Za-z0-9][A-Za-z0-9._+\\-]{0,95}\\z", options: .regularExpression) != nil,
+              value.range(of: "^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\\z", options: [.regularExpression, .caseInsensitive]) == nil else { return nil }
+        return value
+    }
+    private static func version(_ value: Any?) -> String? {
+        guard let value = token(value),
+              value.range(of: "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9][A-Za-z0-9.\\-]*)?(?:\\+[A-Za-z0-9][A-Za-z0-9.\\-]*)?\\z", options: .regularExpression) != nil else { return nil }
+        return value
+    }
+    private static func digest(_ value: Any?, count: Int) -> String? {
+        guard let value = value as? String,
+              value.range(of: "^[0-9a-f]{\(count)}\\z", options: .regularExpression) != nil else { return nil }
+        return value
+    }
+    private static func unsigned(_ value: Any?) -> Int? {
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+              number.doubleValue >= 0, number.doubleValue <= Double(UInt32.max),
+              number.doubleValue == Double(number.int64Value) else { return nil }
+        return number.intValue
+    }
+}
+
+/// Local metadata only. Capturing ABI calls does not create a device or execute printer IO.
+struct DemoCompatibilityRecord {
+    static let schemaVersion = 1
+    let values: [String: Any]
+    init(identity: DemoBuildIdentity = .bundled(), osVersion: String, transport: String?,
+         abiVersion: Int? = Int(psdk_abi_version()), abiRevision: Int? = Int(psdk_abi_revision())) {
+        func value(_ value: Any?) -> Any { value ?? NSNull() }
+        let sdk: [String: Any] = [
+            "distribution_version": value(identity.sdkDistributionVersion), "core_version": value(identity.sdkCoreVersion),
+            "abi_version": value(abiVersion), "abi_revision": value(abiRevision),
+            "release_commit": value(identity.sdkReleaseCommit), "artifact_sha256": value(identity.sdkArtifactSha256),
+            "identity_source": value(identity.hasSDKIdentity ? "distribution_manifest" : nil),
+            "abi_source": value(abiVersion != nil && abiRevision != nil ? "runtime" : nil)
+        ]
+        let demo: [String: Any] = ["source_fingerprint": value(identity.demoSourceFingerprint), "build_version": value(identity.demoBuildVersion)]
+        let runtime: [String: Any] = ["platform": "ios",
+            "os_version": value(osVersion.range(of: "^[0-9]+(?:\\.[0-9]+){0,3}\\z", options: .regularExpression) != nil ? osVersion : nil),
+            "transport": value(transport == "bluetooth_spp" || transport == "bluetooth_ble" ? transport : nil)]
+        values = ["schema_version": Self.schemaVersion, "sdk": sdk, "demo": demo, "runtime": runtime,
+            "known_limitations": ["hardware_acceptance_deferred", "data_sent_is_not_printed", "no_automatic_replay"],
+            "hardware_verified": false]
+    }
+    func json() -> String {
+        // Every value above has a closed JSON type; optional facts are explicit nulls.
+        String(decoding: try! JSONSerialization.data(withJSONObject: values, options: [.sortedKeys, .withoutEscapingSlashes]), as: UTF8.self)
+    }
+    func exporting(_ journal: String) -> String { "compatibility_record=" + json() + "\n" + journal }
+}
 
 /// Append is nonblocking; all retained-file operations are ordered on this private queue.
 final class DemoLogJournal {
@@ -176,7 +271,7 @@ final class DemoLogJournal {
         for pattern in [
             "(?i)\\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\\b",
             "(?i)\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b",
-            "(?i)\\b(?:imageName|imagePath|imageContent|exif|rawPayload|rawBytes|rawInput|deviceId|deviceIdentifier|address|peripheralId|peripheralUUID|mac)\\s*=\\s*[^;\\n]*",
+            "(?i)\\b(?:imageName|imagePath|imageContent|exif|rawPayload|rawBytes|rawInput|deviceName|deviceId|deviceIdentifier|deviceSerial|address|peripheralId|peripheralUUID|mac|serial(?:number|_number)?|print(?:content|payload)|signing(?:identity|certificate|key|team)?|teamId|certificate|privateKey)\\s*[:=]\\s*[^;\\n]*",
             "(?:file://|/Users/|/private/|/var/|/tmp/)[^\\s;]+"
         ] {
             value = value.replacingOccurrences(of: pattern, with: "[redacted]", options: .regularExpression)

@@ -1,5 +1,8 @@
 # iOS Full Demo
 
+See the shared [customer guide](../../docs/README.md) for diagnostic records,
+compatibility boundaries and support.
+
 Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
 `PrinterFullDemo` scheme and run on iOS 15+. Xcode 15+ resolves the exact public
 `PrinterSDK` version `0.2.0-preview.2`; no local SDK checkout is needed.

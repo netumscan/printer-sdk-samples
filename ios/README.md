@@ -1,5 +1,8 @@
 # iOS samples
 
+See the shared [customer guide](../docs/README.md) for SDK permissions, lifecycle,
+FeatureSupport, errors, compatibility records and support boundaries.
+
 Open `PrinterSamples.xcodeproj` with Xcode 15 or newer (Swift 5.9+), then select a scheme:
 
 | Scheme | Source | Purpose |

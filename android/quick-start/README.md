@@ -1,5 +1,7 @@
 # Android Quick Start
 
+SDK 权限和 API 生命周期见[客户指南](../../docs/README.md)。
+
 最小 SPP / CPCL 接入：用户填写已配对设备地址和参数，显式授权、连接、提交一份 Gray8 标签，轮询任务状态并关闭。后台工作线程执行所有 SDK 操作。
 
 ```sh

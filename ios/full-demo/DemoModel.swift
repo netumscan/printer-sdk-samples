@@ -126,7 +126,7 @@ final class DemoModel: ObservableObject {
         self.rendering = rendering; self.consoleLogging = consoleLogging
         let store = imageStore
         rendering.async { store.cleanup() }
-        append("Printer Demo / iOS / ABI 2/r10 / CPCL + ESC/POS；DATA_SENT 不代表实际打印完成")
+        append("compatibility_record=" + compatibilityRecord().json())
         if consoleLogging { append("诊断日志已开启；请在界面选择设备与打印参数") }
     }
 
@@ -540,17 +540,22 @@ final class DemoModel: ObservableObject {
     func exportLogs(_ completion: @escaping (String) -> Void) {
         guard idle else { return }; localOperation = true
         let version = generation
+        let compatibility = compatibilityRecord()
         journal.snapshot { [weak self] result in
             DispatchQueue.main.async { [weak self] in
                 guard let self, !self.destroyed else { return }
                 self.localOperation = false
                 guard version == self.generation else { return }
                 switch result {
-                case .success(let text): completion(text)
+                case .success(let text): completion(compatibility.exporting(text))
                 case .failure: self.localFailure("日志快照失败；保留内存记录")
                 }
             }
         }
+    }
+    private func compatibilityRecord() -> DemoCompatibilityRecord {
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        return DemoCompatibilityRecord(osVersion: "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)", transport: "bluetooth_ble")
     }
     func clearLogs() {
         guard idle else { return }; localOperation = true
