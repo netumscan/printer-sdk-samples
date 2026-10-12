@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import stat
 import sys
+import types
 
 WRAPPER_JAR = "android/gradle/wrapper/gradle-wrapper.jar"
 WRAPPER_SHA256 = "81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f"
@@ -136,9 +137,19 @@ def check(root):
             expected_swift = {name for name in actual if name.startswith("ios/" + folder + "/") and name.endswith(".swift")}
             if len(compiled) != len(set(compiled)) or set(compiled) != expected_swift:
                 raise ValueError("Xcode source membership differs from exported Swift files: " + folder)
+    reference_tool = root / "tools/check-api-reference.py"
+    if not reference_tool.is_file():
+        raise ValueError("Missing complete Java/Swift API reference checker")
+    reference = types.ModuleType("samples_api_reference_gate")
+    reference.__file__ = str(reference_tool)
+    exec(compile(reference_tool.read_bytes(), str(reference_tool), "exec"), reference.__dict__)
+    reference_report = reference.check(root)
+    # Only these exact, fully verified outputs may contain reviewed compiler
+    # identifiers (for example c:@T@NSTimeInterval), never arbitrary templates.
+    reference_files = {"docs/api-reference.json", "docs/android-java-api.md", "docs/ios-swift-api.md"}
     prohibited = re.compile(
         r"/Users/[A-Za-z0-9_.-]+/|/home/[A-Za-z0-9_.-]+/|XCLocalSwiftPackageReference|mavenLocal\s*\(|"
-        r"implementation\s*\(\s*project\s*\(|@[A-Z][A-Z0-9_]*@|"
+        r"implementation\s*\(\s*project\s*\(|"
         r"-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY|"
         r"DEVELOPMENT_TEAM\s*=\s*[A-Z0-9]+|PROVISIONING_PROFILE(?:_SPECIFIER)?\s*=\s*[^;\s]+")
     for name in actual:
@@ -157,7 +168,7 @@ def check(root):
             text = path.read_text()
         except UnicodeDecodeError:
             raise ValueError("Unexpected binary sample source: " + name) from None
-        if prohibited.search(text):
+        if prohibited.search(text) or (name not in reference_files and re.search(r"@[A-Z][A-Z0-9_]*@", text)):
             raise ValueError("Local dependency, signing value or unresolved template: " + name)
         if path.suffix == ".md":
             for link in re.findall(r"(?<!!)\[[^\]\n]+\]\(([^)\n]+)\)", text):
@@ -167,7 +178,8 @@ def check(root):
                 linked = (path.parent / target).resolve()
                 if target and (not linked.is_relative_to(root.resolve()) or not linked.exists()):
                     raise ValueError("Broken sample documentation link in " + name + ": " + link)
-    return {"verified": True, "sdk_version": version, "files_verified": len(actual), "hardware_verified": False}
+    return {"verified": True, "sdk_version": version, "files_verified": len(actual), "hardware_verified": False,
+            "api_reference": reference_report}
 
 
 if __name__ == "__main__":

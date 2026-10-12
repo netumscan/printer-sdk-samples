@@ -1,0 +1,1053 @@
+{
+  "abi": {
+    "revision": 10,
+    "version": 2
+  },
+  "native_sdk_version": "0.2.0",
+  "platforms": {
+    "android": {
+      "annotations": {
+        "baseline_sha256": "8ad69087e4a965f7df4aa56f84b33dc6cfcf340ed3e8395f57155dfe449390a2",
+        "entries": {
+          "android:member:com.netumscan.printersdk.BleOptions$CreditFlowControl:1c434c73eb8d8d08": {
+            "details": "非 null，且不同于 `dataOut`。连接时订阅此特征，解析其信用信息并限制后续发送；等待信用也占用操作超时预算。通知不表示纸面打印完成；流控错误不会自动重放已发送数据。",
+            "summary": "Data Transmission V1.2 的信用流控通知特征 UUID。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions$CreditFlowControl:33abf9a6aa732f1e": {
+            "details": "参数 `dataOut`、`dataFC` 均不可为 null，且两者不得相等，否则同步抛出 `IllegalArgumentException`。返回新配置，不进行订阅。作为 `BleOptions.creditFlowControl` 使用时，还要求写特征不同于这两个 UUID，并使用无响应写入。",
+            "summary": "声明互不相同的数据通知与信用通知 UUID。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions$CreditFlowControl:e8f4989c9668b7e5": {
+            "details": "非 null，且不同于 `dataFC`。连接时须能在目标服务中找到该特征、NOTIFY 属性与 CCCD；SDK 订阅该特征以建立此固件要求的通知通道。当前公共 Java API 不提供数据通知回调，不能据此读取通用打印机状态。",
+            "summary": "Data Transmission V1.2 的数据通知特征 UUID。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions:0d32a05b9d9ca5ae": {
+            "details": "构造时必须非 null；连接时验证其具备所选的带响应或无响应写属性。启用信用流控时不得与两种通知特征 UUID 相同。特征不支持时连接失败，通常报告 `PrinterException` code 1004。",
+            "summary": "目标服务内用于发送打印数据的特征 UUID。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions:11c9b2aff8de43b4": {
+            "details": "合法范围为 23..517。23 表示沿用初始 MTU；大于 23 时请求 MTU 协商。请求值不保证等于协商结果，实际写包还受 `maxWriteBytes` 限制；没有自动将 MTU 请求值当成可用载荷大小的行为。",
+            "summary": "连接时请求的 ATT MTU，单位为字节。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions:5020202ee255a725": {
+            "details": "值为 null 表示不启用该流控；五参数构造器固定采用 null。非 null 时连接会订阅两种通知特征，并等待初始信用信息后才就绪；不能用它代替通用状态查询或打印完成确认。",
+            "summary": "可选的 Data Transmission V1.2 信用流控配置。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions:7cd4a0c376a401a5": {
+            "details": "参数 `service`、`writeCharacteristic` 不可为 null；`requestedMtu` 为 23..517 字节，`maxWriteBytes` 为 1..512 字节。`creditFlowControl` 可为 null；非 null 时 `withResponse` 必须为 false，且写特征必须不同于 `dataOut` 和 `dataFC`。该对象已保证两种通知特征互不相同。违反条件抛出 `IllegalArgumentException`。同步创建配置，不发起连接或订阅；GATT 属性和通知能力在 `connect()` 时验证。",
+            "summary": "创建带可选信用流控的 BLE 配置。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions:9349d0eb41799510": {
+            "details": "由构造参数显式指定，true 对应 `WRITE_TYPE_DEFAULT`，false 对应 `WRITE_TYPE_NO_RESPONSE`；启用信用流控时必须为 false。GATT 写回调或响应不表示纸面打印完成。没有可变 setter。",
+            "summary": "是否使用带响应的 GATT 特征写入。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions:c88f3fcaa589a6a9": {
+            "details": "参数 `service`、`writeCharacteristic` 为非 null 的服务和写特征 UUID；`withResponse` 为 true 时使用带响应写入，false 时使用无响应写入；`requestedMtu` 的范围为 23..517 字节，`maxWriteBytes` 的范围为 1..512 字节。等价于六参数构造器传入 `creditFlowControl=null`。配置非法抛出 `IllegalArgumentException`。同步返回新配置，不执行蓝牙 IO；没有隐式 MTU 或分包默认值。",
+            "summary": "创建不启用信用流控的 BLE 配置。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions:d1aa937cc2ea3c07": {
+            "details": "构造时必须非 null。连接后在该服务中查找写特征和可选通知特征；未知服务不会自动回退到其他服务。UUID 本身不证明设备型号或协议兼容性。",
+            "summary": "目标 BLE GATT 服务 UUID。"
+          },
+          "android:member:com.netumscan.printersdk.BleOptions:f96a0e16f66d9c02": {
+            "details": "合法范围为 1..512，由构造参数显式指定。实际单包长度不超过此值与协商 MTU 减 3 的较小值；启用信用流控时还受信用额度约束。这是传输分包上限，不是光栅条带高度或完整作业大小限制。",
+            "summary": "单次 BLE 写入的数据长度上限，单位为字节。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery$Device:278808084302b914": {
+            "details": "非 null 且不可修改；BLE 结果合并同一地址历次广播中的服务 UUID 并去重。广播未携带服务或结果来自已配对快照时为空表。空表表示未观察到，不表示设备不支持服务；该列表不是连接后完整的 GATT 服务发现结果。",
+            "summary": "该扫描窗口已观察到的服务 UUID 字符串只读列表。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery$Device:4911150c511b5cd7": {
+            "details": "BLE 结果使用 Android `ScanResult.getRssi()` 的整数值；已配对列表未测量 RSSI，使用 null。RSSI 仅供展示接收信号信息，不保证距离或连接质量，也不参与型号判定。",
+            "summary": "最近一次 BLE 扫描结果的可选 RSSI，单位为 dBm。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery$Device:77409202b35ac1a5": {
+            "details": "未知、空串或全空白名称为 null。BLE 扫描优先使用广播名称，其次系统名称，再保留该请求中此前已知的名称；已配对快照使用系统名称。用于显示，不应用于自动确认协议或硬件支持。",
+            "summary": "经过首尾空白规范化的可选设备名称。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery$Device:b1aeb5a5c56be66f": {
+            "details": "作为当前结果内去重及后续设备工厂连接的地址使用；SDK 会跳过空白地址。地址属于设备标识，日志或对外诊断应按客户隐私要求脱敏。它不证明型号，也不保证设备当前在线。",
+            "summary": "系统返回的非空蓝牙设备地址。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery$Listener:88ba7237b2eeba9a": {
+            "details": "参数 `devices` 为非 null 的只读结果表；`errorCode=0` 表示扫描时间窗正常结束，空表也属于成功。失败或取消时列表为空：1002 表示权限/蓝牙状态/重叠扫描问题，1004 表示不支持，2003 表示平台扫描 IO 失败，1005 表示调用方停止。方法无返回值；回调在主线程恰好执行一次，SDK 不在此回调内自动连接。",
+            "summary": "在主线程接收扫描时间窗、失败或取消的完成通知。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery:35126e77bf34ca0c": {
+            "details": "参数 `service` 可为 null，表示不按服务过滤；非 null 时只使用该服务 UUID 的系统扫描过滤器。`durationMs` 为 1..60000 毫秒，`completion` 不可为 null；非法参数在调用线程同步抛出 `IllegalArgumentException`。方法将请求投递到主线程后返回；完成在主线程恰好回调一次。完整时间窗成功可返回空表，设备按地址去重，名称及服务信息随广播合并。只允许一个活动扫描；重叠请求回调 1002。权限/蓝牙状态错误通常为 1002，不支持为 1004，扫描平台失败为 2003，停止为 1005；失败/取消一律返回空表。回调不自动连接设备；调用方自行处理权限和前台生命周期。",
+            "summary": "在有限时间窗内异步收集 BLE 广播候选。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery:4ea301e96fb6a008": {
+            "details": "无参数。同步读取系统已配对集合，按 `address` 排序，返回非 null 的不可修改 `List<Device>`，可为空。每项 `name` 未知时为 null，`rssi` 为 null，`advertisedServices` 为空表。不会发起发现或连接；缺少权限/非法状态映射为 `PrinterException` code 1002，不支持为 1004，其他平台运行时错误为 2003。调用方自行决定展示或筛选，配对不证明是打印机。",
+            "summary": "获取已配对蓝牙设备的排序、只读快照。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery:71f6e6626cb069d2": {
+            "details": "无参数、无返回值，等价于 `stop()`，停止动作在主线程异步执行。活动请求会收到取消回调 1005；可重复调用，调用后仍可再次 `scanBle()`。它没有永久关闭或销毁此发现实例的语义。",
+            "summary": "按 AutoCloseable 约定停止当前扫描。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery:81294639c41765b7": {
+            "details": "无参数、无返回值，将停止动作投递到主线程。活动请求以空列表和 errorCode 1005 完成一次；没有活动请求时不做任何事。重复调用安全，不影响已经完成的请求，也不撤销候选选择或断开其他打印连接。",
+            "summary": "异步取消当前扫描，实例保持可复用。"
+          },
+          "android:member:com.netumscan.printersdk.BluetoothDiscovery:b7eaac504d92422e": {
+            "details": "参数 `context` 必须为有效非 null 的 Android `Context`，用于取得 `BluetoothManager`。没有可用蓝牙适配器时抛出 `PrinterException` code 1004；不主动打开蓝牙或申请权限。同步创建，不启动扫描，不保留发现结果的全局缓存。",
+            "summary": "从 Android 系统服务创建发现实例。"
+          },
+          "android:member:com.netumscan.printersdk.CpclProfile:442cf4821daf3658": {
+            "details": "范围为 1..65535，由调用方按设备约束声明。显式标签提交的 `originY + height + trailingBlankDots` 须不超过它；此值不乘 copies，也不是整单累计长度或手机内存承诺。",
+            "summary": "一张标签的最大页高，单位为 dots。"
+          },
+          "android:member:com.netumscan.printersdk.CpclProfile:6df5f7cd5045db8d": {
+            "details": "true 使 `submitGray8()` 使用下一标签开始策略（CPCL FORM）；false 使用内容结束策略。它不选择 GAP/BLACK_MARK/CONTINUOUS、不校准传感器，也不验证纸张实际位置。`submitLabelGray8()` 的 `form` 参数独立覆盖该默认值，Raw 不受影响。",
+            "summary": "兼容图像入口默认采用的标签结束策略。"
+          },
+          "android:member:com.netumscan.printersdk.CpclProfile:7002d48a5c80a84b": {
+            "details": "参数 `dpi` 为正整数；`widthDots` 为 8..7992 dots，必须为 8 的倍数；`maxLabelHeightDots` 为 1..65535 dots；`form` 指定兼容 `submitGray8()` 的下一标签开始结束策略。等价于五参数构造器传入 `xOffsetDots=0`。非法几何同步抛出 `IllegalArgumentException`；不执行 IO，不自动推断纸宽。",
+            "summary": "创建水平原点为零的 CPCL 配置。"
+          },
+          "android:member:com.netumscan.printersdk.CpclProfile:8f3cfa075f5b2a1c": {
+            "details": "参数 `dpi` 为正整数；`widthDots` 为 8..7992 dots 且为 8 的倍数；`maxLabelHeightDots` 为 1..65535 dots；`xOffsetDots` 为 0..`widthDots-1`；`form` 指定兼容图像提交的结束策略。非法参数同步抛出 `IllegalArgumentException`。偏移不会扩大可打印宽度或裁剪图片：提交时偏移加按整字节补齐的图宽仍须落在设备宽度内。显式标签提交可另设原点/结束策略；Raw 命令不受此配置改写。",
+            "summary": "创建带水平光栅原点的 CPCL 配置。"
+          },
+          "android:member:com.netumscan.printersdk.CpclProfile:a54ea9eab4fa22b3": {
+            "details": "由构造器要求为正整数，没有型号默认值。Java 包装将其用于标签作业的 X/Y DPI 和几何校验；它不自动改变打印机物理分辨率，必须与实际设备匹配。",
+            "summary": "显式声明的打印密度，单位为 dots per inch。"
+          },
+          "android:member:com.netumscan.printersdk.CpclProfile:af181a7757d57091": {
+            "details": "四参数构造器默认值为 0；显式值必须小于 `widthDots`。仅 `submitGray8()` 继承此值，`submitLabelGray8()` 使用自己的 `originX`。原点不改变输入图尺寸或 Raw 字节，超界不自动裁剪。",
+            "summary": "兼容图像入口默认的非负水平原点，单位为 dots。"
+          },
+          "android:member:com.netumscan.printersdk.CpclProfile:d1f158b9ba2a99a4": {
+            "details": "范围为 8..7992，必须为 8 的倍数。输入图片可窄于该值；SDK 不自动缩放，实际图宽按 8 点补齐后再加水平原点不得超过此上限。纸张毫米宽度或蓝牙包长均不能直接代入。",
+            "summary": "设备可打印的最大光栅宽度，单位为 dots。"
+          },
+          "android:member:com.netumscan.printersdk.EscPosProfile:13dfdc2812e6b642": {
+            "details": "参数 `dpi` 为 1..255 dots per inch，`widthDots` 为 8..7992 dots 且为 8 的倍数。超出范围同步抛出 `IllegalArgumentException`。两值都必须显式提供，没有型号默认值；构造不连接或设置硬件。",
+            "summary": "创建 ESC/POS 光栅几何配置。"
+          },
+          "android:member:com.netumscan.printersdk.EscPosProfile:a54ea9eab4fa22b3": {
+            "details": "范围为 1..255，由构造参数指定；用于与设备配置一致的 X/Y DPI。它不测量打印头、不自动改变硬件分辨率，配置值须经调用方核实。",
+            "summary": "ESC/POS 作业声明的打印密度，单位为 dots per inch。"
+          },
+          "android:member:com.netumscan.printersdk.EscPosProfile:d1f158b9ba2a99a4": {
+            "details": "范围为 8..7992，必须为 8 的倍数。整张小票图片可窄于该值；按 8 点补齐后的图宽必须在此范围内，不自动缩放或裁剪，也不等同于纸张毫米宽度。",
+            "summary": "ESC/POS 设备可打印的最大光栅宽度，单位为 dots。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:12fee7f020c6e236": {
+            "details": "属于 `deviceSupport` 的取值。未知不能当作支持，也不能当作明确不支持；应保持未知并结合实现与证据展示。",
+            "summary": "设备支持值 0：设备支持情况未知。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:258ec4eedffc58f1": {
+            "details": "属于 `implementation` 的取值；不表示硬件永远不支持，调用当前未实现操作通常收到 1004。与同为 0 的设备 UNKNOWN 属于不同维度。",
+            "summary": "实现类别值 0：SDK 尚无该功能实现。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:2660f6d171c11793": {
+            "details": "属于 `deviceSupport` 的取值。只有同时存在 SDK 实现时 `isSupported()` 才为 true；仍须另看 evidence 是否包含硬件验证。",
+            "summary": "设备支持值 2：设备支持已知为支持。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:296a3a40ae4f87ce": {
+            "details": "用于 `evidence` 的位掩码，不是实现类别。显式配置声明未经过设备探测或纸面验证，不能提升为 DEVICE_REPORTED 或 HARDWARE_VERIFIED。",
+            "summary": "证据位 1：支持信息来自配置档案声明。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:6dfcca999e954a11": {
+            "details": "当前定义为 UNKNOWN=0、UNSUPPORTED=1、SUPPORTED=2。UNKNOWN 表示没有足够证据，不等于 UNSUPPORTED；显式打印参数和协议编码存在也不能推导为 SUPPORTED。字段只读，配合 `implementation` 与 `evidence` 使用。",
+            "summary": "该功能在设备上的支持知识状态。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:6e6ae85ee79f4469": {
+            "details": "属于 `implementation` 的取值，当前图像能力使用该类别。它不意味着设备支持所有业务元素；应用仍需提供受支持的整图格式和尺寸。",
+            "summary": "实现类别值 2：功能使用主机侧渲染或处理路径。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:7384e00424860bf1": {
+            "details": "用于 `evidence` 的位掩码。该位表达设备自报来源；不保证报告已被物理打印验证，也不能因为发现了广播或蓝牙名称而自行设置。",
+            "summary": "证据位 2：支持信息由设备报告。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:751796123f4e2c80": {
+            "details": "无参数，仅在 `isImplemented()` 为 true 且 `deviceSupport == SUPPORTED` 时返回 true。UNKNOWN 与 UNSUPPORTED 都返回 false，不能用 false 反推设备必定不支持。此判断不要求 HARDWARE_VERIFIED 位，仍应单独检查证据。",
+            "summary": "判断实现可用且设备支持已明确为支持。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:958eb37813714ec1": {
+            "details": "PROFILE_DECLARED=1、DEVICE_REPORTED=2、HARDWARE_VERIFIED=4 可按位组合，0 表示没有对应证据。应使用按位与测试目标位；配置声明或设备自报均不能替代硬件验证。读取快照不会触发新的查询或验收。",
+            "summary": "支持声明的证据位掩码。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:9ad48e1c07766934": {
+            "details": "当前定义为 NOT_IMPLEMENTED=0、NATIVE=1、HOST_RENDERED=2。它描述实现路径而非设备能力；使用 `isImplemented()` 可保留对将来非零实现值的保守兼容。字段只读，读取不执行 IO。",
+            "summary": "该功能的 SDK 实现类别整数。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:9c09323ac8e6906f": {
+            "details": "属于 `implementation` 的取值；与设备平台原生句柄无关。此值不说明 `deviceSupport` 已知，更不说明硬件已经验证。",
+            "summary": "实现类别值 1：SDK 具有原生协议实现路径。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:9f723c20b86e9048": {
+            "details": "无参数，返回 `implementation != NOT_IMPLEMENTED`。NATIVE 与 HOST_RENDERED 都返回 true；不读取设备、不执行 IO。该结果不检查 `deviceSupport` 或证据，不是当前硬件可用或打印已验收的保证。",
+            "summary": "判断 SDK 是否存在该功能的实现路径。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:a41dc2f2bd9542ff": {
+            "details": "用于 `evidence` 的位掩码，应通过按位与检查。当前预览版软件接入验证不授予该位，`hardware_verified=false` 保持；配置、模拟器成功或数据发送完成都不等同于硬件验收。",
+            "summary": "证据位 4：存在硬件验证证据。"
+          },
+          "android:member:com.netumscan.printersdk.FeatureSupport:cc394616ff0eb36c": {
+            "details": "属于 `deviceSupport` 的取值，与 SDK 是否实现分别表达。`isSupported()` 对该值返回 false；不能仅凭 NOT_IMPLEMENTED 推断此值。",
+            "summary": "设备支持值 1：已知设备不支持该功能。"
+          },
+          "android:member:com.netumscan.printersdk.M90Profile:fadbe287c9213756": {
+            "details": "参数 `requestedMtu` 为 23..517 字节，`maxWriteBytes` 为 1..512 字节；非法值由 `BleOptions` 抛出 `IllegalArgumentException`。返回非 null `BleOptions`：服务 `0000ff00-0000-1000-8000-00805f9b34fb`、写特征 FF02、数据通知 FF01、信用通知 FF03（后三者使用相同蓝牙基础 UUID），`withResponse=false`。同步创建，不连接设备；预设仅依据固件文档，不证明硬件支持。",
+            "summary": "创建 M90 V1.2 无响应写入与信用流控配置。"
+          },
+          "android:member:com.netumscan.printersdk.MediaMode:25dac0f8c6207093": {
+            "details": "参数 `name` 必须为非 null 且大小写精确的 `GAP`、`BLACK_MARK` 或 `CONTINUOUS`；返回对应枚举常量。Java 自动生成此方法：null 抛出 `NullPointerException`，未匹配名称抛出 `IllegalArgumentException`。不按显示名称、数字或 ordinal 解析，不执行 IO。",
+            "summary": "按精确枚举名称查找介质模式。"
+          },
+          "android:member:com.netumscan.printersdk.MediaMode:4b03b38b1cbe2f6a": {
+            "details": "用于已装入间隙标签的 CPCL 跟踪设置；不自动测量间隙、设置标签尺寸或执行校准。调用 `setMedia()` 仍可能因设备/协议不支持而失败，成功只证明命令数据已发送。",
+            "summary": "间隙标签的介质跟踪模式。"
+          },
+          "android:member:com.netumscan.printersdk.MediaMode:cf069c583bcf0729": {
+            "details": "用于 CPCL 连续介质跟踪设置；不会自动将标签作业转换为 ESC/POS 小票，也不控制切刀。应用须提供匹配的纸张和打印参数。",
+            "summary": "连续纸的介质跟踪模式。"
+          },
+          "android:member:com.netumscan.printersdk.MediaMode:e6138ae9aa44ee4e": {
+            "details": "无参数，返回新数组 `[GAP, BLACK_MARK, CONTINUOUS]`。这是 Java 枚举自动生成的辅助方法；修改返回数组不改变枚举常量集合。顺序仅用于枚举展示，不能推断设备支持或协议数值。",
+            "summary": "返回按声明顺序排列的介质枚举数组。"
+          },
+          "android:member:com.netumscan.printersdk.MediaMode:f19064fdd38fb10e": {
+            "details": "用于已装入黑标介质的 CPCL 跟踪设置；不测量标记长度、偏移或纸张位置，不执行传感器校准。枚举存在不表示所有设备固件支持该模式。",
+            "summary": "黑标介质的跟踪模式。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter$TaskEvent:09b6d93c4ce76763": {
+            "details": "true 表示已有写入尝试/输出等副作用风险，即使最终失败或取消也不能假定没有打印。false 不等同于状态成功；遇到 true 的不确定结果应由应用人工或业务规则决定后续操作，不自动重放。",
+            "summary": "是否可能已经对打印机产生外部副作用。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter$TaskEvent:0f938395cfdf79ab": {
+            "details": "成功为 0；失败/取消参考 PrinterException.description() 的码表，取消通常 1005，超时 2001，断线 2002。非终态不能仅凭 error=0 认定成功，应先判断 state。消息供诊断，业务逻辑以数值与状态为准。",
+            "summary": "操作的稳定数值错误码。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter$TaskEvent:133a69f5ab94fe8b": {
+            "details": "只有 `(byteCountFlags & 2) != 0` 才能使用。标志未设置时即使值为 0，也表示总量未知而非零字节工作；流式编码通常不能提前给出确定总量。",
+            "summary": "已知时的总发送字节数，单位为 bytes。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter$TaskEvent:26be605f3fdc9e9c": {
+            "details": "用于将轮询结果关联到 submitGray8/submitRaw/setMediaMode/feedToNextLabel，并传给本设备 `cancel(long)`。它由 Java 便捷层分配，不是 PrintOperation.Snapshot.id，也不能跨设备使用。",
+            "summary": "便捷 task 方法返回的本设备任务 ID。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter$TaskEvent:47d05db295c29a6c": {
+            "details": "当前值为 QUEUED=0、PREPARING=1、SENDING=2、COMPLETED=4、FAILED=5、CANCELLED=6；4/5/6 为终态。完成仅表示传输操作结束，应另看 completion/error/sideEffectsPossible，不能推断物理打印完成。",
+            "summary": "兼容任务当前操作状态整数。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter$TaskEvent:8241840aff5f60d2": {
+            "details": "0 为 NONE，1 为 DATA_SENT，2 为 DEVICE_CONFIRMED。当前标准后端成功只报告 DATA_SENT，失败/取消通常 NONE；DATA_SENT 不证明纸面已完成，枚举值 2 的存在不表示当前已实现设备确认。",
+            "summary": "操作已经达到的完成确认级别。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter$TaskEvent:aa7a5ce72b4732d1": {
+            "details": "位 1（BYTES_SENT_EXACT）表示 current 精确，位 2（BYTES_TOTAL_KNOWN）表示 total 已知，可组合。值为 0 时 current 最多是下界、total 未知；不能直接用 current/total 计算完成百分比。",
+            "summary": "发送字节计数的有效性位掩码。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter$TaskEvent:ad52f47997e5edf5": {
+            "details": "单位 bytes，来自操作 bytesSent；byteCountFlags 的位 1 表示该值精确，否则不得当作完整接受量。正在发送或出错时可能有平台已接受但尚未计入的字节，不能据此自动补发。",
+            "summary": "已观察到的发送字节数或保守下界。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:02554ca7e27ea317": {
+            "details": "参数 `featureId` 使用 FEATURE_LABEL/RECEIPT/STATUS/MEDIA/CUT/RAW/IMAGE/FEED_TO_NEXT_LABEL。同步返回非 null `FeatureSupport`，不发打印机 IO、不入设备队列。未知 ID 返回 implementation=NOT_IMPLEMENTED、deviceSupport=UNKNOWN、evidence=0。已知显式配置通常只有 PROFILE_DECLARED 且设备支持未知；当前图像是 HOST_RENDERED，状态和切纸未实现，CPCL 支持标签/介质/定位实现，ESC/POS 支持小票实现，Raw 两者均有实现。对象关闭等非法状态抛出 `PrinterException` code 1002，不能用实现存在替代硬件验证。",
+            "summary": "读取指定功能的本地能力与证据快照。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:0edaf051d84b86c8": {
+            "details": "参数 `bytes` 为非 null、非空字节数组，单份至多 1 MiB；`copies` 为 1..100。SDK 在一次调用中复制单份载荷，一个队列条目内逐份发送，不构造 copies 倍拼接数组，不解析、补齐或更改协议字节。调用方须自行保证命令适用于目标固件和当前介质，Raw 不继承标签原点/form。取消、超时或断开会停止后续发送，已发送份数/部分字节无法撤回；不要自动重试不确定的输出。同步完成校验和输入快照复制、接纳后返回非 null `PrintOperation`，不等候操作终态；不要在调用仍进行时并发修改输入数组。`timeoutMs` 为正整数毫秒，入队后的总预算覆盖排队/准备/发送；传输单次写入也受其剩余时间限制。操作与本设备其他打印/Raw/控制 IO 串行。无效参数通常抛出 `PrinterException` code 1001，错误后端/未实现功能为 1004，未连接为 2000，接纳数或源载荷超限为 1008，关闭状态为 1002；已接纳后的异步错误读 `snapshot().error`。结果使用完须 `close()`；成功 DATA_SENT 只证明数据发送。",
+            "summary": "在同一设备队列中发送原始字节及显式份数。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:13954699662e0e49": {
+            "details": "参数 `context` 为有效非 null Android `Context`，`address` 为有效的蓝牙设备地址，`profile` 为非 null 且与真实设备匹配的显式几何配置。返回尚未连接的新 `MobilePrinter`，必须随后 `connect(timeoutMs)` 并在不用时 `close()`；工厂不发送打印数据，也不申请权限或自动确认型号。无蓝牙适配器时抛出 `PrinterException` code 1004，原生创建或 ABI 不匹配等失败也以 `PrinterException` 报告；ABI 不匹配为 1006，须替换整套 SDK。调用方不得依赖 null 或非法地址被统一映射为 SDK 错误码，应先校验参数。 参数 `ble` 为非 null `BleOptions`，明确服务、写特征、写方式、MTU 请求及分包上限；连接时验证实际 GATT 属性。该重载使用 ESC/POS 整图小票编码，应调用 `submitReceiptGray8()`；BLE 传输不改变切纸/状态尚未实现的限制。",
+            "summary": "创建使用 BLE GATT 传输的 ESC/POS 设备。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:144fd0707f6f704b": {
+            "details": "参数 `context` 为有效非 null Android `Context`，`address` 为有效的蓝牙设备地址，`profile` 为非 null 且与真实设备匹配的显式几何配置。返回尚未连接的新 `MobilePrinter`，必须随后 `connect(timeoutMs)` 并在不用时 `close()`；工厂不发送打印数据，也不申请权限或自动确认型号。无蓝牙适配器时抛出 `PrinterException` code 1004，原生创建或 ABI 不匹配等失败也以 `PrinterException` 报告；ABI 不匹配为 1006，须替换整套 SDK。调用方不得依赖 null 或非法地址被统一映射为 SDK 错误码，应先校验参数。 该重载使用标准 SPP 服务 UUID `00001101-0000-1000-8000-00805f9b34fb` 和 ESC/POS 光栅小票编码；应使用 `submitReceiptGray8()`。不会因协议名称而启用切纸或状态查询；标签、介质跟踪及下一标签定位不适用于该后端。",
+            "summary": "创建使用经典蓝牙 SPP/RFCOMM 的 ESC/POS 设备。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:2331cc3ab7b99fc0": {
+            "details": "参数 `timeoutMs` 必须为正整数，单位毫秒，否则同步抛出 `IllegalArgumentException`。方法阻塞至连接成功或失败，无返回值，须在应用工作线程调用；成功后可提交操作。已连接时成功返回，连接/断开转换期间可能抛出 `PrinterException` code 1002；权限/蓝牙状态错误通常为 1002，不支持的特征为 1004，超时为 2001，断线为 2002，其他 IO 失败为 2003。连接失败不会自动重试或重放旧数据。关闭后的实例不可重连，须新建设备。",
+            "summary": "同步建立蓝牙会话并等待连接结果。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:2414ee607f59e5f0": {
+            "details": "无参数，返回 DISCONNECTED=0、CONNECTING=1、CONNECTED=2 或 DISCONNECTING=3。同步读取本地状态，不发蓝牙 IO、不入打印队列，可在连接转换或打印时读取；对象关闭/正在关闭等非法生命周期抛出 `PrinterException` code 1002。CONNECTED 仅表示当前 SDK 观察状态，不保证设备就绪、纸张正常或链路此刻存活；未被 IO 察觉的断线可能暂时仍显示 CONNECTED。",
+            "summary": "读取 SDK 本地观察到的连接状态，不探测打印机。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:2c2502cc89f847f7": {
+            "details": "无参数、无返回值，实现 `AutoCloseable`，可重复调用。会停止活动/排队工作、断开传输并释放设备，可能阻塞，须在应用工作线程执行。完成后除再次 `close()` 外不应调用本设备；其他设备方法通常抛出 `PrinterException` code 1002。此前由调用方持有的独立 `PrintOperation` 可继续读取终态并单独关闭；兼容 task 入口保管的结果在此释放，不能再轮询。关闭不撤回已经发送的数据。",
+            "summary": "同步断开并释放设备及其兼容 task 结果。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:34743d368e7191d9": {
+            "details": "传给 feature()/implementsFeature()；当前 ESC/POS 有原生实现，CPCL 没有。整张小票内容由应用渲染为 Gray8，不包含切刀支持承诺。",
+            "summary": "功能 ID 2：小票作业编码与提交。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:34e35f024a3b5787": {
+            "details": "由 `connectionState()` 返回；设备创建后尚未连接或断开完成均可处于此状态。提交要求连接的工作通常失败为 2000；可对未关闭实例显式 `connect()`。",
+            "summary": "连接状态值 0：SDK 已处于断开状态。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:3dd7f34f0f422c70": {
+            "details": "参数 `timeoutMs` 为正整数毫秒。当前 CPCL 与 ESC/POS 标准后端均未实现设备状态查询：有效请求同步抛出 `PrinterException` code 1004，不返回占位 `PrintOperation`、不发送 IO。非法超时为 1001，关闭状态为 1002。不要以 `connectionState()==CONNECTED`、发现结果或 DATA_SENT 代替纸尽/开盖/实际打印完成查询。保留此方法供未来受明确能力约束的实现使用。",
+            "summary": "请求状态操作；当前标准后端明确拒绝。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:46dd55dd945ff7eb": {
+            "details": "参数 `pixels` 不可为 null，必须为 `width*height` 字节的紧密 Gray8 行数据（0 黑、255 白，无行 padding），单图至多 16 MiB；`width`、`height` 为正整数 dots，按 8 点补齐的宽度不得超过 profile.widthDots，不自动缩放。`copies` 为 1..100，`trailingBlankDots` 为每份的非负结束留白。`maxTotalLength` 为 1..4294967295 dots 的调用方整单预算，须覆盖 `(height + trailingBlankDots) * copies`；它不替代设备单份长度限制。`cutMode` 使用 CUT_NONE/FULL/PARTIAL，当前后端只支持 CUT_NONE，另外两种明确抛出 1004，不静默忽略。仅 ESC/POS 后端支持；灰度采用阈值 128 转单色。同步完成校验和输入快照复制、接纳后返回非 null `PrintOperation`，不等候操作终态；不要在调用仍进行时并发修改输入数组。`timeoutMs` 为正整数毫秒，入队后的总预算覆盖排队/准备/发送；传输单次写入也受其剩余时间限制。操作与本设备其他打印/Raw/控制 IO 串行。无效参数通常抛出 `PrinterException` code 1001，错误后端/未实现功能为 1004，未连接为 2000，接纳数或源载荷超限为 1008，关闭状态为 1002；已接纳后的异步错误读 `snapshot().error`。结果使用完须 `close()`；成功 DATA_SENT 只证明数据发送。",
+            "summary": "将整张调用方渲染的 Gray8 小票作为一个操作入队。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:4c5619690e84e1bf": {
+            "details": "传给 feature()/implementsFeature()；当前 CPCL 有原生实现，ESC/POS 没有。实现类别不保证目标型号或介质已验证。",
+            "summary": "功能 ID 1：标签作业编码与提交。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:57a2e549cda799a3": {
+            "details": "传给 feature()/implementsFeature()；当前 CPCL 与 ESC/POS 标准后端均未实现，queryStatus() 明确拒绝为 1004。与本地 connectionState() 不同。",
+            "summary": "功能 ID 3：打印机状态查询。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:5ad462ee249b739a": {
+            "details": "参数 `bytes` 为非 null、非空、至多 1 MiB 的单份原始数据，`copies` 为 1..100；其他 Raw 语义与 `sendRaw()` 相同，共享设备 FIFO，数据不被 SDK 改写。同步复制/接纳后返回 long task ID，参数/状态/资源错误抛出 `PrinterException`。这些便捷 task 方法使用固定 120000 毫秒总超时，返回本设备生成的兼容 task ID，不是原生 operation ID；不要与 `PrintOperation.Snapshot.id` 混用。结果由设备保管，最多 64 个未被消费的 task（含已终态但未轮询者），满时抛出 `PrinterException` code 1008。应用须定期 `pollTaskEvents()` 回收终态，或使用独立 `PrintOperation` 方法控制结果生命周期。关闭设备会释放这些兼容结果。",
+            "summary": "将 Raw 发送作为兼容 task 入队。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:63f3dbfbdb382ee4": {
+            "details": "参数 `featureId` 使用 FEATURE_* 常量；同步返回 `feature(featureId).isImplemented()`。未知 ID 为 false；不访问硬件，不代表 deviceSupport=SUPPORTED 或存在硬件证据。关闭后的设备抛出 `PrinterException` code 1002；需要呈现设备支持与来源时使用 `feature()` 的三个维度。",
+            "summary": "仅判断该后端是否实现指定功能。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:64956941107fd9c3": {
+            "details": "供小票 `cutMode` 表达请求，但当前标准后端未实现，调用明确抛出 1004，不自动降级为不切纸。常量存在不证明设备有切刀。",
+            "summary": "切纸模式值 1：请求全切。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:739b4215ea175425": {
+            "details": "无参数，同步返回非 null `TaskEvent[]`，没有保管 task 时为空数组；不触发蓝牙 IO，也不回调主线程。每个尚保管的 task 都生成当前快照，因此非终态可重复出现；终态在本次成功返回时释放结果和槽位，之后不再返回。数组按内部槽位遍历，不保证 task ID 或完成时间排序。仅包含兼容 task，不包含调用方持有的独立 PrintOperation。关闭设备后不可轮询（1002）；读取结果失败时可抛出 `PrinterException`，应用应在正常生命周期持续轮询避免 64 槽位占满。",
+            "summary": "轮询兼容 task 快照并一次性消费终态结果。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:7ac9bf17bd0dbac2": {
+            "details": "传给 feature()/implementsFeature()；当前标准后端未实现，全切和半切请求明确拒绝。协议或型号名称不能代替 feature 的实现与硬件证据。",
+            "summary": "功能 ID 5：小票切纸。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:7bb504424a281ed6": {
+            "details": "传给 feature()/implementsFeature()；当前两种后端均有原生发送路径。SDK 不校验 Raw 字节是否适合固件，必须由调用方保证命令安全及协议正确性。",
+            "summary": "功能 ID 6：同队列发送原始命令。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:9a74c66f1528d999": {
+            "details": "无参数，操作语义与 `locateNextLabel()` 相同，仅当前 CPCL 后端实现。须先装好并配置介质；不设置介质、不校准、不证明纸张实际位置。同步接纳后返回 long task ID；不支持、未连接等失败抛出 `PrinterException`。这些便捷 task 方法使用固定 120000 毫秒总超时，返回本设备生成的兼容 task ID，不是原生 operation ID；不要与 `PrintOperation.Snapshot.id` 混用。结果由设备保管，最多 64 个未被消费的 task（含已终态但未轮询者），满时抛出 `PrinterException` code 1008。应用须定期 `pollTaskEvents()` 回收终态，或使用独立 `PrintOperation` 方法控制结果生命周期。关闭设备会释放这些兼容结果。",
+            "summary": "以固定超时提交兼容下一标签定位 task。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:9cf9e836502f2c0d": {
+            "details": "参数 `context` 为有效非 null Android `Context`，`address` 为有效的蓝牙设备地址，`profile` 为非 null 且与真实设备匹配的显式几何配置。返回尚未连接的新 `MobilePrinter`，必须随后 `connect(timeoutMs)` 并在不用时 `close()`；工厂不发送打印数据，也不申请权限或自动确认型号。无蓝牙适配器时抛出 `PrinterException` code 1004，原生创建或 ABI 不匹配等失败也以 `PrinterException` 报告；ABI 不匹配为 1006，须替换整套 SDK。调用方不得依赖 null 或非法地址被统一映射为 SDK 错误码，应先校验参数。 该重载使用标准 SPP 服务 UUID `00001101-0000-1000-8000-00805f9b34fb` 和 CPCL 编码；`CpclProfile.form/xOffsetDots` 作为 `submitGray8()` 的默认值，显式标签方法另行指定。不提供自动配对或设备发现。",
+            "summary": "创建使用经典蓝牙 SPP/RFCOMM 的 CPCL 设备。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:a31548e7e8ce3a2e": {
+            "details": "供 `submitReceiptGray8()` 的 `cutMode` 使用，是当前 ESC/POS 后端唯一支持的切纸模式。结束留白由 trailingBlankDots 独立控制。",
+            "summary": "切纸模式值 0：不请求切纸。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:a49b5f377af60d01": {
+            "details": "参数 `pixels`、`width`、`height`、`copies`、`trailingBlankDots` 的格式及范围与 `submitLabelGray8()` 相同：紧密 Gray8（0 黑/255 白）、正尺寸、1..100 份、非负留白、单图至多 16 MiB。该入口仅提交 CPCL 标签，使用 `CpclProfile.xOffsetDots`、originY=0 及 profile.form；不是 ESC/POS 小票入口。同步复制/接纳后返回 long task ID，失败抛出 `PrinterException`，不等待纸面完成。这些便捷 task 方法使用固定 120000 毫秒总超时，返回本设备生成的兼容 task ID，不是原生 operation ID；不要与 `PrintOperation.Snapshot.id` 混用。结果由设备保管，最多 64 个未被消费的 task（含已终态但未轮询者），满时抛出 `PrinterException` code 1008。应用须定期 `pollTaskEvents()` 回收终态，或使用独立 `PrintOperation` 方法控制结果生命周期。关闭设备会释放这些兼容结果。",
+            "summary": "以 profile 默认布局提交兼容标签 task。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:ad0f905da65bdd75": {
+            "details": "参数 `taskId` 只能使用本设备便捷 submit/set/feed 方法返回的 ID；不能传独立 operation 的 snapshot.id。无返回值，找到保管中的 task 时发出取消控制信号；未知或已轮询释放的 ID 不做任何事。取消不等待活动操作终态，也不能撤回已发送内容；请继续轮询确认 state/error/副作用。对象关闭时抛出 `PrinterException` 1002，已找到 operation 的取消失败可抛出相应 SDK 错误。",
+            "summary": "按兼容 task ID 请求取消当前设备保管的操作。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:b0ad77ed01a60793": {
+            "details": "参数 `context` 为有效非 null Android `Context`，`address` 为有效的蓝牙设备地址，`profile` 为非 null 且与真实设备匹配的显式几何配置。返回尚未连接的新 `MobilePrinter`，必须随后 `connect(timeoutMs)` 并在不用时 `close()`；工厂不发送打印数据，也不申请权限或自动确认型号。无蓝牙适配器时抛出 `PrinterException` code 1004，原生创建或 ABI 不匹配等失败也以 `PrinterException` 报告；ABI 不匹配为 1006，须替换整套 SDK。调用方不得依赖 null 或非法地址被统一映射为 SDK 错误码，应先校验参数。 参数 `ble` 为非 null `BleOptions`，明确服务、写特征、写方式、MTU 请求及分包上限。连接时验证实际 GATT 属性与可选信用流控，构造不协商 MTU。`CpclProfile` 不自动设置介质；使用显式标签提交或其兼容图像入口。",
+            "summary": "创建使用 BLE GATT 传输的 CPCL 设备。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:b6051533a14a0c38": {
+            "details": "供小票 `cutMode` 表达请求，但当前标准后端未实现，调用明确抛出 1004，不静默忽略。硬件是否具备半切需单独证据。",
+            "summary": "切纸模式值 2：请求半切。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:bb60d15581a3e604": {
+            "details": "传给 feature()/implementsFeature()；当前 CPCL 有原生命令实现，ESC/POS 没有。不设置介质、不做校准，成功仍只 DATA_SENT。",
+            "summary": "功能 ID 8：独立定位到下一标签开始。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:bbf3ec21c86c2b1d": {
+            "details": "传给 feature()/implementsFeature()；当前实现类别为 HOST_RENDERED。公共 Java 提交入口接受紧密 Gray8 整图，不意味着公开了文本、条码或所有 C 图像格式。",
+            "summary": "功能 ID 7：主机侧图像处理与光栅打印。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:bd89511427af4f83": {
+            "details": "无参数、无返回值，可能等待活动 IO 停止，须在应用工作线程调用。断开是控制信号，会中止活动及排队工作，不等候普通 FIFO 打印任务逐个成功；已发送内容无法撤回。已断开时可重复调用；设备对象仍可通过显式 `connect()` 建立新会话，旧任务不会重放。独立 `PrintOperation` 仍可读取各自终态；对象已关闭等非法生命周期抛出 `PrinterException` code 1002。",
+            "summary": "同步发出控制信号，停止设备工作并断开会话。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:bdac68bb07a3ff93": {
+            "details": "传给 feature()/implementsFeature()；当前 CPCL 实现跟踪模式设置，ESC/POS 未实现。不等于完整纸宽/纸长/间隙参数或传感器校准能力。",
+            "summary": "功能 ID 4：介质设置。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:be9487a5c7874ba1": {
+            "details": "参数 `timeoutMs` 为正整数毫秒，包含排队与执行预算；非法值抛出 `PrinterException` code 1001。仅当前 CPCL 后端实现，ESC/POS 为 1004。调用方须先装入并配置适当的间隙/黑标介质；此操作不改变介质设置、不做传感器校准或纸张位置回读。同步接纳后返回非 null `PrintOperation`，同设备 FIFO 执行；成功仅 DATA_SENT，不能声称物理定位已经验证。未连接为 2000，接纳上限为 1008，关闭为 1002；结果及异步错误通过 snapshot 读取并须关闭。",
+            "summary": "将定位到下一标签开始的独立命令入队。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:c2e92eaef16726cd": {
+            "details": "参数 `mode` 不可为 null（否则 `IllegalArgumentException`），使用 MediaMode 的三种枚举值。行为与 `setMedia()` 相同，仅当前 CPCL 后端实现，ESC/POS 抛出 `PrinterException` 1004；不校准、读取或验证介质。同步接纳后返回 long task ID。这些便捷 task 方法使用固定 120000 毫秒总超时，返回本设备生成的兼容 task ID，不是原生 operation ID；不要与 `PrintOperation.Snapshot.id` 混用。结果由设备保管，最多 64 个未被消费的 task（含已终态但未轮询者），满时抛出 `PrinterException` code 1008。应用须定期 `pollTaskEvents()` 回收终态，或使用独立 `PrintOperation` 方法控制结果生命周期。关闭设备会释放这些兼容结果。",
+            "summary": "以固定超时提交兼容介质跟踪 task。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:d13606768ca40154": {
+            "details": "参数 `mode` 不可为 null，否则同步抛出 `IllegalArgumentException`；使用 GAP、BLACK_MARK 或 CONTINUOUS。`timeoutMs` 为正整数毫秒；非法超时抛出 `PrinterException` code 1001。仅当前 CPCL 后端实现，ESC/POS 抛出 1004。同步校验/接纳后返回非 null `PrintOperation`，命令与打印及 Raw 共享 FIFO；不设置纸宽/纸长/间隙长度，不校准传感器，不自动保存到硬件永久存储或读取实际介质。成功仅 DATA_SENT，不证明纸张已按所选方式就绪。未连接为 2000，接纳上限为 1008，关闭为 1002；异步错误读 snapshot，结果须关闭。",
+            "summary": "将介质跟踪方式设置命令排入设备队列。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:d22f3ef7b82b6cea": {
+            "details": "参数 `pixels` 不可为 null，必须为紧密排列、逐行存储的 `width*height` 字节：每像素灰度 0 黑、255 白，不含行 padding。`width`、`height` 为正整数 dots；单图源数据至多 16 MiB。`copies` 为 1..100；`trailingBlankDots` 为非负逐份结束留白；`originX`、`originY` 为非负 dots；`form=true` 使用下一标签开始策略，false 使用内容结束策略。`originX + ceil(width/8)*8` 不得超过 profile.widthDots，`originY + height + trailingBlankDots` 不得超过 profile.maxLabelHeightDots。没有自动缩放、负坐标或裁剪；采用阈值 128 的灰度转单色处理。仅 CPCL 后端支持，显式原点/form 不继承 profile 的兼容默认值。同步完成校验和输入快照复制、接纳后返回非 null `PrintOperation`，不等候操作终态；不要在调用仍进行时并发修改输入数组。`timeoutMs` 为正整数毫秒，入队后的总预算覆盖排队/准备/发送；传输单次写入也受其剩余时间限制。操作与本设备其他打印/Raw/控制 IO 串行。无效参数通常抛出 `PrinterException` code 1001，错误后端/未实现功能为 1004，未连接为 2000，接纳数或源载荷超限为 1008，关闭状态为 1002；已接纳后的异步错误读 `snapshot().error`。结果使用完须 `close()`；成功 DATA_SENT 只证明数据发送。",
+            "summary": "将调用方渲染的整张 Gray8 标签作为一个操作入队。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:f75cf21f8bbc467c": {
+            "details": "由 `connectionState()` 返回；正在中止工作并释放会话。不要把该状态作为继续发送的许可，应等待阻塞 `disconnect()`/`close()` 完成。",
+            "summary": "连接状态值 3：断开控制过程尚未完成。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:f822937144b14a78": {
+            "details": "由 `connectionState()` 返回。该值不探测实时存活，不确认介质/设备状态或打印完成；尚未被 IO 察觉的断线可暂时保留此值。",
+            "summary": "连接状态值 2：SDK 当前观察到会话已连接。"
+          },
+          "android:member:com.netumscan.printersdk.MobilePrinter:f82bf1b4f9c9691f": {
+            "details": "由 `connectionState()` 返回，仅表示 SDK 正在建立会话，不能提交并假定打印机已经就绪。应等待工作线程的 `connect()` 成功或失败。",
+            "summary": "连接状态值 1：连接过程正在进行。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:09b6d93c4ce76763": {
+            "details": "true 表示可能已有写入或其他外部副作用，失败/取消也可能已有部分纸面输出。该标志不是打印完成确认，不应据此自动重放；需要结合状态、错误、字节计数和业务验收决定下一步。",
+            "summary": "该操作是否存在已产生外部输出的风险。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:0f938395cfdf79ab": {
+            "details": "成功为 0；失败/取消可由 PrinterException.description(error) 获取诊断短语。1005 表示取消，2001 超时，2002 连接丢失等。以 state 区分未结束与终态，error=0 的运行中快照不代表成功。",
+            "summary": "操作状态对应的稳定错误码。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:100d9a5074a00a14": {
+            "details": "单位 bytes，包含该操作逐份输出的传输计数。仅 bytesSentExact() 为 true 时是精确值；否则可能有平台已接受但未准确报告的字节，不可依据此值自动补发或估算已打印份数。",
+            "summary": "已经观察到的发送字节数或保守下界。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:26be605f3fdc9e9c": {
+            "details": "来自操作接纳结果，供关联当前 operation 的诊断和快照；与 MobilePrinter 便捷 task ID 的命名空间不同。不要把它传给 MobilePrinter.cancel(long)，独立操作应使用所属 PrintOperation.cancel()。",
+            "summary": "SDK 为该操作生成的原生操作 ID。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:47d05db295c29a6c": {
+            "details": "当前值 QUEUED=0、PREPARING=1、SENDING=2、COMPLETED=4、FAILED=5、CANCELLED=6。4/5/6 为终态，使用 terminal() 判断；读取可能跳过中间状态，COMPLETED 仅达到当前传输完成要求。",
+            "summary": "读取时的操作执行状态整数。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:557bf522a9e3c685": {
+            "details": "0 为 NONE，1 为 LAST_SENT，2 为 READBACK。LAST_SENT 只代表依据此前成功发送的设置，不证明设备实际介质；当前公共 Java 整图入口不附加介质匹配要求，通常为 NONE，不能据此宣称已检测纸张。",
+            "summary": "操作介质要求判定采用的依据整数。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:55f5e2e0e93ecf48": {
+            "details": "当前标准后端状态查询未实现，现有打印/Raw/介质/定位操作通常为 false。false 不影响 DATA_SENT 的发送语义；不得把 true 或字段存在自行解释为所有纸张状态已知，公共 Java 当前不提供状态结果载荷读取接口。",
+            "summary": "操作是否具有可用的设备响应结果。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:57b2090675f9a61f": {
+            "details": "无参数，返回 `(byteCountFlags & 2) != 0`。false 时总量未知，bytesTotal=0 不能解释为零字节作业；true 时才可展示确定总数。当前流式打印通常到成功终态且发送量精确后才得到已知总量。",
+            "summary": "判断 bytesTotal 是否具有确定的总量语义。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:588d307e45c509b3": {
+            "details": "无参数，返回 `(byteCountFlags & 1) != 0`。false 时 bytesSent 仅能作为保守下界，活动写入或平台错误可能接受了未能精确报告的字节；不得据差额补发。精确传输计数也不证明实际打印完成。",
+            "summary": "判断 bytesSent 是否为精确发送计数。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:8241840aff5f60d2": {
+            "details": "0 为 NONE，1 为 DATA_SENT，2 为 DEVICE_CONFIRMED。当前标准后端成功仅为 DATA_SENT；不能因为 state=COMPLETED 或此值为 1 推断纸面完成，值 2 的定义不表示当前支持设备确认。",
+            "summary": "操作已达到的完成确认级别。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:aa7a5ce72b4732d1": {
+            "details": "位 1 为 BYTES_SENT_EXACT，位 2 为 BYTES_TOTAL_KNOWN，可组合。优先通过 bytesSentExact()/bytesTotalKnown() 读取；无标志时保守处理，不能把计数直接当纸面进度或确定零。",
+            "summary": "发送计数的精确性及总量已知位掩码。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:b3926476a06ff84e": {
+            "details": "必须先检查 bytesTotalKnown()。未设置已知标志时即使字段为 0 也只是未知；流式编码不预先保证确定总字节数。当前成功且精确计数的终态将总量设置为 bytesSent。",
+            "summary": "总发送字节数的候选字段，单位为 bytes。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:ce09769247087c6a": {
+            "details": "当前值 PRINT=1、STATUS=2、MEDIA=3、RAW=4、FEED_TO_NEXT_LABEL=5。类别描述已接纳的操作种类，不自动表示该功能有设备支持证据；当前 STATUS 请求在接纳前被拒绝。",
+            "summary": "操作类别整数。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation$Snapshot:f3da21f08233867e": {
+            "details": "无参数，返回 `state >= 4`；当前终态为 COMPLETED=4、FAILED=5、CANCELLED=6。true 不等于成功，必须同时检查 state/error/completion；未终态为 QUEUED=0、PREPARING=1、SENDING=2。仅检查快照，不读取新状态或等待终止。",
+            "summary": "判断该快照是否已进入终态。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation:2c2502cc89f847f7": {
+            "details": "无参数、无返回值，在本实例上 synchronized，可重复调用。它不会等待操作终态，也不自动调用 cancel()；排队或活动工作可继续执行。关闭后 snapshot()/cancel() 抛出 `PrinterException` 1002；设备关闭和此结果关闭相互独立。若业务希望停止工作，应先请求取消并按需要读取终态，再关闭结果。",
+            "summary": "释放该结果的调用方引用，不取消设备工作。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation:a1228dc331f5087e": {
+            "details": "无参数、无返回值，在本实例上 synchronized。对排队操作可直接形成取消终态；对活动准备/发送是协作取消请求，返回不表示活动操作已经终止，请继续 snapshot() 判断。终态操作或设备已销毁时取消可成功无事发生。已发送字节无法撤回，失败/取消后的副作用须检查；关闭后的结果抛出 `PrinterException` 1002。取消不自动重放、重连或关闭此结果。",
+            "summary": "请求取消当前操作，不释放结果。"
+          },
+          "android:member:com.netumscan.printersdk.PrintOperation:b2032eaf77200681": {
+            "details": "无参数，同步返回非 null `Snapshot`，不发起打印机 IO、不等待操作完成；可在设备已关闭后继续读取该结果的终态。结果仍在运行时可能重复读取到同一状态，也可能跳过中间状态。操作已关闭时抛出 `PrinterException` code 1002，其他快照读取失败以对应 code 抛出。方法在本实例上 synchronized，返回的快照不再随操作变化；新进度须再次读取。",
+            "summary": "读取当前操作的不可变数值快照。"
+          },
+          "android:member:com.netumscan.printersdk.PrinterException:81d76c07932c70b6": {
+            "details": "参数 `code` 为 int 错误码，不验证其是否已知；保存到只读 code 字段。异常 message 为 `description(code) + \" (\" + code + \")\"`。同步创建，不执行 IO、取消或恢复；手动构造异常不会改变设备状态。",
+            "summary": "用数值错误码创建诊断异常。"
+          },
+          "android:member:com.netumscan.printersdk.PrinterException:ba359d8df979350d": {
+            "details": "参数 `code` 为任意 int，返回非 null String，不执行 IO。当前映射：1000 Internal error；1001 Invalid argument；1002 Invalid state（检查蓝牙、权限和生命周期）；1003 SDK not initialized；1004 Unsupported operation or Bluetooth characteristic；1005 Cancelled（已发送数据不可撤回）；1006 SDK ABI mismatch（替换完整 SDK）；1007 Output buffer too small；1008 SDK resource limit（释放/轮询结果）；2000 Transport not open；2001 Transport timeout；2002 Connection lost（显式重连、无自动重放）；2003 Transport IO error；2004 Transport made no progress；3000 Invalid protocol response。其他值返回 `Unknown printer SDK error`。短语只用于诊断，不是稳定的业务判断键；成功 code=0 不应通过此方法推导成功文本。",
+            "summary": "返回数值错误码的英文诊断短语。"
+          },
+          "android:member:com.netumscan.printersdk.PrinterException:c87585a61ac30812": {
+            "details": "SDK 采用 1000..1008 的通用错误、2000..2004 的传输错误及 3000 协议响应错误；未知值须保留原数值，避免只靠消息文字分支。code 1006 为 ABI 不匹配，需更换完整匹配 SDK；1008 为资源接纳限制，不表示设备不支持功能。",
+            "summary": "此异常对应的稳定数值错误码。"
+          },
+          "android:type:com.netumscan.printersdk.BleOptions": {
+            "details": "应用须显式提供服务与特征 UUID、MTU 请求值及写入上限；没有自动识别型号或猜测 UUID 的行为。构造只校验配置，不连接设备。`withResponse` 选择 GATT 写入方式，不能作为打印机执行确认；实际分包长度受协商 MTU、配置上限和可选信用额度共同限制。字段均为 `final`，可在多个设备创建请求间复用。",
+            "summary": "不可变的 BLE 服务、写入及可选信用流控配置。"
+          },
+          "android:type:com.netumscan.printersdk.BleOptions$CreditFlowControl": {
+            "details": "不可变的 `BleOptions` 嵌套值类型。`dataOut` 与 `dataFC` 均位于配置选定的服务；SDK 使用通知建立流控会话，其中信用通知决定可发送额度。只适用于明确支持该固件协议的设备，配置本身不升级硬件证据等级，也不公开平台 GATT 句柄。",
+            "summary": "Data Transmission V1.2 的两种通知特征配置。"
+          },
+          "android:type:com.netumscan.printersdk.BluetoothDiscovery": {
+            "details": "实现 `AutoCloseable`，但 `close()` 仅停止当前扫描，实例仍可复用。扫描请求状态和完成回调在 Android 主线程处理；SDK 不申请权限、不管理应用前后台策略，也不自动连接、识别型号或判定候选是打印机。调用方须先获得当前 Android 版本所需的蓝牙/扫描权限，并在前台生命周期结束时停止扫描。",
+            "summary": "提供前台 BLE 扫描及已配对设备快照。"
+          },
+          "android:type:com.netumscan.printersdk.BluetoothDiscovery$Device": {
+            "details": "由 `bondedDevices()` 或扫描完成列表提供，应用不能通过公共构造器自行创建。字段描述发现证据，未知名称和 RSSI 使用 null；不能把地址、名称或广播服务当作产品身份、固件版本或打印协议确认。扫描候选不会因返回该对象而被连接。",
+            "summary": "发现结果中的不可变蓝牙候选快照。"
+          },
+          "android:type:com.netumscan.printersdk.BluetoothDiscovery$Listener": {
+            "details": "由调用方实现并传给 `scanBle()`。回调固定运行于 Android 主线程，应快速返回，耗时处理交给应用工作线程。一次合法请求完成一次；不得将候选列表当作已连接打印机列表。",
+            "summary": "接收一次 BLE 扫描请求的最终结果。"
+          },
+          "android:type:com.netumscan.printersdk.CpclProfile": {
+            "details": "不可变配置，用于 CPCL 设备工厂。点数为打印机 dots，DPI 与纸张毫米数需由调用方结合实际设备换算，SDK 不猜测型号。`widthDots` 是设备最大可打印宽度，不是输入图片固定宽度。`xOffsetDots` 和 `form` 仅为 `submitGray8()` 便捷入口的默认值；显式 `submitLabelGray8()` 使用自己的原点和结束策略，Raw 字节不受这些值改写。配置不是硬件验收证明。",
+            "summary": "声明 CPCL 打印的显式光栅几何及兼容便捷入口默认值。"
+          },
+          "android:type:com.netumscan.printersdk.EscPosProfile": {
+            "details": "不可变配置，用于 ESC/POS 设备工厂。必须与实际设备的密度和可打印点宽匹配，不从纸宽或名称推断型号。该类型不包含切刀或状态支持声明；当前标准后端不实现状态查询及切纸。整张小票须由调用方渲染为 Gray8 图片，再用 `submitReceiptGray8()` 提交。",
+            "summary": "声明 ESC/POS 小票光栅的显式 DPI 和可打印宽度。"
+          },
+          "android:type:com.netumscan.printersdk.FeatureSupport": {
+            "details": "通过 `MobilePrinter.feature()` 获取，不提供公共构造器。`implementation` 描述 SDK 路径是否实现，`deviceSupport` 描述设备支持是否已知，`evidence` 是证据位掩码；三个维度不能相互替代。当前显式 CPCL/ESC-POS 配置的已知功能可能仅有 PROFILE_DECLARED 且设备支持为 UNKNOWN，因此 `isImplemented()` 可为 true、`isSupported()` 仍为 false。未知功能 ID 返回未实现、未知设备支持和 evidence=0。",
+            "summary": "分别记录实现可用性、设备支持与证据的不可变快照。"
+          },
+          "android:type:com.netumscan.printersdk.M90Profile": {
+            "details": "工具类型，无公共构造器。预设只组合固定的服务、数据写入和信用通知 UUID，调用方仍须提供 MTU 与包长上限并选择打印协议/几何配置。选择此预设不自动发现或认证型号，也不表示无线或纸面行为已经完成硬件验收。",
+            "summary": "提供 M90 固件 Data Transmission V1.2 的 BLE 连接预设。"
+          },
+          "android:type:com.netumscan.printersdk.MediaMode": {
+            "details": "用于 `setMedia()` 或兼容 `setMediaMode()`，当前 CPCL 后端实现跟踪模式命令，ESC/POS 后端拒绝。选择枚举不会声明纸宽、纸长、间隙长度或传感器校准结果；调用方必须装入适当介质，并核实固件兼容性。枚举的 Java ordinal 不是公共协议编码，不应自行用于拼接命令。",
+            "summary": "与打印语言独立的介质跟踪方式枚举。"
+          },
+          "android:type:com.netumscan.printersdk.MobilePrinter": {
+            "details": "使用 `spp()` 或 `ble()` 创建，随后在应用工作线程调用阻塞的 `connect()`；`disconnect()`、`close()` 同样可能阻塞，不应在 UI 线程调用。图像、Raw、介质设置和下一标签定位共享同一设备 FIFO，不允许 Raw 绕过队列。提交同步完成输入校验、快照复制与接纳后返回 `PrintOperation`，不等待打印完成；大图复制也建议放在应用工作线程。每设备最多接纳 64 个未终态操作，未终态源载荷累计上限 64 MiB，单图 16 MiB、单次 Raw 1 MiB；这些是 SDK 接纳限制，不是手机峰值内存承诺。操作超时从入队后覆盖排队、准备与发送；取消/断开不能撤回已发送数据，发生传输中断后须显式重连且不会自动重放。`PrintOperation` 结果可独立于设备保留，兼容 task 便捷方法的结果则由本实例保管并轮询释放。设备关闭后除重复 `close()` 外不再使用其方法。成功仅 DATA_SENT，不代表纸面完成；当前状态查询和切纸尚未实现。",
+            "summary": "持有一个蓝牙打印设备及其串行 IO 队列。"
+          },
+          "android:type:com.netumscan.printersdk.MobilePrinter$TaskEvent": {
+            "details": "由 `pollTaskEvents()` 创建，没有公共构造器。它是当前观察，不是一次状态转换通知：非终态可在多次轮询重复出现，终态只消费一次。`current/total` 是传输字节数，必须结合 byteCountFlags 判断精确性及总量是否已知，不能作为纸面打印比例。独立 PrintOperation 结果不进入此列表。",
+            "summary": "兼容 task 轮询返回的不可变进度快照。"
+          },
+          "android:type:com.netumscan.printersdk.PrintOperation": {
+            "details": "由 MobilePrinter 的显式提交/控制方法返回，实现 AutoCloseable，无公共构造器。持有数值快照和终态，不依赖设备对象仍然存活；设备关闭后仍可 snapshot()。snapshot/cancel/close 在该 Java 实例上同步互斥；它们不安排主线程回调。close() 只释放调用方的结果引用，不取消已经排队或发送的工作；要取消须先 cancel() 并观察终态。使用完应显式关闭，关闭后 snapshot/cancel 抛出 1002。",
+            "summary": "独立拥有一个已接纳操作的结果及取消能力。"
+          },
+          "android:type:com.netumscan.printersdk.PrintOperation$Snapshot": {
+            "details": "由 PrintOperation.snapshot() 返回，无公共构造器。所有字段为 final，但不保证调用方观察到每次中间状态；需要新进度时重新读取。状态、完成级别、错误与副作用须共同判断；字节计数依赖标志，未知总数不得解释为零。当前标准后端不提供状态响应或 DEVICE_CONFIRMED 纸面证明。",
+            "summary": "一个操作在读取时刻的不可变结果快照。"
+          },
+          "android:type:com.netumscan.printersdk.PrinterException": {
+            "details": "继承 RuntimeException，无需 Java checked-exception 声明。同步创建/接纳/生命周期错误通过该异常报告；已接纳操作的异步失败通常通过 Snapshot.error/TaskEvent.error 报告，不会自动在提交线程抛出。业务分支使用 code，description/message 仅供诊断。蓝牙权限及平台状态问题可能归并为 1002；已发送内容不可因异常自动重试。",
+            "summary": "携带稳定 SDK 错误码的运行时异常。"
+          }
+        },
+        "platform": "android",
+        "schema": 1
+      },
+      "baseline": "# PrinterSDK Android public API; javac --release 8 / javap -public -constants -s\n# Supported package: com.netumscan.printersdk; .internal implementation types excluded\ntype {\"declaration\":\"public final class com.netumscan.printersdk.BleOptions\",\"enumConstants\":[],\"members\":[\"public com.netumscan.printersdk.BleOptions(java.util.UUID, java.util.UUID, boolean, int, int); descriptor: (Ljava/util/UUID;Ljava/util/UUID;ZII)V\",\"public com.netumscan.printersdk.BleOptions(java.util.UUID, java.util.UUID, boolean, int, int, com.netumscan.printersdk.BleOptions$CreditFlowControl); descriptor: (Ljava/util/UUID;Ljava/util/UUID;ZIILcom/netumscan/printersdk/BleOptions$CreditFlowControl;)V\",\"public final boolean withResponse; descriptor: Z\",\"public final com.netumscan.printersdk.BleOptions$CreditFlowControl creditFlowControl; descriptor: Lcom/netumscan/printersdk/BleOptions$CreditFlowControl;\",\"public final int maxWriteBytes; descriptor: I\",\"public final int requestedMtu; descriptor: I\",\"public final java.util.UUID service; descriptor: Ljava/util/UUID;\",\"public final java.util.UUID writeCharacteristic; descriptor: Ljava/util/UUID;\"],\"name\":\"com.netumscan.printersdk.BleOptions\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.BleOptions$CreditFlowControl\",\"enumConstants\":[],\"members\":[\"public com.netumscan.printersdk.BleOptions$CreditFlowControl(java.util.UUID, java.util.UUID); descriptor: (Ljava/util/UUID;Ljava/util/UUID;)V\",\"public final java.util.UUID dataFC; descriptor: Ljava/util/UUID;\",\"public final java.util.UUID dataOut; descriptor: Ljava/util/UUID;\"],\"name\":\"com.netumscan.printersdk.BleOptions$CreditFlowControl\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.BluetoothDiscovery implements java.lang.AutoCloseable\",\"enumConstants\":[],\"members\":[\"public com.netumscan.printersdk.BluetoothDiscovery(android.content.Context); descriptor: (Landroid/content/Context;)V\",\"public java.util.List<com.netumscan.printersdk.BluetoothDiscovery$Device> bondedDevices(); descriptor: ()Ljava/util/List;\",\"public void close(); descriptor: ()V\",\"public void scanBle(java.util.UUID, int, com.netumscan.printersdk.BluetoothDiscovery$Listener); descriptor: (Ljava/util/UUID;ILcom/netumscan/printersdk/BluetoothDiscovery$Listener;)V\",\"public void stop(); descriptor: ()V\"],\"name\":\"com.netumscan.printersdk.BluetoothDiscovery\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.BluetoothDiscovery$Device\",\"enumConstants\":[],\"members\":[\"public final java.lang.Integer rssi; descriptor: Ljava/lang/Integer;\",\"public final java.lang.String address; descriptor: Ljava/lang/String;\",\"public final java.lang.String name; descriptor: Ljava/lang/String;\",\"public final java.util.List<java.lang.String> advertisedServices; descriptor: Ljava/util/List;\"],\"name\":\"com.netumscan.printersdk.BluetoothDiscovery$Device\"}\ntype {\"declaration\":\"public interface com.netumscan.printersdk.BluetoothDiscovery$Listener\",\"enumConstants\":[],\"members\":[\"public abstract void completed(java.util.List<com.netumscan.printersdk.BluetoothDiscovery$Device>, int); descriptor: (Ljava/util/List;I)V\"],\"name\":\"com.netumscan.printersdk.BluetoothDiscovery$Listener\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.CpclProfile\",\"enumConstants\":[],\"members\":[\"public com.netumscan.printersdk.CpclProfile(int, int, int, boolean); descriptor: (IIIZ)V\",\"public com.netumscan.printersdk.CpclProfile(int, int, int, boolean, int); descriptor: (IIIZI)V\",\"public final boolean form; descriptor: Z\",\"public final int dpi; descriptor: I\",\"public final int maxLabelHeightDots; descriptor: I\",\"public final int widthDots; descriptor: I\",\"public final int xOffsetDots; descriptor: I\"],\"name\":\"com.netumscan.printersdk.CpclProfile\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.EscPosProfile\",\"enumConstants\":[],\"members\":[\"public com.netumscan.printersdk.EscPosProfile(int, int); descriptor: (II)V\",\"public final int dpi; descriptor: I\",\"public final int widthDots; descriptor: I\"],\"name\":\"com.netumscan.printersdk.EscPosProfile\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.FeatureSupport\",\"enumConstants\":[],\"members\":[\"public boolean isImplemented(); descriptor: ()Z\",\"public boolean isSupported(); descriptor: ()Z\",\"public final int deviceSupport; descriptor: I\",\"public final int evidence; descriptor: I\",\"public final int implementation; descriptor: I\",\"public static final int DEVICE_REPORTED = 2; descriptor: I\",\"public static final int HARDWARE_VERIFIED = 4; descriptor: I\",\"public static final int HOST_RENDERED = 2; descriptor: I\",\"public static final int NATIVE = 1; descriptor: I\",\"public static final int NOT_IMPLEMENTED = 0; descriptor: I\",\"public static final int PROFILE_DECLARED = 1; descriptor: I\",\"public static final int SUPPORTED = 2; descriptor: I\",\"public static final int UNKNOWN = 0; descriptor: I\",\"public static final int UNSUPPORTED = 1; descriptor: I\"],\"name\":\"com.netumscan.printersdk.FeatureSupport\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.M90Profile\",\"enumConstants\":[],\"members\":[\"public static com.netumscan.printersdk.BleOptions bleOptions(int, int); descriptor: (II)Lcom/netumscan/printersdk/BleOptions;\"],\"name\":\"com.netumscan.printersdk.M90Profile\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.MediaMode extends java.lang.Enum<com.netumscan.printersdk.MediaMode>\",\"enumConstants\":[\"GAP\",\"BLACK_MARK\",\"CONTINUOUS\"],\"members\":[\"public static com.netumscan.printersdk.MediaMode valueOf(java.lang.String); descriptor: (Ljava/lang/String;)Lcom/netumscan/printersdk/MediaMode;\",\"public static com.netumscan.printersdk.MediaMode[] values(); descriptor: ()[Lcom/netumscan/printersdk/MediaMode;\",\"public static final com.netumscan.printersdk.MediaMode BLACK_MARK; descriptor: Lcom/netumscan/printersdk/MediaMode;\",\"public static final com.netumscan.printersdk.MediaMode CONTINUOUS; descriptor: Lcom/netumscan/printersdk/MediaMode;\",\"public static final com.netumscan.printersdk.MediaMode GAP; descriptor: Lcom/netumscan/printersdk/MediaMode;\"],\"name\":\"com.netumscan.printersdk.MediaMode\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.MobilePrinter implements java.lang.AutoCloseable\",\"enumConstants\":[],\"members\":[\"public boolean implementsFeature(int); descriptor: (I)Z\",\"public com.netumscan.printersdk.FeatureSupport feature(int); descriptor: (I)Lcom/netumscan/printersdk/FeatureSupport;\",\"public com.netumscan.printersdk.MobilePrinter$TaskEvent[] pollTaskEvents(); descriptor: ()[Lcom/netumscan/printersdk/MobilePrinter$TaskEvent;\",\"public com.netumscan.printersdk.PrintOperation locateNextLabel(int); descriptor: (I)Lcom/netumscan/printersdk/PrintOperation;\",\"public com.netumscan.printersdk.PrintOperation queryStatus(int); descriptor: (I)Lcom/netumscan/printersdk/PrintOperation;\",\"public com.netumscan.printersdk.PrintOperation sendRaw(byte[], int, int); descriptor: ([BII)Lcom/netumscan/printersdk/PrintOperation;\",\"public com.netumscan.printersdk.PrintOperation setMedia(com.netumscan.printersdk.MediaMode, int); descriptor: (Lcom/netumscan/printersdk/MediaMode;I)Lcom/netumscan/printersdk/PrintOperation;\",\"public com.netumscan.printersdk.PrintOperation submitLabelGray8(byte[], int, int, int, int, int, int, boolean, int); descriptor: ([BIIIIIIZI)Lcom/netumscan/printersdk/PrintOperation;\",\"public com.netumscan.printersdk.PrintOperation submitReceiptGray8(byte[], int, int, int, int, long, int, int); descriptor: ([BIIIIJII)Lcom/netumscan/printersdk/PrintOperation;\",\"public int connectionState(); descriptor: ()I\",\"public long feedToNextLabel(); descriptor: ()J\",\"public long setMediaMode(com.netumscan.printersdk.MediaMode); descriptor: (Lcom/netumscan/printersdk/MediaMode;)J\",\"public long submitGray8(byte[], int, int, int, int); descriptor: ([BIIII)J\",\"public long submitRaw(byte[], int); descriptor: ([BI)J\",\"public static com.netumscan.printersdk.MobilePrinter ble(android.content.Context, java.lang.String, com.netumscan.printersdk.BleOptions, com.netumscan.printersdk.CpclProfile); descriptor: (Landroid/content/Context;Ljava/lang/String;Lcom/netumscan/printersdk/BleOptions;Lcom/netumscan/printersdk/CpclProfile;)Lcom/netumscan/printersdk/MobilePrinter;\",\"public static com.netumscan.printersdk.MobilePrinter ble(android.content.Context, java.lang.String, com.netumscan.printersdk.BleOptions, com.netumscan.printersdk.EscPosProfile); descriptor: (Landroid/content/Context;Ljava/lang/String;Lcom/netumscan/printersdk/BleOptions;Lcom/netumscan/printersdk/EscPosProfile;)Lcom/netumscan/printersdk/MobilePrinter;\",\"public static com.netumscan.printersdk.MobilePrinter spp(android.content.Context, java.lang.String, com.netumscan.printersdk.CpclProfile); descriptor: (Landroid/content/Context;Ljava/lang/String;Lcom/netumscan/printersdk/CpclProfile;)Lcom/netumscan/printersdk/MobilePrinter;\",\"public static com.netumscan.printersdk.MobilePrinter spp(android.content.Context, java.lang.String, com.netumscan.printersdk.EscPosProfile); descriptor: (Landroid/content/Context;Ljava/lang/String;Lcom/netumscan/printersdk/EscPosProfile;)Lcom/netumscan/printersdk/MobilePrinter;\",\"public static final int CONNECTED = 2; descriptor: I\",\"public static final int CONNECTING = 1; descriptor: I\",\"public static final int CUT_FULL = 1; descriptor: I\",\"public static final int CUT_NONE = 0; descriptor: I\",\"public static final int CUT_PARTIAL = 2; descriptor: I\",\"public static final int DISCONNECTED = 0; descriptor: I\",\"public static final int DISCONNECTING = 3; descriptor: I\",\"public static final int FEATURE_CUT = 5; descriptor: I\",\"public static final int FEATURE_FEED_TO_NEXT_LABEL = 8; descriptor: I\",\"public static final int FEATURE_IMAGE = 7; descriptor: I\",\"public static final int FEATURE_LABEL = 1; descriptor: I\",\"public static final int FEATURE_MEDIA = 4; descriptor: I\",\"public static final int FEATURE_RAW = 6; descriptor: I\",\"public static final int FEATURE_RECEIPT = 2; descriptor: I\",\"public static final int FEATURE_STATUS = 3; descriptor: I\",\"public synchronized void close(); descriptor: ()V\",\"public void cancel(long); descriptor: (J)V\",\"public void connect(int); descriptor: (I)V\",\"public void disconnect(); descriptor: ()V\"],\"name\":\"com.netumscan.printersdk.MobilePrinter\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.MobilePrinter$TaskEvent\",\"enumConstants\":[],\"members\":[\"public final boolean sideEffectsPossible; descriptor: Z\",\"public final int byteCountFlags; descriptor: I\",\"public final int completion; descriptor: I\",\"public final int error; descriptor: I\",\"public final int state; descriptor: I\",\"public final long current; descriptor: J\",\"public final long id; descriptor: J\",\"public final long total; descriptor: J\"],\"name\":\"com.netumscan.printersdk.MobilePrinter$TaskEvent\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.PrintOperation implements java.lang.AutoCloseable\",\"enumConstants\":[],\"members\":[\"public synchronized com.netumscan.printersdk.PrintOperation$Snapshot snapshot(); descriptor: ()Lcom/netumscan/printersdk/PrintOperation$Snapshot;\",\"public synchronized void cancel(); descriptor: ()V\",\"public synchronized void close(); descriptor: ()V\"],\"name\":\"com.netumscan.printersdk.PrintOperation\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.PrintOperation$Snapshot\",\"enumConstants\":[],\"members\":[\"public boolean bytesSentExact(); descriptor: ()Z\",\"public boolean bytesTotalKnown(); descriptor: ()Z\",\"public boolean terminal(); descriptor: ()Z\",\"public final boolean responseValid; descriptor: Z\",\"public final boolean sideEffectsPossible; descriptor: Z\",\"public final int byteCountFlags; descriptor: I\",\"public final int completion; descriptor: I\",\"public final int error; descriptor: I\",\"public final int kind; descriptor: I\",\"public final int mediaBasis; descriptor: I\",\"public final int state; descriptor: I\",\"public final long bytesSent; descriptor: J\",\"public final long bytesTotal; descriptor: J\",\"public final long id; descriptor: J\"],\"name\":\"com.netumscan.printersdk.PrintOperation$Snapshot\"}\ntype {\"declaration\":\"public final class com.netumscan.printersdk.PrinterException extends java.lang.RuntimeException\",\"enumConstants\":[],\"members\":[\"public com.netumscan.printersdk.PrinterException(int); descriptor: (I)V\",\"public final int code; descriptor: I\",\"public static java.lang.String description(int); descriptor: (I)Ljava/lang/String;\"],\"name\":\"com.netumscan.printersdk.PrinterException\"}\n",
+      "baseline_sha256": "8ad69087e4a965f7df4aa56f84b33dc6cfcf340ed3e8395f57155dfe449390a2"
+    },
+    "apple": {
+      "annotations": {
+        "baseline_sha256": "62ccd5c542c02285429d8942b7eb69a68555180ddb3b9d335780e30009f2fd65",
+        "entries": {
+          "apple:symbol:s:10Foundation14LocalizedErrorPAAE10helpAnchorSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV": {
+            "details": "`LocalizedError` 的 Foundation 默认扩展成员，不是 SDK 的独立实现；当前 SDK 没有提供专用帮助锚点，使用默认 nil。不要把它作为稳定文档 URL 或错误码替代。",
+            "summary": "Foundation 提供的可选错误帮助锚点。"
+          },
+          "apple:symbol:s:10Foundation14LocalizedErrorPAAE13failureReasonSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV": {
+            "details": "`LocalizedError` 的 Foundation 默认扩展成员，不是 SDK 额外查询的结果；当前 SDK 没有覆盖，默认 nil。主要错误诊断使用 `code` 和 `errorDescription`，业务不能依赖此字段一定存在。",
+            "summary": "Foundation 提供的可选失败原因。"
+          },
+          "apple:symbol:s:10Foundation14LocalizedErrorPAAE18recoverySuggestionSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV": {
+            "details": "`LocalizedError` 的 Foundation 默认扩展成员，当前 SDK 没有覆盖，默认 nil；不表示 SDK 会恢复或重试打印。应用应按错误码、连接状态与副作用证据决定下一步，交付不明确时不得自动重放。",
+            "summary": "Foundation 提供的可选恢复建议。"
+          },
+          "apple:symbol:s:10PrinterSDK010DiscoveredA0V": {
+            "details": "由 `BLEScanner` 返回的不可变值；相同 `identifier` 的多次广播合并为一项，列表保留首次发现顺序。发现结果仅用于应用选择连接目标，不证明设备是打印机、支持某种协议或已完成硬件验收。没有公开初始化入口，也不包含 CoreBluetooth 原生句柄。",
+            "summary": "一次 BLE 发现窗口中合并后的外设描述。"
+          },
+          "apple:symbol:s:10PrinterSDK010DiscoveredA0V10identifier10Foundation4UUIDVvp": {
+            "details": "传给 `MobilePrinter(bleIdentifier:options:profile:)` 的选择结果。它是 iOS 外设 UUID，不是 Android 蓝牙 MAC 地址，也不是跨平台设备序列号；连接前目标须已被 CoreBluetooth 识别。应用应把设备身份诊断按隐私要求处理。",
+            "summary": "CoreBluetooth 为外设提供的不透明标识符。"
+          },
+          "apple:symbol:s:10PrinterSDK010DiscoveredA0V18advertisedServicesSaySSGvp": {
+            "details": "按首次出现顺序合并广播服务，忽略首尾空白和大小写造成的重复。它只表示广播信息，并不是连接后完整的 GATT 服务清单；空数组也不证明目标缺少所需服务。",
+            "summary": "扫描窗口中观察到的服务 UUID 字符串集合。"
+          },
+          "apple:symbol:s:10PrinterSDK010DiscoveredA0V4nameSSSgvp": {
+            "details": "名称会移除首尾空白；没有可用名称时为 `nil`。相同外设的后续有效名称更新该值，没有新名称时保留此前值。名称可以重复或变化，不用于判断协议、型号或硬件支持。",
+            "summary": "广播或平台提供的可选外设名称。"
+          },
+          "apple:symbol:s:10PrinterSDK010DiscoveredA0V4rssiSivp": {
+            "details": "单位为 dBm，直接保留平台最近读数；CoreBluetooth 以 `127` 表示 RSSI 不可用。不要把 `127` 当作有效信号强度，也不要由 RSSI 推断打印机就绪或连接稳定。",
+            "summary": "最近一次发现事件携带的接收信号强度。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C": {
+            "details": "创建时选择 CPCL 标签或 ESC/POS 小票配置；创建本身不连接外设。应用负责蓝牙权限、Info.plist 中的 `NSBluetoothAlwaysUsageDescription`、设备选择和前后台策略。同设备的图像、Raw、介质及定位操作共享一个串行 IO 队列。`connect`、`disconnect`、`close` 会阻塞，必须在应用工作线程调用；不要阻塞 UI 或 CoreBluetooth 回调队列。提交成功表示校验和入队，不等待打印机 IO 完成。应用持有返回的每个 `PrintOperation`，轮询到终态后显式关闭；SDK 不保存无限的已完成操作历史；每设备最多接纳 64 个未终态操作、未终态源载荷合计最多 64 MiB，超限以 1008 拒绝。本类型未声明 `Sendable`，应用需安排自己的并发隔离和生命周期。断线、取消或超时后不会自动重放或续打。",
+            "summary": "使用一个 BLE 通信路径的前台打印设备对象。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C10disconnectyyKF": {
+            "details": "在应用工作线程调用。停止接纳工作，取消并中断进行中的 IO，等待相应工作退出；未完成操作会取得终态。重复断开是安全的，设备对象仍可通过后续显式 `connect` 使用。设备已经 `close` 后抛 1002，底层断开错误以 `PrinterSDKError` 表示。保留的操作对象仍能读取结果；断开不能撤回已发送字节，不自动重连或重放。",
+            "summary": "阻塞断开通信并使未完成工作结束。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C11queryStatus19timeoutMillisecondsAA14PrintOperationCs6UInt32V_tKF": {
+            "details": "`timeoutMilliseconds` 默认 `5000`，单位毫秒，必须大于 0，否则抛 1001。该公开入口保留统一操作契约，但当前 CPCL/ESC/POS 标准后端尚未实现状态查询：有效调用在打印机 IO 前抛 `PrinterSDKError(1004)`，不返回假就绪结果，也不返回可用操作。设备已关闭时抛 1002。能力应先查 `.status`；不要以连接状态、GATT 写入回调或 Credit 替代打印机状态。",
+            "summary": "请求一个状态查询操作；当前标准后端会明确拒绝。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C11submitGray8_5width6height6copies17trailingBlankDots011canvasWidthK011originXDots4form19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VA4SSgATSbSgAStKF": {
+            "details": "`pixels` 为逐行紧密排列、每像素 1 字节的灰度数据（0 黑、255 白），长度必须恰为 `width * height`；宽高均以点为单位且大于 0。当前此入口以阈值 128 二值化，不自动缩放或裁剪。`copies` 默认 1，范围 1…100；`trailingBlankDots` 默认 0，增加每张标签声明高度。`originXDots` 默认 `nil`，取 `CpclProfile.xOffsetDots`；须小于配置打印宽度。`canvasWidthDots` 默认 `nil`，取配置打印宽度减本次横向原点；图像补齐到整字节的横向范围及总高度必须落在标签和设备边界内。`form` 默认 `nil`，取 profile 默认值；true 请求下一标签起点结束，false 请求内容结束，仅保存在本次作业中。`timeoutMilliseconds` 默认 `120000`，必须大于 0，是入队后包含排队、准备和发送的共享总预算，单位毫秒，不按份数重新计时。\n\n只适用于标签设备，误用于小票设备抛 1004。参数或几何无效抛 1001；单幅源图超过 16 MiB、设备未终态源载荷合计超过 64 MiB、每设备未终态操作超过 64 个或资源分配失败可抛 1008；这些是 SDK 接纳限制，不是硬件内存承诺。输入在提交过程中复制，返回后调用方可释放原 `Data`。成功返回一个需调用方持有和关闭的 `PrintOperation`，只表示已接纳；运行期失败、超时、取消通过其快照观察。打印机 IO 在设备队列执行，成功最多报告 `DATA_SENT`，不确认机械打印完成。为避免在 UI 上承担图像校验和复制成本，应在应用工作线程提交。",
+            "summary": "复制完整 Gray8 图像并提交一个 CPCL 标签作业。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C12setMediaMode_19timeoutMillisecondsAA14PrintOperationCAA0eF0O_s6UInt32VtKF": {
+            "details": "`mode` 为间隙、黑标或连续纸；`timeoutMilliseconds` 默认 `120000`，须大于 0，单位毫秒，覆盖排队和执行。当前仅 CPCL 标签配置支持此入口，小票设备抛 1004，零超时抛 1001；设备关闭或未连接时抛相应 SDK 错误。返回 `PrintOperation` 表示接纳，不修改已经构建的标签作业，也不在正在发送的操作中插入设置。成功的 `DATA_SENT` 仅证明设置字节已经传输，不证明设备已应用、持久保存、读回或完成校准；调用者负责装纸和确认实际兼容性。",
+            "summary": "把介质跟踪模式设置作为独立操作排入设备队列。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C13bleIdentifier7options7profileAC10Foundation4UUIDV_AA10BLEOptionsVAA11CpclProfileVtKcfc": {
+            "details": "`bleIdentifier` 为已选择并被 CoreBluetooth 识别的外设 UUID；`options` 明确服务、写特征及流控，`profile` 明确 DPI、打印宽度、标签最大高度和作业默认布局。初始化不连接、不扫描、不发送打印机字节。SDK 组合不完整或 ABI 不匹配抛 `PrinterSDKError`（1006），超出 Int32 可表示范围的 DPI 等无效配置抛 1001，不受支持的配置或资源失败也可能抛 SDK 错误；必须整包接入匹配的 SDK。成功后由调用者持有设备并在工作线程调用 `connect`，最终调用 `close`。选择配置不等于硬件认证。",
+            "summary": "创建使用 CPCL 标签配置的 BLE 打印设备。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C13bleIdentifier7options7profileAC10Foundation4UUIDV_AA10BLEOptionsVAA14ReceiptProfileVtKcfc": {
+            "details": "`bleIdentifier` 为已识别的外设 UUID；`options` 指定 BLE 服务、写特征和流控，`profile` 显式指定 DPI 和打印点宽。初始化不扫描、不连接、不发送数据，也不根据纸宽猜测点宽、页长或切刀能力。ABI 不匹配抛 1006，配置或资源错误抛相应 `PrinterSDKError`。小票设备使用 `submitReceiptGray8`；标签、介质设置及下一标签定位入口对该设备不受支持。成功后调用者负责显式连接和关闭。",
+            "summary": "创建使用 ESC/POS 小票配置的 BLE 打印设备。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C15connectionStateAA010ConnectionE0OyKF": {
+            "details": "返回 `ConnectionState`，不进行蓝牙探测、不发送打印机 IO，也不进入打印队列；可观察正在连接或断开的状态。`.connected` 不证明此刻链路仍存活或打印机就绪，未被 IO 察觉的断线可能暂时仍显示已连接。设备已关闭时抛 1002；无法识别的底层状态抛 1000，其他读取错误作为 `PrinterSDKError` 返回。",
+            "summary": "读取 SDK 本地缓存的连接状态。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C15feedToNextLabel19timeoutMillisecondsAA14PrintOperationCs6UInt32V_tKF": {
+            "details": "`timeoutMilliseconds` 默认 `120000`，须大于 0，单位毫秒，包含排队与执行。调用方须先装入并配置合适的间隙或黑标介质；此入口不设置介质、不执行传感器校准或读回。当前仅 CPCL 标签设备支持，小票设备抛 1004，零超时抛 1001，其他错误按 SDK 错误码处理。返回的 `PrintOperation` 与打印和 Raw 共用队列、取消及总预算规则。成功只报告 `DATA_SENT`，不能断言纸张已实际定位。",
+            "summary": "排入一个请求定位到下一标签起点的操作。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C18submitReceiptGray8_5width6height6copies18maxTotalLengthDots013trailingBlankM03cut11finishScope19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VA4sA7CutModeOAA06FinishR0OAStKF": {
+            "details": "`pixels` 为紧密排列 Gray8（0 黑、255 白），长度恰为正数 `width * height`，宽高单位为点；当前使用阈值 128，不自动缩放或裁剪。点宽不得超过配置版心。`copies` 默认 1、范围 1…100；`maxTotalLengthDots` 为调用方必填的正数整单长度预算，包含全部份数及收尾留白，不代表设备单页长度能力。`trailingBlankDots` 默认 0；`cut` 默认 `.none`；`finishScope` 默认 `.eachCopy`；当前标准 ESC/POS 后端仅支持此值，`.endOfJob` 即使只有一份也会在 IO 前以 1004 拒绝。整单长度为图像高度乘份数，加按 scope 执行的尾部留白。当前标准 ESC/POS 后端要求不切纸，切纸策略不能静默丢弃；不支持的结束策略在首次 IO 前以 1004 拒绝。`timeoutMilliseconds` 默认 `120000`，必须大于 0，单位毫秒，涵盖排队、准备和所有份数的发送。\n\n只适用于小票配置，标签设备调用抛 1004；参数、长度预算或几何无效抛 1001。单幅源图最多 16 MiB，设备未终态源载荷合计最多 64 MiB，每设备最多 64 个未终态操作；资源或接纳超限可抛 1008。提交复制像素，返回后原 `Data` 可释放。成功返回的 `PrintOperation` 表示入队；后续错误、取消和终态由快照观察，调用者负责持有和关闭。不在调用线程等待 IO 完成，但图像校验和复制应放在应用工作线程。成功只证明数据发送，不能断言已出纸或已切纸。",
+            "summary": "复制完整 Gray8 图像并提交一个 ESC/POS 小票作业。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C5closeyyF": {
+            "details": "在应用工作线程调用。阻止后续设备访问，断开并中止未完成 IO，等待正在使用设备的调用退出后释放资源；并发重复关闭等待同一次关闭完成，重复调用安全。此方法不抛出错误，不能用于查询断开是否成功。关闭后的对象不能重新连接，需创建新对象；后续设备调用抛 1002。已有 `PrintOperation` 独立保存快照，仍可读终态并关闭。设备析构也执行关闭，因此应主动在合适的工作线程关闭以免最后一次引用释放阻塞 UI。已经发送的数据不会被撤回。",
+            "summary": "阻塞并永久关闭此设备对象。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C7connect19timeoutMillisecondsys6UInt32V_tKF": {
+            "details": "`timeoutMilliseconds` 单位为毫秒，默认 `5000`，必须大于 0；零值抛 1001。必须在应用工作线程执行，不得占用 UI 或 CoreBluetooth 回调队列。已经连接时有效调用可直接成功，不重新打开传输；冲突的连接状态转换或已关闭设备抛 1002。蓝牙/权限/目标识别/特征不符合要求、超时或连接失败以 `PrinterSDKError` 返回（例如 1002、1004、2001、2002、2003）。成功只证明已建立可用通信路径，不证明纸张、机械状态或打印完成；不会重放此前中断的操作。",
+            "summary": "阻塞建立选定外设的 BLE 通信路径。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C7featureyAA14FeatureSupportVAA0aE0OKF": {
+            "details": "`feature` 选择 `PrinterFeature`；返回不可变的 `FeatureSupport`。读取使用本地能力数据，不发送打印机 IO，不验证硬件或改变队列。区分 SDK 已实现、设备支持已知与证据来源：当前显式 BLE 配置的设备支持仍可未知，`isSupported == false` 不能一律理解为确定不支持。已关闭设备抛 1002，其他错误抛 `PrinterSDKError`。当前标准后端未实现状态查询和切纸。",
+            "summary": "读取所选配置下一个功能的实现与支持证据。"
+          },
+          "apple:symbol:s:10PrinterSDK06MobileA0C9submitRaw_6copies19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VAMtKF": {
+            "details": "`bytes` 必须非空，最多 1 MiB；超出载荷限制抛 1008。`copies` 默认 1，范围 1…100；各份在同一个队列条目内发送，其他操作不会插入份与份之间。`timeoutMilliseconds` 默认 `120000`，必须大于 0，单位毫秒；全部份数共享包含排队的总超时与取消状态。空载荷、份数或超时无效抛 1001，未连接或已关闭时抛状态/传输错误。源载荷复制一次，份数不扩增接纳预算；设备未终态源载荷合计上限 64 MiB，每设备最多 64 个未终态操作，超限抛 1008。\n\n载荷不经过协议封装，不应用标签原点、FORM、图像处理或介质推断；调用方承担命令与目标设备匹配的责任。返回 `PrintOperation` 只表示接纳，后续通过快照查看结果。取消、断线或超时停止后续字节，已发送数据不可撤回，不自动重放剩余份数。成功仍仅 `DATA_SENT`，操作对象由调用者持有并显式关闭。",
+            "summary": "在设备原有串行队列中原样发送一个 Raw 载荷。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO": {
+            "details": "传给 `MobilePrinter.feature`，选择要读取的软件实现、设备支持及证据。枚举项存在不表示功能已实现或硬件支持；以返回的 `FeatureSupport` 为准。",
+            "summary": "可供能力查询选择的功能标识。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO15feedToNextLabelyA2CmF": {
+            "details": "当前 CPCL 标签设备提供定位命令，小票设备不提供。调用方负责合适介质配置，能力和发送成功均不证明纸张已实际定位。",
+            "summary": "查询下一标签起点定位功能。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO3cutyA2CmF": {
+            "details": "当前标准后端未实现切纸。此项与小票打印功能分开；不要以 ESC/POS 协议名或小票配置推断机器存在切刀。",
+            "summary": "查询切纸功能。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO3rawyA2CmF": {
+            "details": "原样发送仍通过设备同一串行队列；功能实现不校验载荷的协议语义，也不保证任意 Raw 命令在设备上安全或受支持。",
+            "summary": "查询原始字节发送功能。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO5imageyA2CmF": {
+            "details": "描述图像路径的软件实现；当前使用主机渲染。可用算法和源载荷资源限制仍独立，不能据此推断目标设备所有像素尺寸都可接纳。",
+            "summary": "查询主机图像处理与发送功能。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO5labelyA2CmF": {
+            "details": "判断当前配置是否提供标签作业路径；当前标签设备具备软件实现，小票设备不提供。实现支持与硬件支持证据独立，须读取 `FeatureSupport`。",
+            "summary": "查询固定标签打印功能。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO5mediayA2CmF": {
+            "details": "当前 CPCL 标签设备提供介质跟踪设置，小票设备拒绝。设置发送成功仍不是设备读回或硬件确认，且不改变每个图像作业的几何。",
+            "summary": "查询介质模式设置功能。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO6statusyA2CmF": {
+            "details": "当前标准 CPCL/ESC/POS 后端未实现，`queryStatus` 明确抛 1004；该能力项不代表可读取缺纸、开盖或就绪状态。",
+            "summary": "查询打印机状态读取功能。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO7receiptyA2CmF": {
+            "details": "判断当前配置是否提供小票作业路径；当前小票设备具备软件实现，标签设备不提供。设备页长与切刀仍是独立能力，不能由小票功能推断。",
+            "summary": "查询小票打印功能。"
+          },
+          "apple:symbol:s:10PrinterSDK0A7FeatureO8rawValueACSgs6UInt32V_tcfc": {
+            "details": "Swift 编译器为 UInt32 原始值枚举提供的可失败初始化，不是独立 SDK IO 实现。`rawValue` 匹配本版已声明项时返回对应值，未知数值返回 `nil`；不抛出异常，不执行查询、连接或设置。调用方应显式处理 nil，避免强制解包未来或无效值。",
+            "summary": "从底层数值安全解析 PrinterFeature 枚举。"
+          },
+          "apple:symbol:s:10PrinterSDK0A8SDKErrorV": {
+            "details": "遵循 `LocalizedError` 与 `Equatable`。应用按 `code` 分支处理，面向人的英文描述用于诊断，不作为稳定解析协议。构造该值不执行 IO，也不会改变设备状态；不可变值可保存为诊断结果。`Equatable` 比较错误码，Foundation/Swift 扩展成员在参考中单列，不表示 SDK 额外执行了恢复或查询。",
+            "summary": "以稳定数值错误码表示 SDK 调用失败的值。"
+          },
+          "apple:symbol:s:10PrinterSDK0A8SDKErrorV16errorDescriptionSSSgvp": {
+            "details": "返回当前实现的英文说明加括号内数值；未知码也有说明。虽然类型为 `String?`，当前实现总会生成字符串。文案不承诺稳定或自动本地化，业务分支应使用 `code`，需要本地化时由应用映射。",
+            "summary": "包含错误码的可读诊断消息。"
+          },
+          "apple:symbol:s:10PrinterSDK0A8SDKErrorV4codes5Int32Vvp": {
+            "details": "主要值：1000 内部错误，1001 参数无效，1002 状态无效，1003 SDK 未初始化，1004 不支持，1005 已取消，1006 ABI 不匹配，1007 输出缓冲区不足，1008 资源限制；2000 传输未打开，2001 超时，2002 连接丢失，2003 IO 错误，2004 无传输进展，3000 协议响应无效。取消或连接丢失不证明零字节交付；不得据错误码自动重放可能产生副作用的打印。",
+            "summary": "可供程序判断的稳定 SDK 错误码。"
+          },
+          "apple:symbol:s:10PrinterSDK0A8SDKErrorVyACs5Int32Vcfc": {
+            "details": "`code` 为 `Int32`，原样保存；不校验是否已定义，也不抛出异常。未知数值仍可保留，描述显示未知 SDK 错误并包含该数值，便于未来版本和原生错误诊断。构造本身不尝试恢复连接或重试打印。",
+            "summary": "用一个 SDK 数值错误码构造错误值。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEOptionsV": {
+            "details": "应用显式配置与目标固件一致的服务和特征；这些值不自动识别型号，也不构成硬件验证。所有字段在初始化时保存，通过 `MobilePrinter` 使用。当前前台 BLE 传输不提供平台原生句柄，权限和前后台策略由应用负责。",
+            "summary": "不可变的 BLE 服务、写入方式和可选流控配置。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEOptionsV12withResponseSbvp": {
+            "details": "true 请求 `.withResponse`，false 请求 `.withoutResponse`。使用 Credit 流控时必须为 false；构造器拒绝相冲突配置。有响应写入的完成回调只表示该层写入完成，不能推断打印机已解析命令或机械打印完成。",
+            "summary": "选择是否使用 GATT 有响应写入。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEOptionsV13maxWriteBytesSivp": {
+            "details": "单位字节，初始化接受 1…512。实际包长取应用上限、平台最大写入长度，以及启用 Credit 时固件公告包长等约束的最小值；此值不是协商 MTU，也不表示每次都会写满，不应从型号名称推断。",
+            "summary": "每次 BLE 平台写入的应用载荷上限。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEOptionsV17creditFlowControlAA09BLECrediteF0VSgvp": {
+            "details": "默认 `nil` 表示未启用该流控；非空时使用 Data Out/Data FC 通知，并要求无响应写入及三个互异特征。Credit 表示接收容量，不是应用层逐包 ACK、纸张状态或打印完成确认。其等待受原操作超时及取消约束；不把通知载荷作为公开状态结果。",
+            "summary": "可选的 Data Transmission V1.2 Credit 流控配置。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEOptionsV19writeCharacteristic10Foundation4UUIDVvp": {
+            "details": "该特征位于配置的 `service` 中，须支持 `withResponse` 所选写入方式。启用 Credit 时须与 `dataOut`、`dataFC` 不同。它不是读取状态或确认机械打印完成的接口。",
+            "summary": "用于发送打印载荷的 BLE 特征 UUID。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEOptionsV7service10Foundation4UUIDVvp": {
+            "details": "由初始化参数明确提供，无隐式型号默认值。配置正确性仍须由实际服务发现和目标固件确认；发现广播中未列出此服务不等于连接后不存在。",
+            "summary": "连接后查找目标写入与流控特征的服务 UUID。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEOptionsV7service19writeCharacteristic12withResponse13maxWriteBytes17creditFlowControlAC10Foundation4UUIDV_AKSbSiAA09BLECreditmN0VSgtKcfc": {
+            "details": "`service` 为包含各目标特征的服务 UUID，`writeCharacteristic` 为写入特征 UUID；`withResponse` 选择 GATT 有响应/无响应写入，无默认值。`maxWriteBytes` 为每次平台写入的应用上限，单位字节，必须在 1…512；实际包长还受系统和固件流控容量限制。`creditFlowControl` 默认 `nil`；非空时仅允许 `withResponse == false`，且写入、Data Out 和 Data FC 三个特征 UUID 必须互不相同。上述条件不满足抛 1001。初始化只校验配置，不发现服务、不连接、不确认固件支持；特征能力在连接时验证，失败可抛 1004。",
+            "summary": "校验并构造明确的 BLE 写入配置。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEScannerC": {
+            "details": "扫描通过异步完成回调返回，不阻塞调用线程；一次仅允许一个扫描。应用持有扫描器直到完成，可用 `stop` 取消；完成后可再次扫描。应用负责用途说明、权限与前后台策略。发现不连接设备，不判断协议/型号，也不验证打印机硬件；没有原生外设句柄暴露。",
+            "summary": "前台 BLE 设备发现器。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEScannerC4scan7seconds7service10completionySd_10Foundation4UUIDVSgys6ResultOySayAA010DiscoveredA0VGAA0A8SDKErrorVGctF": {
+            "details": "`seconds` 默认 `10`，单位秒，必须有限且在 `(0, 60]` 内，窗口包含蓝牙初始化等待；无效值通过主队列回调 `.failure(PrinterSDKError(1001))`，方法不抛出。`service` 默认 `nil`，表示不按单一服务过滤；传 UUID 时要求广播匹配，可能排除没有在广播列出服务的设备。`completion` 无默认值；每次请求只调用一次，且始终派发到主队列，可在回调中再次启动扫描。已有活动扫描时新请求以 1002 失败，不中断原扫描。\n\n正常窗口结束返回 `.success`，可以是空数组；按 UUID 合并后保留首次发现顺序，名称、服务与 RSSI 更新。停止以 1005 失败；蓝牙关闭、权限不足或扫描期间状态失效以 1002 失败，不支持蓝牙以 1004 失败；蓝牙初始化未能在窗口内就绪以 2001 失败。失败和取消不返回部分结果。SDK 不自动开启蓝牙、配对、重试、连接或选择设备。",
+            "summary": "异步扫描一个有限窗口并在主队列交付一次结果。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEScannerC4stopyyF": {
+            "details": "方法异步安排停止，不等待回调，不抛出异常；活动扫描以 1005 在主队列完成，空闲时为空操作。每轮只交付一次结果，旧回调和截止任务不会污染新一轮。回调完成后扫描器可以再次使用；析构也会请求停止。停止扫描不关闭已经创建的 `MobilePrinter` 连接。",
+            "summary": "请求取消当前扫描并清理本轮扫描资源。"
+          },
+          "apple:symbol:s:10PrinterSDK10BLEScannerCACycfc": {
+            "details": "无参数，不抛出异常；创建对象不立即扫描或连接设备。调用 `scan` 才启动一个有限扫描窗口。应用应保留此对象，结束页面或进入后台时显式 `stop`。",
+            "summary": "创建一个可复用的前台扫描器。"
+          },
+          "apple:symbol:s:10PrinterSDK10M90ProfileO": {
+            "details": "该枚举用作静态命名空间，没有可供创建实例的公开枚举项。当前只提供 BLE 服务/写入/Credit 特征预设，DPI、点宽、标签高度及 FORM 仍由应用明确提供。选择此预设不表示 M90 或任意硬件已通过本 SDK 验收。",
+            "summary": "提供依据 M90 固件 V1.2 文档的 BLE 配置工厂。"
+          },
+          "apple:symbol:s:10PrinterSDK10M90ProfileO10bleOptions13maxWriteBytesAA10BLEOptionsVSi_tKFZ": {
+            "details": "`maxWriteBytes` 默认 `512`，单位字节，接受 1…512，否则抛 1001。返回服务 FF00、写入 FF02、Data Out FF01、Data FC FF03 对应的标准 Bluetooth Base UUID，并启用无响应写入及 Credit；完整 UUID 形式为 `0000xxxx-0000-1000-8000-00805F9B34FB`。实际发送包长仍由系统写入容量、固件公告与应用上限共同限制。工厂不进行扫描、连接或 IO，不预置固定初始 Credit，不确认机械打印能力。",
+            "summary": "生成 M90 文档 V1.2 的无响应写入和 Credit 配置。"
+          },
+          "apple:symbol:s:10PrinterSDK11CpclProfileV": {
+            "details": "明确描述应用为该设备选择的 DPI、可打印点宽及标签最大高度；不从型号、纸宽或名称推断能力。`form` 和 `xOffsetDots` 只是每次标签作业的默认值，不是设备设置，也不影响 Raw。初始化可拒绝无效参数，但不验证实际硬件。",
+            "summary": "不可变的 CPCL 标签几何和作业默认布局配置。"
+          },
+          "apple:symbol:s:10PrinterSDK11CpclProfileV11xOffsetDotss6UInt32Vvp": {
+            "details": "单位为点，构造参数默认 0，须小于配置打印宽度。`submitGray8(originXDots: nil)` 使用此值；每次提交独立保存原点，显式覆盖不会修改 profile。Raw 原样发送，不应用此偏移；SDK 不自动推断居中装纸位置。",
+            "summary": "每个标签作业默认的横向原点。"
+          },
+          "apple:symbol:s:10PrinterSDK11CpclProfileV18maxLabelHeightDotss6UInt32Vvp": {
+            "details": "单位为点，构造接受 1…65535；提交标签的图像高度加尾部留白不得超过此范围。该值由调用方显式指定，构造成功不代表固件已报告或硬件已验证这一长度能力。",
+            "summary": "配置的单张标签最大高度。"
+          },
+          "apple:symbol:s:10PrinterSDK11CpclProfileV3dpi9widthDots014maxLabelHeightG04form07xOffsetG0ACs6UInt32V_A2JSbAJtKcfc": {
+            "details": "`dpi` 必须大于 0，单位 dots per inch；`widthDots` 必须大于 0、不超过 7992 且为 8 的整数倍；`maxLabelHeightDots` 必须在 1…65535；两者单位为点。`form` 必填：true 默认请求下一标签起点结束，false 默认在内容结束。`xOffsetDots` 默认 0，须小于 `widthDots`。任一构造条件无效抛 1001；设备初始化还要求 DPI 可表示为正的 Int32，超出时抛 1001；不能将配置构造成功解释为硬件支持。初始化不发送设置或校准命令。",
+            "summary": "校验并保存 CPCL 标签配置及作业默认值。"
+          },
+          "apple:symbol:s:10PrinterSDK11CpclProfileV3dpis6UInt32Vvp": {
+            "details": "单位 dots per inch，由初始化参数保存且大于 0；用于标签横纵几何。未通过设备查询或纸面测量确认，选择正确值是应用和集成方的责任。",
+            "summary": "应用明确配置的打印分辨率。"
+          },
+          "apple:symbol:s:10PrinterSDK11CpclProfileV4formSbvp": {
+            "details": "true 请求下一标签起点结束，false 请求内容结束；没有隐式默认值，初始化时必填。`submitGray8(form: nil)` 取此值，显式传 true/false 只覆盖当前作业。它不设置纸张类型、不做传感器校准，也不影响原始字节发送。",
+            "summary": "每个标签作业默认的结束定位策略。"
+          },
+          "apple:symbol:s:10PrinterSDK11CpclProfileV9widthDotss6UInt32Vvp": {
+            "details": "单位为点；构造要求 1…7992 且为 8 的整数倍。它不等于介质毫米宽，也不自动给出居中装纸的原点。标签作业的横向原点、画布和补齐到整字节的图像范围必须共同落在此宽度内。",
+            "summary": "配置的设备可打印最大横向点宽。"
+          },
+          "apple:symbol:s:10PrinterSDK11FinishScopeO": {
+            "details": "配合 `submitReceiptGray8(finishScope:)` 使用；范围影响整单长度预算与结束动作次数，不改变份数。不支持的策略组合在 IO 前明确拒绝，不能把多份拆为循环入队来替代一个原子队列条目。",
+            "summary": "小票结束留白和切纸请求的执行范围。"
+          },
+          "apple:symbol:s:10PrinterSDK11FinishScopeO8eachCopyyA2CmF": {
+            "details": "为默认值；整单预算包含每一份的 `trailingBlankDots`。同一操作包含所有份数，取消或失败后不自动补打剩余份。切纸仍受独立能力限制。",
+            "summary": "每份内容后执行收尾留白及切纸请求。"
+          },
+          "apple:symbol:s:10PrinterSDK11FinishScopeO8endOfJobyA2CmF": {
+            "details": "整单预算仅累加一次结束留白，但当前标准 ESC/POS 后端仅支持 `.eachCopy`，本选项即使只有一份也会在 IO 前抛 1004，不会静默改为逐份。",
+            "summary": "全部份数之后执行一次收尾动作。"
+          },
+          "apple:symbol:s:10PrinterSDK11FinishScopeO8rawValueACSgs6UInt32V_tcfc": {
+            "details": "Swift 编译器为 UInt32 原始值枚举提供的可失败初始化，不是独立 SDK IO 实现。`rawValue` 匹配本版已声明项时返回对应值，未知数值返回 `nil`；不抛出异常，不执行查询、连接或设置。调用方应显式处理 nil，避免强制解包未来或无效值。",
+            "summary": "从底层数值安全解析 FinishScope 枚举。"
+          },
+          "apple:symbol:s:10PrinterSDK14FeatureSupportV": {
+            "details": "由 `MobilePrinter.feature` 返回，无公开初始化入口。所有字段只读，读值不进行 IO；各字段是底层契约数值，避免把非零实现当作硬件认证。当前显式 BLE 配置可以已实现但设备支持未知。",
+            "summary": "区分软件实现、设备支持和证据来源的功能描述。"
+          },
+          "apple:symbol:s:10PrinterSDK14FeatureSupportV06deviceD0s6UInt32Vvp": {
+            "details": "0 未知，1 明确不支持，2 明确支持。显式配置当前仍可能为 0，即使 SDK 已实现相关路径也不能提升为支持。`isSupported` 只有在 `implementation != 0` 且此值为 2 时为 true。",
+            "summary": "设备支持的三态数值。"
+          },
+          "apple:symbol:s:10PrinterSDK14FeatureSupportV11isSupportedSbvp": {
+            "details": "当前判断等同 `isImplemented && deviceSupport == 2`，不会把未知支持视为 true。false 包含未实现、未知和明确不支持多种情形，需结合原始字段区分；true 也不能替代参数校验或逐次操作结果。",
+            "summary": "是否同时具备 SDK 实现和已知设备支持。"
+          },
+          "apple:symbol:s:10PrinterSDK14FeatureSupportV13isImplementedSbvp": {
+            "details": "当前判断等同 `implementation != 0`，不读取设备、不发送 IO。true 只证明存在软件实现；设备支持未知、实际参数不兼容或权限/连接失败仍可能导致调用失败。",
+            "summary": "SDK 是否提供非零的实现方式。"
+          },
+          "apple:symbol:s:10PrinterSDK14FeatureSupportV14implementations6UInt32Vvp": {
+            "details": "数值 0 表示未实现，1 表示协议原生实现，2 表示主机渲染。`isImplemented` 仅判断是否非零。它描述软件路径，不证明固件支持或硬件验收通过；未知未来数值应保留并谨慎处理。",
+            "summary": "SDK 对该功能采用的实现方式。"
+          },
+          "apple:symbol:s:10PrinterSDK14FeatureSupportV8evidences6UInt32Vvp": {
+            "details": "1 为配置声明，2 为设备报告，4 为硬件验证；标志可按位组合。当前显式 BLE 配置的配置声明不等同设备读回或真机验证，应用不得由预设名、广播名或构造成功补造证据。",
+            "summary": "支持结论的来源标志位。"
+          },
+          "apple:symbol:s:10PrinterSDK14PrintOperationC": {
+            "details": "仅由设备提交入口返回，没有公开初始化入口。应用保留对象直到不再需要结果；SDK 不建立已完成操作历史。`snapshot` 和 `cancel` 不要求设备仍存活，内部访问与 `close` 串行协调。`close` 仅释放本对象持有的操作资源，不取消打印；取消须显式调用 `cancel` 并观察终态。本类型未声明 `Sendable`，应用仍需安排并发隔离。",
+            "summary": "由调用方持有、可独立于设备读取结果的操作对象。"
+          },
+          "apple:symbol:s:10PrinterSDK14PrintOperationC2ids6UInt64Vvp": {
+            "details": "不可变 `UInt64`，与 `OperationSnapshot.id` 一致，在所属设备中标识操作；不要当作跨设备或跨进程唯一 ID。读取此保存值不访问设备，即使操作对象已关闭仍可读取，但关闭后不能再取得新快照或请求取消。",
+            "summary": "接纳该操作时分配的设备内操作标识符。"
+          },
+          "apple:symbol:s:10PrinterSDK14PrintOperationC5closeyyF": {
+            "details": "不抛出错误，重复调用安全，析构也执行此操作；关闭本对象不会请求取消打印。若希望停止工作，先 `cancel` 并观察终态，再关闭。关闭后 `snapshot`、`cancel` 抛 1002；此前返回的 `OperationSnapshot` 仍是可读值。设备的 `close` 与此方法职责不同：关闭设备会终止未完成工作。",
+            "summary": "释放本对象持有的操作资源，保持已接纳打印的执行语义。"
+          },
+          "apple:symbol:s:10PrinterSDK14PrintOperationC6cancelyyKF": {
+            "details": "请求返回不代表已经终止，应继续读取 `snapshot` 直到 `isTerminal`。排队操作可在零 IO 下取消；活动操作在检查点停止后续数据，已接受的字节不可撤回。已完成操作的迟到取消不改写结果；设备已销毁时不会再有活动工作，取消是安全的空操作。操作对象已关闭时抛 1002，其他错误抛 SDK 错误。尝试写入后失败或取消可能使连接失效，需应用显式重连且不重放旧操作。",
+            "summary": "向该操作发送协作式取消请求。"
+          },
+          "apple:symbol:s:10PrinterSDK14PrintOperationC8snapshotAA0D8SnapshotVyKF": {
+            "details": "立即返回 `OperationSnapshot`，不等待打印完成，也不发送 IO；应用可在工作线程轮询并把 UI 更新派发回主线程。设备断开/关闭后，只要此操作未 `close` 仍能读取结果；先前已经取得的值也继续有效。此操作已关闭时抛 1002，其他获取错误抛 `PrinterSDKError`。快照不提供未知总字节的假零值，发送进度或 `DATA_SENT` 不能代表机械打印完成。",
+            "summary": "取得当前操作的独立不可变数值快照。"
+          },
+          "apple:symbol:s:10PrinterSDK14ReceiptProfileV": {
+            "details": "由应用明确提供，硬件最大页长和切刀能力仍未知；不以小票毫米宽度推断打印点宽。整单长度预算在 `submitReceiptGray8(maxTotalLengthDots:)` 中独立提供。构造不进行连接、IO 或硬件认证。",
+            "summary": "不可变的 ESC/POS 小票分辨率和版心点宽配置。"
+          },
+          "apple:symbol:s:10PrinterSDK14ReceiptProfileV3dpi9widthDotsACs6UInt32V_AGtKcfc": {
+            "details": "`dpi` 为 1…255，单位 dots per inch；`widthDots` 大于 0、不超过 7992 且为 8 的整数倍，单位点。无默认参数；违反条件抛 1001。只保存配置，不自动检测纸宽、页长、协议或切刀；设备初始化和实际提交仍有独立校验。",
+            "summary": "校验并保存显式小票配置。"
+          },
+          "apple:symbol:s:10PrinterSDK14ReceiptProfileV3dpis6UInt32Vvp": {
+            "details": "单位 dots per inch，构造接受 1…255。该值来自调用方而非设备读回，应用须按实际打印头参数配置。",
+            "summary": "小票内容使用的明确分辨率。"
+          },
+          "apple:symbol:s:10PrinterSDK14ReceiptProfileV9widthDotss6UInt32Vvp": {
+            "details": "单位为点；构造要求 1…7992 且为 8 的整数倍。当前图像以此作为横向边界，不静默缩放或裁剪超宽输入。它不代表介质毫米宽度、每份最大长度或切刀能力。",
+            "summary": "小票作业的可打印版心宽度。"
+          },
+          "apple:symbol:s:10PrinterSDK15ConnectionStateO": {
+            "details": "由 `MobilePrinter.connectionState` 返回，仅是缓存观察，不探测蓝牙链路或打印机机械状态。错误由调用/操作结果表示，不增加一个稳定的“失败”连接状态。",
+            "summary": "SDK 本地观察到的连接生命周期状态。"
+          },
+          "apple:symbol:s:10PrinterSDK15ConnectionStateO10connectingyA2CmF": {
+            "details": "是连接生命周期的瞬时本地状态；连接完成或失败由 `connect` 的结果表示。不要在 UI 线程等待，不根据此状态重放任务。",
+            "summary": "SDK 正在建立通信路径。"
+          },
+          "apple:symbol:s:10PrinterSDK15ConnectionStateO12disconnectedyA2CmF": {
+            "details": "尚未连接、显式断开、关闭，或已被 IO 发现连接丢失后的本地状态。应用需显式连接，SDK 不会自动续打。",
+            "summary": "SDK 当前记录为未连接。"
+          },
+          "apple:symbol:s:10PrinterSDK15ConnectionStateO13disconnectingyA2CmF": {
+            "details": "断开尚未完成，正在停止接纳并等待活动工作退出。仅该状态不能证明系统蓝牙资源已经释放；等 `disconnect` 或 `close` 返回。",
+            "summary": "SDK 正在中断 IO 并完成断开屏障。"
+          },
+          "apple:symbol:s:10PrinterSDK15ConnectionStateO8rawValueACSgs6UInt32V_tcfc": {
+            "details": "Swift 编译器为 UInt32 原始值枚举提供的可失败初始化，不是独立 SDK IO 实现。`rawValue` 匹配本版已声明项时返回对应值，未知数值返回 `nil`；不抛出异常，不执行查询、连接或设置。调用方应显式处理 nil，避免强制解包未来或无效值。",
+            "summary": "从底层数值安全解析 ConnectionState 枚举。"
+          },
+          "apple:symbol:s:10PrinterSDK15ConnectionStateO9connectedyA2CmF": {
+            "details": "不是即时存活探测或打印机就绪证明；链路断开在被 IO 察觉之前可能仍保持此值。任务是否成功和纸面是否完成必须分别判断。",
+            "summary": "SDK 已记录通信路径建立成功。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV": {
+            "details": "由 `PrintOperation.snapshot` 返回，无公开初始化入口。值不持有设备资源，设备或操作关闭后已取得值仍可读；新进展需要再次获取快照。数值状态、完成级别、字节精确性和副作用必须组合解释，不以已发送数或传输完成推断机械打印完成。",
+            "summary": "操作在某一时刻的不可变结果和进度值。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV10bytesTotals6UInt64VSgvp": {
+            "details": "单位字节；未知时为 `nil`，不要替换成确定的 0。当前流式处理一般在具有精确证据的成功终态才知道总数；运行中、失败或证据不足时可为 nil。只有已知且合适时才计算比例，不能用进度百分比断言机械打印完成。",
+            "summary": "已知时的总发送字节数。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV10completions6UInt32Vvp": {
+            "details": "数值 0 无完成证据，1 `DATA_SENT`，2 `DEVICE_CONFIRMED`。当前标准 CPCL/ESC/POS 发送成功仅为 1；运行中、失败或取消不带完成级别。1 只表示所需字节已交付传输路径，不能推断纸面、走纸或设置应用结果；保留值 2 不表示当前后端已实现设备确认。",
+            "summary": "成功操作达到的完成证据级别。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV10isTerminalSbvp": {
+            "details": "当前计算为 `state >= 4`；当前终态为成功完成 4、失败 5、取消 6。true 不表示成功，必须再检查状态和错误码。值只是这次快照的观察，调用本属性不阻塞、不取消、不释放操作对象。",
+            "summary": "该快照是否属于终态。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV10mediaBasiss6UInt32Vvp": {
+            "details": "0 未使用介质依据，1 同一连接中最近完整发送的设置，2 设备读回。最近发送只证明传输成功，不能提升为已应用或读回；当前 Swift 简化提交入口不暴露介质条件参数，通常为 0，当前标准后端也不提供设备读回。该字段不证明纸张已安装或定位正确。",
+            "summary": "作业介质条件判断所使用的证据数值。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV14bytesSentExactSbvp": {
+            "details": "true 表示本快照的 `bytesSent` 是精确统计；false 表示保守下界。发送中的平台回调可能尚未返回，CoreBluetooth 失败也未必能报告全部接受量，因此不能从数值大小自行补充精确性。即使精确，也只衡量传输接受，不确认纸面。",
+            "summary": "已发送字节统计是否有精确计数证据。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV19sideEffectsPossibleSbvp": {
+            "details": "保守标记：写入尝试或交付不明确后可能为 true，不要求 `bytesSent > 0`。结合错误、取消和字节证据决定人工恢复；true 时不可盲目重试或重放。false 也不是连接存活、设备就绪或未来重试必然安全的证明。",
+            "summary": "是否可能已对打印机产生副作用。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV2ids6UInt64Vvp": {
+            "details": "与对应 `PrintOperation.id` 一致，是设备内的 `UInt64` 标识。值随快照保存，读取不访问设备；不可用作跨设备、跨运行会话的全局唯一身份。",
+            "summary": "该快照所属的操作标识符。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV4kinds6UInt32Vvp": {
+            "details": "当前数值：1 打印，2 状态查询，3 介质设置，4 Raw，5 下一标签定位。当前标准后端拒绝状态查询，所以保留该编号不表示已有状态查询实现。未知未来值应保留并作通用展示，不猜测行为。",
+            "summary": "操作类型的底层数值。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV5states6UInt32Vvp": {
+            "details": "当前数值：0 排队，1 准备，2 发送，4 成功完成，5 失败，6 取消；当前没有值 3 的公开状态。以 `isTerminal` 判断是否结束，再查看 `completion`、`errorCode` 和副作用字段。终态成功不等于设备已机械打印完成。",
+            "summary": "操作执行状态的底层数值。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV9bytesSents6UInt64Vvp": {
+            "details": "单位字节，包含操作实际发送的协议控制和打印数据，不能按源像素数直接换算进度。`bytesSentExact == false` 时该数只是已知下界，可能有已被平台接受但尚未确证的字节；0 不总是无副作用证明。该统计不表示机械输出长度。",
+            "summary": "截至快照已观察到的传输接受字节数。"
+          },
+          "apple:symbol:s:10PrinterSDK17OperationSnapshotV9errorCodes5Int32Vvp": {
+            "details": "0 表示该快照没有记录错误，并不能单独证明已经成功完成。失败或取消时查看对应 SDK 数值，例如取消 1005、超时 2001、连接丢失 2002；应结合 `state` 和 `isTerminal`。设备关闭后仍可通过持有的操作读到终态错误，不自动重试或重放。",
+            "summary": "操作运行期结果的稳定错误码。"
+          },
+          "apple:symbol:s:10PrinterSDK20BLECreditFlowControlV": {
+            "details": "保存 `dataOut` 和 `dataFC` UUID；通过 `BLEOptions.creditFlowControl` 启用，写入特征由 `BLEOptions` 单独配置。只有与固件协议匹配时使用，不自动探测或认证设备。构造本身不订阅通知或进行 IO。",
+            "summary": "同一服务中 Data Transmission V1.2 的通知特征配置。"
+          },
+          "apple:symbol:s:10PrinterSDK20BLECreditFlowControlV6dataFC10Foundation4UUIDVvp": {
+            "details": "传输根据有效流控信息限制发送，没有可用 Credit 时等待，等待受取消和总截止时间约束。它只管理接收容量，不是打印完成确认。与 Data Out、写入特征的互异条件由 `BLEOptions` 校验。",
+            "summary": "提供 V1.2 接收 Credit 和包长信息的通知特征 UUID。"
+          },
+          "apple:symbol:s:10PrinterSDK20BLECreditFlowControlV7dataOut0F2FCAC10Foundation4UUIDV_AHtcfc": {
+            "details": "两个参数均必填、无默认值；本初始化不抛出异常。与写入特征互异及只允许无响应写入的条件在 `BLEOptions` 初始化时校验。连接时还必须确认特征存在且具有所需通知能力。",
+            "summary": "保存 Data Out 和 Data FC 通知特征 UUID。"
+          },
+          "apple:symbol:s:10PrinterSDK20BLECreditFlowControlV7dataOut10Foundation4UUIDVvp": {
+            "details": "用于启用 V1.2 要求的通知路径。当前适配器不把此特征通知作为公开状态、读回或打印完成结果；不能以收到通知证明标签已打印。与写入、Data FC 特征的互异条件由 `BLEOptions` 校验。",
+            "summary": "选定服务中的 Data Out 通知特征 UUID。"
+          },
+          "apple:symbol:s:10PrinterSDK7CutModeO": {
+            "details": "传给 `submitReceiptGray8(cut:)`；当前标准 ESC/POS 后端未实现切纸，非 `.none` 请求会在首次 IO 前拒绝，不会静默省略。枚举项是契约选项，不是设备具有切刀的证据。",
+            "summary": "小票结束时请求的切纸方式。"
+          },
+          "apple:symbol:s:10PrinterSDK7CutModeO4fullyA2CmF": {
+            "details": "当前标准后端未实现，提交时在 IO 前以 1004 拒绝；不会降级为不切或半切。目标设备存在切刀的事实需独立证据。",
+            "summary": "请求全切。"
+          },
+          "apple:symbol:s:10PrinterSDK7CutModeO4noneyA2CmF": {
+            "details": "为 `submitReceiptGray8` 的默认值；仍可根据 `trailingBlankDots` 与 `finishScope` 发送尾部留白。它不关闭设备，也不承诺自动撕纸位置。",
+            "summary": "不请求切纸。"
+          },
+          "apple:symbol:s:10PrinterSDK7CutModeO7partialyA2CmF": {
+            "details": "当前标准后端未实现，提交时在 IO 前以 1004 拒绝；不会降级为全切或不切。枚举项不构成硬件支持。",
+            "summary": "请求半切。"
+          },
+          "apple:symbol:s:10PrinterSDK7CutModeO8rawValueACSgs6UInt32V_tcfc": {
+            "details": "Swift 编译器为 UInt32 原始值枚举提供的可失败初始化，不是独立 SDK IO 实现。`rawValue` 匹配本版已声明项时返回对应值，未知数值返回 `nil`；不抛出异常，不执行查询、连接或设置。调用方应显式处理 nil，避免强制解包未来或无效值。",
+            "summary": "从底层数值安全解析 CutMode 枚举。"
+          },
+          "apple:symbol:s:10PrinterSDK9MediaModeO": {
+            "details": "传给 `setMediaMode`；当前只有 CPCL 标签设备提供对应编码，不能因为枚举项存在就推断其他后端或固件支持。设置发送不确认已应用，不设置标签图像尺寸或执行传感器校准。",
+            "summary": "与打印语言独立的介质跟踪模式。"
+          },
+          "apple:symbol:s:10PrinterSDK9MediaModeO10continuousyA2CmF": {
+            "details": "不依赖间隙/黑标定位的模式设置请求；它与标签作业的 `form` 结束策略、画布尺寸是独立参数，不自动改写已有作业或推断纸长。",
+            "summary": "请求连续纸介质模式。"
+          },
+          "apple:symbol:s:10PrinterSDK9MediaModeO3gapyA2CmF": {
+            "details": "用于具有相应传感与固件支持的标签介质；不设置间隙毫米尺寸，不执行校准或验证装纸。是否实际应用需设备/硬件证据。",
+            "summary": "请求按间隙跟踪介质。"
+          },
+          "apple:symbol:s:10PrinterSDK9MediaModeO8rawValueACSgs6UInt32V_tcfc": {
+            "details": "Swift 编译器为 UInt32 原始值枚举提供的可失败初始化，不是独立 SDK IO 实现。`rawValue` 匹配本版已声明项时返回对应值，未知数值返回 `nil`；不抛出异常，不执行查询、连接或设置。调用方应显式处理 nil，避免强制解包未来或无效值。",
+            "summary": "从底层数值安全解析 MediaMode 枚举。"
+          },
+          "apple:symbol:s:10PrinterSDK9MediaModeO9blackMarkyA2CmF": {
+            "details": "用于实际具备相应传感与固件支持的黑标纸；不设置标记长度/偏移，不执行校准或读回。发送成功不能证明检测到黑标。",
+            "summary": "请求按黑标跟踪介质。"
+          },
+          "apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A7FeatureO": {
+            "details": "Swift 标准库 `Equatable` 扩展为此类型提供的合成公开成员，不是独立 SDK 实现。参数 `lhs`、`rhs` 为两个值；枚举项不同时返回 true，否则 false。不抛出错误、不执行 IO，也不比较设备状态或诊断文案。",
+            "summary": "比较两个 PrinterFeature 值是否不相等。"
+          },
+          "apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV": {
+            "details": "Swift 标准库 `Equatable` 扩展为此类型提供的合成公开成员，不是独立 SDK 实现。参数 `lhs`、`rhs` 为两个值；所保存错误码不同时返回 true，否则 false。不抛出错误、不执行 IO，也不比较设备状态或诊断文案。",
+            "summary": "比较两个 PrinterSDKError 值是否不相等。"
+          },
+          "apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK11FinishScopeO": {
+            "details": "Swift 标准库 `Equatable` 扩展为此类型提供的合成公开成员，不是独立 SDK 实现。参数 `lhs`、`rhs` 为两个值；枚举项不同时返回 true，否则 false。不抛出错误、不执行 IO，也不比较设备状态或诊断文案。",
+            "summary": "比较两个 FinishScope 值是否不相等。"
+          },
+          "apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO": {
+            "details": "Swift 标准库 `Equatable` 扩展为此类型提供的合成公开成员，不是独立 SDK 实现。参数 `lhs`、`rhs` 为两个值；枚举项不同时返回 true，否则 false。不抛出错误、不执行 IO，也不比较设备状态或诊断文案。",
+            "summary": "比较两个 ConnectionState 值是否不相等。"
+          },
+          "apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK7CutModeO": {
+            "details": "Swift 标准库 `Equatable` 扩展为此类型提供的合成公开成员，不是独立 SDK 实现。参数 `lhs`、`rhs` 为两个值；枚举项不同时返回 true，否则 false。不抛出错误、不执行 IO，也不比较设备状态或诊断文案。",
+            "summary": "比较两个 CutMode 值是否不相等。"
+          },
+          "apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK9MediaModeO": {
+            "details": "Swift 标准库 `Equatable` 扩展为此类型提供的合成公开成员，不是独立 SDK 实现。参数 `lhs`、`rhs` 为两个值；枚举项不同时返回 true，否则 false。不抛出错误、不执行 IO，也不比较设备状态或诊断文案。",
+            "summary": "比较两个 MediaMode 值是否不相等。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK0A7FeatureO": {
+            "details": "Swift 标准库为原始值枚举提供的合成 `Hashable` 成员，不是 SDK 稳定编号。用于集合/字典查找；不要持久化、传输、作为 API 原始值或在不同进程/版本间比较。需要契约数值时使用枚举原始值语义。",
+            "summary": "获取 PrinterFeature 的进程内哈希值。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK11FinishScopeO": {
+            "details": "Swift 标准库为原始值枚举提供的合成 `Hashable` 成员，不是 SDK 稳定编号。用于集合/字典查找；不要持久化、传输、作为 API 原始值或在不同进程/版本间比较。需要契约数值时使用枚举原始值语义。",
+            "summary": "获取 FinishScope 的进程内哈希值。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO": {
+            "details": "Swift 标准库为原始值枚举提供的合成 `Hashable` 成员，不是 SDK 稳定编号。用于集合/字典查找；不要持久化、传输、作为 API 原始值或在不同进程/版本间比较。需要契约数值时使用枚举原始值语义。",
+            "summary": "获取 ConnectionState 的进程内哈希值。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK7CutModeO": {
+            "details": "Swift 标准库为原始值枚举提供的合成 `Hashable` 成员，不是 SDK 稳定编号。用于集合/字典查找；不要持久化、传输、作为 API 原始值或在不同进程/版本间比较。需要契约数值时使用枚举原始值语义。",
+            "summary": "获取 CutMode 的进程内哈希值。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK9MediaModeO": {
+            "details": "Swift 标准库为原始值枚举提供的合成 `Hashable` 成员，不是 SDK 稳定编号。用于集合/字典查找；不要持久化、传输、作为 API 原始值或在不同进程/版本间比较。需要契约数值时使用枚举原始值语义。",
+            "summary": "获取 MediaMode 的进程内哈希值。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK0A7FeatureO": {
+            "details": "Swift 标准库为原始值枚举提供的合成成员，不是 SDK 实现。`hasher` 为调用方按 `inout` 传入的 `Hasher`，方法更新其状态，没有返回值且不抛出错误。用于 `Hashable` 集合语义，哈希结果不是跨进程稳定序列化格式，不涉及设备 IO。",
+            "summary": "把 PrinterFeature 的相等性相关值混入 Hasher。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK11FinishScopeO": {
+            "details": "Swift 标准库为原始值枚举提供的合成成员，不是 SDK 实现。`hasher` 为调用方按 `inout` 传入的 `Hasher`，方法更新其状态，没有返回值且不抛出错误。用于 `Hashable` 集合语义，哈希结果不是跨进程稳定序列化格式，不涉及设备 IO。",
+            "summary": "把 FinishScope 的相等性相关值混入 Hasher。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO": {
+            "details": "Swift 标准库为原始值枚举提供的合成成员，不是 SDK 实现。`hasher` 为调用方按 `inout` 传入的 `Hasher`，方法更新其状态，没有返回值且不抛出错误。用于 `Hashable` 集合语义，哈希结果不是跨进程稳定序列化格式，不涉及设备 IO。",
+            "summary": "把 ConnectionState 的相等性相关值混入 Hasher。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK7CutModeO": {
+            "details": "Swift 标准库为原始值枚举提供的合成成员，不是 SDK 实现。`hasher` 为调用方按 `inout` 传入的 `Hasher`，方法更新其状态，没有返回值且不抛出错误。用于 `Hashable` 集合语义，哈希结果不是跨进程稳定序列化格式，不涉及设备 IO。",
+            "summary": "把 CutMode 的相等性相关值混入 Hasher。"
+          },
+          "apple:symbol:s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK9MediaModeO": {
+            "details": "Swift 标准库为原始值枚举提供的合成成员，不是 SDK 实现。`hasher` 为调用方按 `inout` 传入的 `Hasher`，方法更新其状态，没有返回值且不抛出错误。用于 `Hashable` 集合语义，哈希结果不是跨进程稳定序列化格式，不涉及设备 IO。",
+            "summary": "把 MediaMode 的相等性相关值混入 Hasher。"
+          },
+          "apple:symbol:s:s5ErrorP10FoundationE20localizedDescriptionSSvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV": {
+            "details": "来自 Foundation 的 `Error` 扩展，由系统桥接 `LocalizedError` 描述；不是 SDK 的另一套错误码或独立恢复逻辑。当前错误说明可经 `errorDescription` 获得，业务分支仍使用稳定 `code`。不要解析系统描述文本或假定它已按应用语言翻译。",
+            "summary": "Foundation 为 Error 提供的可读描述入口。"
+          }
+        },
+        "platform": "apple",
+        "schema": 1
+      },
+      "baseline": "# PrinterSDK Apple public API; iOS 15 arm64 / public symbol graph / typed AST raw enums\nsymbol {\"access\":\"public\",\"availability\":[{\"domain\":\"iOS\",\"introduced\":{\"major\":8,\"minor\":0}},{\"domain\":\"macOS\",\"introduced\":{\"major\":10,\"minor\":10}},{\"domain\":\"tvOS\",\"introduced\":{\"major\":9,\"minor\":0}},{\"domain\":\"watchOS\",\"introduced\":{\"major\":2,\"minor\":0}}],\"declaration\":\"var helpAnchor: String? { get }\",\"id\":\"s:10Foundation14LocalizedErrorPAAE10helpAnchorSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"kind\":\"swift.property\",\"path\":[\"PrinterSDKError\",\"helpAnchor\"],\"references\":[[\"String\",\"s:SS\"]],\"swiftExtension\":{\"extendedModule\":\"Foundation\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"availability\":[{\"domain\":\"iOS\",\"introduced\":{\"major\":8,\"minor\":0}},{\"domain\":\"macOS\",\"introduced\":{\"major\":10,\"minor\":10}},{\"domain\":\"tvOS\",\"introduced\":{\"major\":9,\"minor\":0}},{\"domain\":\"watchOS\",\"introduced\":{\"major\":2,\"minor\":0}}],\"declaration\":\"var failureReason: String? { get }\",\"id\":\"s:10Foundation14LocalizedErrorPAAE13failureReasonSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"kind\":\"swift.property\",\"path\":[\"PrinterSDKError\",\"failureReason\"],\"references\":[[\"String\",\"s:SS\"]],\"swiftExtension\":{\"extendedModule\":\"Foundation\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"availability\":[{\"domain\":\"iOS\",\"introduced\":{\"major\":8,\"minor\":0}},{\"domain\":\"macOS\",\"introduced\":{\"major\":10,\"minor\":10}},{\"domain\":\"tvOS\",\"introduced\":{\"major\":9,\"minor\":0}},{\"domain\":\"watchOS\",\"introduced\":{\"major\":2,\"minor\":0}}],\"declaration\":\"var recoverySuggestion: String? { get }\",\"id\":\"s:10Foundation14LocalizedErrorPAAE18recoverySuggestionSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"kind\":\"swift.property\",\"path\":[\"PrinterSDKError\",\"recoverySuggestion\"],\"references\":[[\"String\",\"s:SS\"]],\"swiftExtension\":{\"extendedModule\":\"Foundation\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"struct DiscoveredPrinter\",\"id\":\"s:10PrinterSDK010DiscoveredA0V\",\"kind\":\"swift.struct\",\"path\":[\"DiscoveredPrinter\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"let identifier: UUID\",\"id\":\"s:10PrinterSDK010DiscoveredA0V10identifier10Foundation4UUIDVvp\",\"kind\":\"swift.property\",\"path\":[\"DiscoveredPrinter\",\"identifier\"],\"references\":[[\"UUID\",\"s:10Foundation4UUIDV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let advertisedServices: [String]\",\"id\":\"s:10PrinterSDK010DiscoveredA0V18advertisedServicesSaySSGvp\",\"kind\":\"swift.property\",\"path\":[\"DiscoveredPrinter\",\"advertisedServices\"],\"references\":[[\"String\",\"s:SS\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let name: String?\",\"id\":\"s:10PrinterSDK010DiscoveredA0V4nameSSSgvp\",\"kind\":\"swift.property\",\"path\":[\"DiscoveredPrinter\",\"name\"],\"references\":[[\"String\",\"s:SS\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let rssi: Int\",\"id\":\"s:10PrinterSDK010DiscoveredA0V4rssiSivp\",\"kind\":\"swift.property\",\"path\":[\"DiscoveredPrinter\",\"rssi\"],\"references\":[[\"Int\",\"s:Si\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"final class MobilePrinter\",\"id\":\"s:10PrinterSDK06MobileA0C\",\"kind\":\"swift.class\",\"path\":[\"MobilePrinter\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"func disconnect() throws\",\"id\":\"s:10PrinterSDK06MobileA0C10disconnectyyKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"disconnect()\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"func queryStatus(timeoutMilliseconds: UInt32 = 5000) throws -> PrintOperation\",\"id\":\"s:10PrinterSDK06MobileA0C11queryStatus19timeoutMillisecondsAA14PrintOperationCs6UInt32V_tKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"queryStatus(timeoutMilliseconds:)\"],\"references\":[[\"PrintOperation\",\"s:10PrinterSDK14PrintOperationC\"],[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func submitGray8(_ pixels: Data, width: UInt32, height: UInt32, copies: UInt32 = 1, trailingBlankDots: UInt32 = 0, canvasWidthDots: UInt32? = nil, originXDots: UInt32? = nil, form: Bool? = nil, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation\",\"id\":\"s:10PrinterSDK06MobileA0C11submitGray8_5width6height6copies17trailingBlankDots011canvasWidthK011originXDots4form19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VA4SSgATSbSgAStKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"submitGray8(_:width:height:copies:trailingBlankDots:canvasWidthDots:originXDots:form:timeoutMilliseconds:)\"],\"references\":[[\"Bool\",\"s:Sb\"],[\"Data\",\"s:10Foundation4DataV\"],[\"PrintOperation\",\"s:10PrinterSDK14PrintOperationC\"],[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func setMediaMode(_ mode: MediaMode, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation\",\"id\":\"s:10PrinterSDK06MobileA0C12setMediaMode_19timeoutMillisecondsAA14PrintOperationCAA0eF0O_s6UInt32VtKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"setMediaMode(_:timeoutMilliseconds:)\"],\"references\":[[\"MediaMode\",\"s:10PrinterSDK9MediaModeO\"],[\"PrintOperation\",\"s:10PrinterSDK14PrintOperationC\"],[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"convenience init(bleIdentifier: UUID, options: BLEOptions, profile: CpclProfile) throws\",\"id\":\"s:10PrinterSDK06MobileA0C13bleIdentifier7options7profileAC10Foundation4UUIDV_AA10BLEOptionsVAA11CpclProfileVtKcfc\",\"kind\":\"swift.init\",\"path\":[\"MobilePrinter\",\"init(bleIdentifier:options:profile:)\"],\"references\":[[\"BLEOptions\",\"s:10PrinterSDK10BLEOptionsV\"],[\"CpclProfile\",\"s:10PrinterSDK11CpclProfileV\"],[\"UUID\",\"s:10Foundation4UUIDV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"convenience init(bleIdentifier: UUID, options: BLEOptions, profile: ReceiptProfile) throws\",\"id\":\"s:10PrinterSDK06MobileA0C13bleIdentifier7options7profileAC10Foundation4UUIDV_AA10BLEOptionsVAA14ReceiptProfileVtKcfc\",\"kind\":\"swift.init\",\"path\":[\"MobilePrinter\",\"init(bleIdentifier:options:profile:)\"],\"references\":[[\"BLEOptions\",\"s:10PrinterSDK10BLEOptionsV\"],[\"ReceiptProfile\",\"s:10PrinterSDK14ReceiptProfileV\"],[\"UUID\",\"s:10Foundation4UUIDV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func connectionState() throws -> ConnectionState\",\"id\":\"s:10PrinterSDK06MobileA0C15connectionStateAA010ConnectionE0OyKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"connectionState()\"],\"references\":[[\"ConnectionState\",\"s:10PrinterSDK15ConnectionStateO\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func feedToNextLabel(timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation\",\"id\":\"s:10PrinterSDK06MobileA0C15feedToNextLabel19timeoutMillisecondsAA14PrintOperationCs6UInt32V_tKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"feedToNextLabel(timeoutMilliseconds:)\"],\"references\":[[\"PrintOperation\",\"s:10PrinterSDK14PrintOperationC\"],[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func submitReceiptGray8(_ pixels: Data, width: UInt32, height: UInt32, copies: UInt32 = 1, maxTotalLengthDots: UInt32, trailingBlankDots: UInt32 = 0, cut: CutMode = .none, finishScope: FinishScope = .eachCopy, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation\",\"id\":\"s:10PrinterSDK06MobileA0C18submitReceiptGray8_5width6height6copies18maxTotalLengthDots013trailingBlankM03cut11finishScope19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VA4sA7CutModeOAA06FinishR0OAStKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"submitReceiptGray8(_:width:height:copies:maxTotalLengthDots:trailingBlankDots:cut:finishScope:timeoutMilliseconds:)\"],\"references\":[[\"CutMode\",\"s:10PrinterSDK7CutModeO\"],[\"Data\",\"s:10Foundation4DataV\"],[\"FinishScope\",\"s:10PrinterSDK11FinishScopeO\"],[\"PrintOperation\",\"s:10PrinterSDK14PrintOperationC\"],[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func close()\",\"id\":\"s:10PrinterSDK06MobileA0C5closeyyF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"close()\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"func connect(timeoutMilliseconds: UInt32 = 5000) throws\",\"id\":\"s:10PrinterSDK06MobileA0C7connect19timeoutMillisecondsys6UInt32V_tKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"connect(timeoutMilliseconds:)\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func feature(_ feature: PrinterFeature) throws -> FeatureSupport\",\"id\":\"s:10PrinterSDK06MobileA0C7featureyAA14FeatureSupportVAA0aE0OKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"feature(_:)\"],\"references\":[[\"FeatureSupport\",\"s:10PrinterSDK14FeatureSupportV\"],[\"PrinterFeature\",\"s:10PrinterSDK0A7FeatureO\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func submitRaw(_ bytes: Data, copies: UInt32 = 1, timeoutMilliseconds: UInt32 = 120000) throws -> PrintOperation\",\"id\":\"s:10PrinterSDK06MobileA0C9submitRaw_6copies19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VAMtKF\",\"kind\":\"swift.method\",\"path\":[\"MobilePrinter\",\"submitRaw(_:copies:timeoutMilliseconds:)\"],\"references\":[[\"Data\",\"s:10Foundation4DataV\"],[\"PrintOperation\",\"s:10PrinterSDK14PrintOperationC\"],[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"enum PrinterFeature\",\"id\":\"s:10PrinterSDK0A7FeatureO\",\"kind\":\"swift.enum\",\"path\":[\"PrinterFeature\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case feedToNextLabel\",\"id\":\"s:10PrinterSDK0A7FeatureO15feedToNextLabelyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"PrinterFeature\",\"feedToNextLabel\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case cut\",\"id\":\"s:10PrinterSDK0A7FeatureO3cutyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"PrinterFeature\",\"cut\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case raw\",\"id\":\"s:10PrinterSDK0A7FeatureO3rawyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"PrinterFeature\",\"raw\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case image\",\"id\":\"s:10PrinterSDK0A7FeatureO5imageyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"PrinterFeature\",\"image\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case label\",\"id\":\"s:10PrinterSDK0A7FeatureO5labelyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"PrinterFeature\",\"label\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case media\",\"id\":\"s:10PrinterSDK0A7FeatureO5mediayA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"PrinterFeature\",\"media\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case status\",\"id\":\"s:10PrinterSDK0A7FeatureO6statusyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"PrinterFeature\",\"status\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case receipt\",\"id\":\"s:10PrinterSDK0A7FeatureO7receiptyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"PrinterFeature\",\"receipt\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"init?(rawValue: UInt32)\",\"id\":\"s:10PrinterSDK0A7FeatureO8rawValueACSgs6UInt32V_tcfc\",\"kind\":\"swift.init\",\"path\":[\"PrinterFeature\",\"init(rawValue:)\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"struct PrinterSDKError\",\"id\":\"s:10PrinterSDK0A8SDKErrorV\",\"kind\":\"swift.struct\",\"path\":[\"PrinterSDKError\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"var errorDescription: String? { get }\",\"id\":\"s:10PrinterSDK0A8SDKErrorV16errorDescriptionSSSgvp\",\"kind\":\"swift.property\",\"path\":[\"PrinterSDKError\",\"errorDescription\"],\"references\":[[\"String\",\"s:SS\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let code: Int32\",\"id\":\"s:10PrinterSDK0A8SDKErrorV4codes5Int32Vvp\",\"kind\":\"swift.property\",\"path\":[\"PrinterSDKError\",\"code\"],\"references\":[[\"Int32\",\"s:s5Int32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"init(_ code: Int32)\",\"id\":\"s:10PrinterSDK0A8SDKErrorVyACs5Int32Vcfc\",\"kind\":\"swift.init\",\"path\":[\"PrinterSDKError\",\"init(_:)\"],\"references\":[[\"Int32\",\"s:s5Int32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"struct BLEOptions\",\"id\":\"s:10PrinterSDK10BLEOptionsV\",\"kind\":\"swift.struct\",\"path\":[\"BLEOptions\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"let withResponse: Bool\",\"id\":\"s:10PrinterSDK10BLEOptionsV12withResponseSbvp\",\"kind\":\"swift.property\",\"path\":[\"BLEOptions\",\"withResponse\"],\"references\":[[\"Bool\",\"s:Sb\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let maxWriteBytes: Int\",\"id\":\"s:10PrinterSDK10BLEOptionsV13maxWriteBytesSivp\",\"kind\":\"swift.property\",\"path\":[\"BLEOptions\",\"maxWriteBytes\"],\"references\":[[\"Int\",\"s:Si\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let creditFlowControl: BLECreditFlowControl?\",\"id\":\"s:10PrinterSDK10BLEOptionsV17creditFlowControlAA09BLECrediteF0VSgvp\",\"kind\":\"swift.property\",\"path\":[\"BLEOptions\",\"creditFlowControl\"],\"references\":[[\"BLECreditFlowControl\",\"s:10PrinterSDK20BLECreditFlowControlV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let writeCharacteristic: UUID\",\"id\":\"s:10PrinterSDK10BLEOptionsV19writeCharacteristic10Foundation4UUIDVvp\",\"kind\":\"swift.property\",\"path\":[\"BLEOptions\",\"writeCharacteristic\"],\"references\":[[\"UUID\",\"s:10Foundation4UUIDV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let service: UUID\",\"id\":\"s:10PrinterSDK10BLEOptionsV7service10Foundation4UUIDVvp\",\"kind\":\"swift.property\",\"path\":[\"BLEOptions\",\"service\"],\"references\":[[\"UUID\",\"s:10Foundation4UUIDV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"init(service: UUID, writeCharacteristic: UUID, withResponse: Bool, maxWriteBytes: Int, creditFlowControl: BLECreditFlowControl? = nil) throws\",\"id\":\"s:10PrinterSDK10BLEOptionsV7service19writeCharacteristic12withResponse13maxWriteBytes17creditFlowControlAC10Foundation4UUIDV_AKSbSiAA09BLECreditmN0VSgtKcfc\",\"kind\":\"swift.init\",\"path\":[\"BLEOptions\",\"init(service:writeCharacteristic:withResponse:maxWriteBytes:creditFlowControl:)\"],\"references\":[[\"BLECreditFlowControl\",\"s:10PrinterSDK20BLECreditFlowControlV\"],[\"Bool\",\"s:Sb\"],[\"Int\",\"s:Si\"],[\"UUID\",\"s:10Foundation4UUIDV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"final class BLEScanner\",\"id\":\"s:10PrinterSDK10BLEScannerC\",\"kind\":\"swift.class\",\"path\":[\"BLEScanner\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"func scan(seconds: TimeInterval = 10, service: UUID? = nil, completion: @escaping (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void)\",\"id\":\"s:10PrinterSDK10BLEScannerC4scan7seconds7service10completionySd_10Foundation4UUIDVSgys6ResultOySayAA010DiscoveredA0VGAA0A8SDKErrorVGctF\",\"kind\":\"swift.method\",\"path\":[\"BLEScanner\",\"scan(seconds:service:completion:)\"],\"references\":[[\"DiscoveredPrinter\",\"s:10PrinterSDK010DiscoveredA0V\"],[\"PrinterSDKError\",\"s:10PrinterSDK0A8SDKErrorV\"],[\"Result\",\"s:s6ResultO\"],[\"TimeInterval\",\"c:@T@NSTimeInterval\"],[\"UUID\",\"s:10Foundation4UUIDV\"],[\"Void\",\"s:s4Voida\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func stop()\",\"id\":\"s:10PrinterSDK10BLEScannerC4stopyyF\",\"kind\":\"swift.method\",\"path\":[\"BLEScanner\",\"stop()\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"init()\",\"id\":\"s:10PrinterSDK10BLEScannerCACycfc\",\"kind\":\"swift.init\",\"path\":[\"BLEScanner\",\"init()\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"enum M90Profile\",\"id\":\"s:10PrinterSDK10M90ProfileO\",\"kind\":\"swift.enum\",\"path\":[\"M90Profile\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"static func bleOptions(maxWriteBytes: Int = 512) throws -> BLEOptions\",\"id\":\"s:10PrinterSDK10M90ProfileO10bleOptions13maxWriteBytesAA10BLEOptionsVSi_tKFZ\",\"kind\":\"swift.type.method\",\"path\":[\"M90Profile\",\"bleOptions(maxWriteBytes:)\"],\"references\":[[\"BLEOptions\",\"s:10PrinterSDK10BLEOptionsV\"],[\"Int\",\"s:Si\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"struct CpclProfile\",\"id\":\"s:10PrinterSDK11CpclProfileV\",\"kind\":\"swift.struct\",\"path\":[\"CpclProfile\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"let xOffsetDots: UInt32\",\"id\":\"s:10PrinterSDK11CpclProfileV11xOffsetDotss6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"CpclProfile\",\"xOffsetDots\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let maxLabelHeightDots: UInt32\",\"id\":\"s:10PrinterSDK11CpclProfileV18maxLabelHeightDotss6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"CpclProfile\",\"maxLabelHeightDots\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"init(dpi: UInt32, widthDots: UInt32, maxLabelHeightDots: UInt32, form: Bool, xOffsetDots: UInt32 = 0) throws\",\"id\":\"s:10PrinterSDK11CpclProfileV3dpi9widthDots014maxLabelHeightG04form07xOffsetG0ACs6UInt32V_A2JSbAJtKcfc\",\"kind\":\"swift.init\",\"path\":[\"CpclProfile\",\"init(dpi:widthDots:maxLabelHeightDots:form:xOffsetDots:)\"],\"references\":[[\"Bool\",\"s:Sb\"],[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let dpi: UInt32\",\"id\":\"s:10PrinterSDK11CpclProfileV3dpis6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"CpclProfile\",\"dpi\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let form: Bool\",\"id\":\"s:10PrinterSDK11CpclProfileV4formSbvp\",\"kind\":\"swift.property\",\"path\":[\"CpclProfile\",\"form\"],\"references\":[[\"Bool\",\"s:Sb\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let widthDots: UInt32\",\"id\":\"s:10PrinterSDK11CpclProfileV9widthDotss6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"CpclProfile\",\"widthDots\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"enum FinishScope\",\"id\":\"s:10PrinterSDK11FinishScopeO\",\"kind\":\"swift.enum\",\"path\":[\"FinishScope\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case eachCopy\",\"id\":\"s:10PrinterSDK11FinishScopeO8eachCopyyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"FinishScope\",\"eachCopy\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case endOfJob\",\"id\":\"s:10PrinterSDK11FinishScopeO8endOfJobyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"FinishScope\",\"endOfJob\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"init?(rawValue: UInt32)\",\"id\":\"s:10PrinterSDK11FinishScopeO8rawValueACSgs6UInt32V_tcfc\",\"kind\":\"swift.init\",\"path\":[\"FinishScope\",\"init(rawValue:)\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"struct FeatureSupport\",\"id\":\"s:10PrinterSDK14FeatureSupportV\",\"kind\":\"swift.struct\",\"path\":[\"FeatureSupport\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"let deviceSupport: UInt32\",\"id\":\"s:10PrinterSDK14FeatureSupportV06deviceD0s6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"FeatureSupport\",\"deviceSupport\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"var isSupported: Bool { get }\",\"id\":\"s:10PrinterSDK14FeatureSupportV11isSupportedSbvp\",\"kind\":\"swift.property\",\"path\":[\"FeatureSupport\",\"isSupported\"],\"references\":[[\"Bool\",\"s:Sb\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"var isImplemented: Bool { get }\",\"id\":\"s:10PrinterSDK14FeatureSupportV13isImplementedSbvp\",\"kind\":\"swift.property\",\"path\":[\"FeatureSupport\",\"isImplemented\"],\"references\":[[\"Bool\",\"s:Sb\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let implementation: UInt32\",\"id\":\"s:10PrinterSDK14FeatureSupportV14implementations6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"FeatureSupport\",\"implementation\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let evidence: UInt32\",\"id\":\"s:10PrinterSDK14FeatureSupportV8evidences6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"FeatureSupport\",\"evidence\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"final class PrintOperation\",\"id\":\"s:10PrinterSDK14PrintOperationC\",\"kind\":\"swift.class\",\"path\":[\"PrintOperation\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"let id: UInt64\",\"id\":\"s:10PrinterSDK14PrintOperationC2ids6UInt64Vvp\",\"kind\":\"swift.property\",\"path\":[\"PrintOperation\",\"id\"],\"references\":[[\"UInt64\",\"s:s6UInt64V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"func close()\",\"id\":\"s:10PrinterSDK14PrintOperationC5closeyyF\",\"kind\":\"swift.method\",\"path\":[\"PrintOperation\",\"close()\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"func cancel() throws\",\"id\":\"s:10PrinterSDK14PrintOperationC6cancelyyKF\",\"kind\":\"swift.method\",\"path\":[\"PrintOperation\",\"cancel()\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"func snapshot() throws -> OperationSnapshot\",\"id\":\"s:10PrinterSDK14PrintOperationC8snapshotAA0D8SnapshotVyKF\",\"kind\":\"swift.method\",\"path\":[\"PrintOperation\",\"snapshot()\"],\"references\":[[\"OperationSnapshot\",\"s:10PrinterSDK17OperationSnapshotV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"struct ReceiptProfile\",\"id\":\"s:10PrinterSDK14ReceiptProfileV\",\"kind\":\"swift.struct\",\"path\":[\"ReceiptProfile\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"init(dpi: UInt32, widthDots: UInt32) throws\",\"id\":\"s:10PrinterSDK14ReceiptProfileV3dpi9widthDotsACs6UInt32V_AGtKcfc\",\"kind\":\"swift.init\",\"path\":[\"ReceiptProfile\",\"init(dpi:widthDots:)\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let dpi: UInt32\",\"id\":\"s:10PrinterSDK14ReceiptProfileV3dpis6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"ReceiptProfile\",\"dpi\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let widthDots: UInt32\",\"id\":\"s:10PrinterSDK14ReceiptProfileV9widthDotss6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"ReceiptProfile\",\"widthDots\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"enum ConnectionState\",\"id\":\"s:10PrinterSDK15ConnectionStateO\",\"kind\":\"swift.enum\",\"path\":[\"ConnectionState\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case connecting\",\"id\":\"s:10PrinterSDK15ConnectionStateO10connectingyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"ConnectionState\",\"connecting\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case disconnected\",\"id\":\"s:10PrinterSDK15ConnectionStateO12disconnectedyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"ConnectionState\",\"disconnected\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case disconnecting\",\"id\":\"s:10PrinterSDK15ConnectionStateO13disconnectingyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"ConnectionState\",\"disconnecting\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"init?(rawValue: UInt32)\",\"id\":\"s:10PrinterSDK15ConnectionStateO8rawValueACSgs6UInt32V_tcfc\",\"kind\":\"swift.init\",\"path\":[\"ConnectionState\",\"init(rawValue:)\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"case connected\",\"id\":\"s:10PrinterSDK15ConnectionStateO9connectedyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"ConnectionState\",\"connected\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"struct OperationSnapshot\",\"id\":\"s:10PrinterSDK17OperationSnapshotV\",\"kind\":\"swift.struct\",\"path\":[\"OperationSnapshot\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"let bytesTotal: UInt64?\",\"id\":\"s:10PrinterSDK17OperationSnapshotV10bytesTotals6UInt64VSgvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"bytesTotal\"],\"references\":[[\"UInt64\",\"s:s6UInt64V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let completion: UInt32\",\"id\":\"s:10PrinterSDK17OperationSnapshotV10completions6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"completion\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"var isTerminal: Bool { get }\",\"id\":\"s:10PrinterSDK17OperationSnapshotV10isTerminalSbvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"isTerminal\"],\"references\":[[\"Bool\",\"s:Sb\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let mediaBasis: UInt32\",\"id\":\"s:10PrinterSDK17OperationSnapshotV10mediaBasiss6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"mediaBasis\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let bytesSentExact: Bool\",\"id\":\"s:10PrinterSDK17OperationSnapshotV14bytesSentExactSbvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"bytesSentExact\"],\"references\":[[\"Bool\",\"s:Sb\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let sideEffectsPossible: Bool\",\"id\":\"s:10PrinterSDK17OperationSnapshotV19sideEffectsPossibleSbvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"sideEffectsPossible\"],\"references\":[[\"Bool\",\"s:Sb\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let id: UInt64\",\"id\":\"s:10PrinterSDK17OperationSnapshotV2ids6UInt64Vvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"id\"],\"references\":[[\"UInt64\",\"s:s6UInt64V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let kind: UInt32\",\"id\":\"s:10PrinterSDK17OperationSnapshotV4kinds6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"kind\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let state: UInt32\",\"id\":\"s:10PrinterSDK17OperationSnapshotV5states6UInt32Vvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"state\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let bytesSent: UInt64\",\"id\":\"s:10PrinterSDK17OperationSnapshotV9bytesSents6UInt64Vvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"bytesSent\"],\"references\":[[\"UInt64\",\"s:s6UInt64V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let errorCode: Int32\",\"id\":\"s:10PrinterSDK17OperationSnapshotV9errorCodes5Int32Vvp\",\"kind\":\"swift.property\",\"path\":[\"OperationSnapshot\",\"errorCode\"],\"references\":[[\"Int32\",\"s:s5Int32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"struct BLECreditFlowControl\",\"id\":\"s:10PrinterSDK20BLECreditFlowControlV\",\"kind\":\"swift.struct\",\"path\":[\"BLECreditFlowControl\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"let dataFC: UUID\",\"id\":\"s:10PrinterSDK20BLECreditFlowControlV6dataFC10Foundation4UUIDVvp\",\"kind\":\"swift.property\",\"path\":[\"BLECreditFlowControl\",\"dataFC\"],\"references\":[[\"UUID\",\"s:10Foundation4UUIDV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"init(dataOut: UUID, dataFC: UUID)\",\"id\":\"s:10PrinterSDK20BLECreditFlowControlV7dataOut0F2FCAC10Foundation4UUIDV_AHtcfc\",\"kind\":\"swift.init\",\"path\":[\"BLECreditFlowControl\",\"init(dataOut:dataFC:)\"],\"references\":[[\"UUID\",\"s:10Foundation4UUIDV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"let dataOut: UUID\",\"id\":\"s:10PrinterSDK20BLECreditFlowControlV7dataOut10Foundation4UUIDVvp\",\"kind\":\"swift.property\",\"path\":[\"BLECreditFlowControl\",\"dataOut\"],\"references\":[[\"UUID\",\"s:10Foundation4UUIDV\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"enum CutMode\",\"id\":\"s:10PrinterSDK7CutModeO\",\"kind\":\"swift.enum\",\"path\":[\"CutMode\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case full\",\"id\":\"s:10PrinterSDK7CutModeO4fullyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"CutMode\",\"full\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case none\",\"id\":\"s:10PrinterSDK7CutModeO4noneyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"CutMode\",\"none\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case partial\",\"id\":\"s:10PrinterSDK7CutModeO7partialyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"CutMode\",\"partial\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"init?(rawValue: UInt32)\",\"id\":\"s:10PrinterSDK7CutModeO8rawValueACSgs6UInt32V_tcfc\",\"kind\":\"swift.init\",\"path\":[\"CutMode\",\"init(rawValue:)\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"enum MediaMode\",\"id\":\"s:10PrinterSDK9MediaModeO\",\"kind\":\"swift.enum\",\"path\":[\"MediaMode\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case continuous\",\"id\":\"s:10PrinterSDK9MediaModeO10continuousyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"MediaMode\",\"continuous\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"case gap\",\"id\":\"s:10PrinterSDK9MediaModeO3gapyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"MediaMode\",\"gap\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"init?(rawValue: UInt32)\",\"id\":\"s:10PrinterSDK9MediaModeO8rawValueACSgs6UInt32V_tcfc\",\"kind\":\"swift.init\",\"path\":[\"MediaMode\",\"init(rawValue:)\"],\"references\":[[\"UInt32\",\"s:s6UInt32V\"]]}\nsymbol {\"access\":\"public\",\"declaration\":\"case blackMark\",\"id\":\"s:10PrinterSDK9MediaModeO9blackMarkyA2CmF\",\"kind\":\"swift.enum.case\",\"path\":[\"MediaMode\",\"blackMark\"],\"references\":[]}\nsymbol {\"access\":\"public\",\"declaration\":\"static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool\",\"id\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A7FeatureO\",\"kind\":\"swift.func.op\",\"path\":[\"PrinterFeature\",\"!=(_:_:)\"],\"references\":[[\"Bool\",\"s:Sb\"]],\"swiftExtension\":{\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool\",\"id\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"kind\":\"swift.func.op\",\"path\":[\"PrinterSDKError\",\"!=(_:_:)\"],\"references\":[[\"Bool\",\"s:Sb\"]],\"swiftExtension\":{\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool\",\"id\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK11FinishScopeO\",\"kind\":\"swift.func.op\",\"path\":[\"FinishScope\",\"!=(_:_:)\"],\"references\":[[\"Bool\",\"s:Sb\"]],\"swiftExtension\":{\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool\",\"id\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO\",\"kind\":\"swift.func.op\",\"path\":[\"ConnectionState\",\"!=(_:_:)\"],\"references\":[[\"Bool\",\"s:Sb\"]],\"swiftExtension\":{\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool\",\"id\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK7CutModeO\",\"kind\":\"swift.func.op\",\"path\":[\"CutMode\",\"!=(_:_:)\"],\"references\":[[\"Bool\",\"s:Sb\"]],\"swiftExtension\":{\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool\",\"id\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK9MediaModeO\",\"kind\":\"swift.func.op\",\"path\":[\"MediaMode\",\"!=(_:_:)\"],\"references\":[[\"Bool\",\"s:Sb\"]],\"swiftExtension\":{\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"var hashValue: Int { get }\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK0A7FeatureO\",\"kind\":\"swift.property\",\"path\":[\"PrinterFeature\",\"hashValue\"],\"references\":[[\"Int\",\"s:Si\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"var hashValue: Int { get }\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK11FinishScopeO\",\"kind\":\"swift.property\",\"path\":[\"FinishScope\",\"hashValue\"],\"references\":[[\"Int\",\"s:Si\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"var hashValue: Int { get }\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO\",\"kind\":\"swift.property\",\"path\":[\"ConnectionState\",\"hashValue\"],\"references\":[[\"Int\",\"s:Si\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"var hashValue: Int { get }\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK7CutModeO\",\"kind\":\"swift.property\",\"path\":[\"CutMode\",\"hashValue\"],\"references\":[[\"Int\",\"s:Si\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"var hashValue: Int { get }\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK9MediaModeO\",\"kind\":\"swift.property\",\"path\":[\"MediaMode\",\"hashValue\"],\"references\":[[\"Int\",\"s:Si\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nsymbol {\"access\":\"public\",\"declaration\":\"func hash(into hasher: inout Hasher)\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK0A7FeatureO\",\"kind\":\"swift.method\",\"path\":[\"PrinterFeature\",\"hash(into:)\"],\"references\":[[\"Hasher\",\"s:s6HasherV\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"},\"swiftGenerics\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}]}}\nsymbol {\"access\":\"public\",\"declaration\":\"func hash(into hasher: inout Hasher)\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK11FinishScopeO\",\"kind\":\"swift.method\",\"path\":[\"FinishScope\",\"hash(into:)\"],\"references\":[[\"Hasher\",\"s:s6HasherV\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"},\"swiftGenerics\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}]}}\nsymbol {\"access\":\"public\",\"declaration\":\"func hash(into hasher: inout Hasher)\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO\",\"kind\":\"swift.method\",\"path\":[\"ConnectionState\",\"hash(into:)\"],\"references\":[[\"Hasher\",\"s:s6HasherV\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"},\"swiftGenerics\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}]}}\nsymbol {\"access\":\"public\",\"declaration\":\"func hash(into hasher: inout Hasher)\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK7CutModeO\",\"kind\":\"swift.method\",\"path\":[\"CutMode\",\"hash(into:)\"],\"references\":[[\"Hasher\",\"s:s6HasherV\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"},\"swiftGenerics\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}]}}\nsymbol {\"access\":\"public\",\"declaration\":\"func hash(into hasher: inout Hasher)\",\"id\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK9MediaModeO\",\"kind\":\"swift.method\",\"path\":[\"MediaMode\",\"hash(into:)\"],\"references\":[[\"Hasher\",\"s:s6HasherV\"]],\"swiftExtension\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}],\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"},\"swiftGenerics\":{\"constraints\":[{\"kind\":\"conformance\",\"lhs\":\"Self\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"},{\"kind\":\"conformance\",\"lhs\":\"Self.RawValue\",\"rhs\":\"Hashable\",\"rhsPrecise\":\"s:SH\"}]}}\nsymbol {\"access\":\"public\",\"availability\":[{\"domain\":\"iOS\",\"introduced\":{\"major\":8,\"minor\":0}},{\"domain\":\"macOS\",\"introduced\":{\"major\":10,\"minor\":10}},{\"domain\":\"tvOS\",\"introduced\":{\"major\":9,\"minor\":0}},{\"domain\":\"watchOS\",\"introduced\":{\"major\":2,\"minor\":0}}],\"declaration\":\"var localizedDescription: String { get }\",\"id\":\"s:s5ErrorP10FoundationE20localizedDescriptionSSvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"kind\":\"swift.property\",\"path\":[\"PrinterSDKError\",\"localizedDescription\"],\"references\":[[\"String\",\"s:SS\"]],\"swiftExtension\":{\"extendedModule\":\"Swift\",\"typeKind\":\"swift.protocol\"}}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK0A7FeatureO\",\"target\":\"s:SH\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK0A7FeatureO\",\"target\":\"s:SQ\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK0A7FeatureO\",\"target\":\"s:SY\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK0A8SDKErrorV\",\"target\":\"s:10Foundation14LocalizedErrorP\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK0A8SDKErrorV\",\"target\":\"s:SQ\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK0A8SDKErrorV\",\"target\":\"s:s16SendableMetatypeP\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK0A8SDKErrorV\",\"target\":\"s:s5ErrorP\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK0A8SDKErrorV\",\"target\":\"s:s8SendableP\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK11FinishScopeO\",\"target\":\"s:SH\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK11FinishScopeO\",\"target\":\"s:SQ\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK11FinishScopeO\",\"target\":\"s:SY\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK15ConnectionStateO\",\"target\":\"s:SH\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK15ConnectionStateO\",\"target\":\"s:SQ\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK15ConnectionStateO\",\"target\":\"s:SY\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK7CutModeO\",\"target\":\"s:SH\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK7CutModeO\",\"target\":\"s:SQ\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK7CutModeO\",\"target\":\"s:SY\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK9MediaModeO\",\"target\":\"s:SH\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK9MediaModeO\",\"target\":\"s:SQ\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK9MediaModeO\",\"target\":\"s:SY\"}\nrelationship {\"kind\":\"conformsTo\",\"source\":\"s:10PrinterSDK9MediaModeO\",\"target\":\"s:s12CaseIterableP\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10Foundation14LocalizedErrorPAAE10helpAnchorSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"sourceOrigin\":{\"displayName\":\"LocalizedError.helpAnchor\",\"identifier\":\"s:10Foundation14LocalizedErrorP10helpAnchorSSSgvp\"},\"target\":\"s:10PrinterSDK0A8SDKErrorV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10Foundation14LocalizedErrorPAAE13failureReasonSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"sourceOrigin\":{\"displayName\":\"LocalizedError.failureReason\",\"identifier\":\"s:10Foundation14LocalizedErrorP13failureReasonSSSgvp\"},\"target\":\"s:10PrinterSDK0A8SDKErrorV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10Foundation14LocalizedErrorPAAE18recoverySuggestionSSSgvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"sourceOrigin\":{\"displayName\":\"LocalizedError.recoverySuggestion\",\"identifier\":\"s:10Foundation14LocalizedErrorP18recoverySuggestionSSSgvp\"},\"target\":\"s:10PrinterSDK0A8SDKErrorV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK010DiscoveredA0V10identifier10Foundation4UUIDVvp\",\"target\":\"s:10PrinterSDK010DiscoveredA0V\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK010DiscoveredA0V18advertisedServicesSaySSGvp\",\"target\":\"s:10PrinterSDK010DiscoveredA0V\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK010DiscoveredA0V4nameSSSgvp\",\"target\":\"s:10PrinterSDK010DiscoveredA0V\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK010DiscoveredA0V4rssiSivp\",\"target\":\"s:10PrinterSDK010DiscoveredA0V\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C10disconnectyyKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C11queryStatus19timeoutMillisecondsAA14PrintOperationCs6UInt32V_tKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C11submitGray8_5width6height6copies17trailingBlankDots011canvasWidthK011originXDots4form19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VA4SSgATSbSgAStKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C12setMediaMode_19timeoutMillisecondsAA14PrintOperationCAA0eF0O_s6UInt32VtKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C13bleIdentifier7options7profileAC10Foundation4UUIDV_AA10BLEOptionsVAA11CpclProfileVtKcfc\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C13bleIdentifier7options7profileAC10Foundation4UUIDV_AA10BLEOptionsVAA14ReceiptProfileVtKcfc\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C15connectionStateAA010ConnectionE0OyKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C15feedToNextLabel19timeoutMillisecondsAA14PrintOperationCs6UInt32V_tKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C18submitReceiptGray8_5width6height6copies18maxTotalLengthDots013trailingBlankM03cut11finishScope19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VA4sA7CutModeOAA06FinishR0OAStKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C5closeyyF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C7connect19timeoutMillisecondsys6UInt32V_tKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C7featureyAA14FeatureSupportVAA0aE0OKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK06MobileA0C9submitRaw_6copies19timeoutMillisecondsAA14PrintOperationC10Foundation4DataV_s6UInt32VAMtKF\",\"target\":\"s:10PrinterSDK06MobileA0C\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A7FeatureO15feedToNextLabelyA2CmF\",\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A7FeatureO3cutyA2CmF\",\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A7FeatureO3rawyA2CmF\",\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A7FeatureO5imageyA2CmF\",\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A7FeatureO5labelyA2CmF\",\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A7FeatureO5mediayA2CmF\",\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A7FeatureO6statusyA2CmF\",\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A7FeatureO7receiptyA2CmF\",\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A7FeatureO8rawValueACSgs6UInt32V_tcfc\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.init(rawValue:)\",\"identifier\":\"s:SY8rawValuexSg03RawB0Qz_tcfc\"},\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A8SDKErrorV16errorDescriptionSSSgvp\",\"sourceOrigin\":{\"displayName\":\"LocalizedError.errorDescription\",\"identifier\":\"s:10Foundation14LocalizedErrorP16errorDescriptionSSSgvp\"},\"target\":\"s:10PrinterSDK0A8SDKErrorV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A8SDKErrorV4codes5Int32Vvp\",\"target\":\"s:10PrinterSDK0A8SDKErrorV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK0A8SDKErrorVyACs5Int32Vcfc\",\"target\":\"s:10PrinterSDK0A8SDKErrorV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10BLEOptionsV12withResponseSbvp\",\"target\":\"s:10PrinterSDK10BLEOptionsV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10BLEOptionsV13maxWriteBytesSivp\",\"target\":\"s:10PrinterSDK10BLEOptionsV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10BLEOptionsV17creditFlowControlAA09BLECrediteF0VSgvp\",\"target\":\"s:10PrinterSDK10BLEOptionsV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10BLEOptionsV19writeCharacteristic10Foundation4UUIDVvp\",\"target\":\"s:10PrinterSDK10BLEOptionsV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10BLEOptionsV7service10Foundation4UUIDVvp\",\"target\":\"s:10PrinterSDK10BLEOptionsV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10BLEOptionsV7service19writeCharacteristic12withResponse13maxWriteBytes17creditFlowControlAC10Foundation4UUIDV_AKSbSiAA09BLECreditmN0VSgtKcfc\",\"target\":\"s:10PrinterSDK10BLEOptionsV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10BLEScannerC4scan7seconds7service10completionySd_10Foundation4UUIDVSgys6ResultOySayAA010DiscoveredA0VGAA0A8SDKErrorVGctF\",\"target\":\"s:10PrinterSDK10BLEScannerC\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10BLEScannerC4stopyyF\",\"target\":\"s:10PrinterSDK10BLEScannerC\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10BLEScannerCACycfc\",\"target\":\"s:10PrinterSDK10BLEScannerC\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK10M90ProfileO10bleOptions13maxWriteBytesAA10BLEOptionsVSi_tKFZ\",\"target\":\"s:10PrinterSDK10M90ProfileO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK11CpclProfileV11xOffsetDotss6UInt32Vvp\",\"target\":\"s:10PrinterSDK11CpclProfileV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK11CpclProfileV18maxLabelHeightDotss6UInt32Vvp\",\"target\":\"s:10PrinterSDK11CpclProfileV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK11CpclProfileV3dpi9widthDots014maxLabelHeightG04form07xOffsetG0ACs6UInt32V_A2JSbAJtKcfc\",\"target\":\"s:10PrinterSDK11CpclProfileV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK11CpclProfileV3dpis6UInt32Vvp\",\"target\":\"s:10PrinterSDK11CpclProfileV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK11CpclProfileV4formSbvp\",\"target\":\"s:10PrinterSDK11CpclProfileV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK11CpclProfileV9widthDotss6UInt32Vvp\",\"target\":\"s:10PrinterSDK11CpclProfileV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK11FinishScopeO8eachCopyyA2CmF\",\"target\":\"s:10PrinterSDK11FinishScopeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK11FinishScopeO8endOfJobyA2CmF\",\"target\":\"s:10PrinterSDK11FinishScopeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK11FinishScopeO8rawValueACSgs6UInt32V_tcfc\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.init(rawValue:)\",\"identifier\":\"s:SY8rawValuexSg03RawB0Qz_tcfc\"},\"target\":\"s:10PrinterSDK11FinishScopeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14FeatureSupportV06deviceD0s6UInt32Vvp\",\"target\":\"s:10PrinterSDK14FeatureSupportV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14FeatureSupportV11isSupportedSbvp\",\"target\":\"s:10PrinterSDK14FeatureSupportV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14FeatureSupportV13isImplementedSbvp\",\"target\":\"s:10PrinterSDK14FeatureSupportV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14FeatureSupportV14implementations6UInt32Vvp\",\"target\":\"s:10PrinterSDK14FeatureSupportV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14FeatureSupportV8evidences6UInt32Vvp\",\"target\":\"s:10PrinterSDK14FeatureSupportV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14PrintOperationC2ids6UInt64Vvp\",\"target\":\"s:10PrinterSDK14PrintOperationC\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14PrintOperationC5closeyyF\",\"target\":\"s:10PrinterSDK14PrintOperationC\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14PrintOperationC6cancelyyKF\",\"target\":\"s:10PrinterSDK14PrintOperationC\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14PrintOperationC8snapshotAA0D8SnapshotVyKF\",\"target\":\"s:10PrinterSDK14PrintOperationC\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14ReceiptProfileV3dpi9widthDotsACs6UInt32V_AGtKcfc\",\"target\":\"s:10PrinterSDK14ReceiptProfileV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14ReceiptProfileV3dpis6UInt32Vvp\",\"target\":\"s:10PrinterSDK14ReceiptProfileV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK14ReceiptProfileV9widthDotss6UInt32Vvp\",\"target\":\"s:10PrinterSDK14ReceiptProfileV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK15ConnectionStateO10connectingyA2CmF\",\"target\":\"s:10PrinterSDK15ConnectionStateO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK15ConnectionStateO12disconnectedyA2CmF\",\"target\":\"s:10PrinterSDK15ConnectionStateO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK15ConnectionStateO13disconnectingyA2CmF\",\"target\":\"s:10PrinterSDK15ConnectionStateO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK15ConnectionStateO8rawValueACSgs6UInt32V_tcfc\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.init(rawValue:)\",\"identifier\":\"s:SY8rawValuexSg03RawB0Qz_tcfc\"},\"target\":\"s:10PrinterSDK15ConnectionStateO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK15ConnectionStateO9connectedyA2CmF\",\"target\":\"s:10PrinterSDK15ConnectionStateO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV10bytesTotals6UInt64VSgvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV10completions6UInt32Vvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV10isTerminalSbvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV10mediaBasiss6UInt32Vvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV14bytesSentExactSbvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV19sideEffectsPossibleSbvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV2ids6UInt64Vvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV4kinds6UInt32Vvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV5states6UInt32Vvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV9bytesSents6UInt64Vvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK17OperationSnapshotV9errorCodes5Int32Vvp\",\"target\":\"s:10PrinterSDK17OperationSnapshotV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK20BLECreditFlowControlV6dataFC10Foundation4UUIDVvp\",\"target\":\"s:10PrinterSDK20BLECreditFlowControlV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK20BLECreditFlowControlV7dataOut0F2FCAC10Foundation4UUIDV_AHtcfc\",\"target\":\"s:10PrinterSDK20BLECreditFlowControlV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK20BLECreditFlowControlV7dataOut10Foundation4UUIDVvp\",\"target\":\"s:10PrinterSDK20BLECreditFlowControlV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK7CutModeO4fullyA2CmF\",\"target\":\"s:10PrinterSDK7CutModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK7CutModeO4noneyA2CmF\",\"target\":\"s:10PrinterSDK7CutModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK7CutModeO7partialyA2CmF\",\"target\":\"s:10PrinterSDK7CutModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK7CutModeO8rawValueACSgs6UInt32V_tcfc\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.init(rawValue:)\",\"identifier\":\"s:SY8rawValuexSg03RawB0Qz_tcfc\"},\"target\":\"s:10PrinterSDK7CutModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK9MediaModeO10continuousyA2CmF\",\"target\":\"s:10PrinterSDK9MediaModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK9MediaModeO3gapyA2CmF\",\"target\":\"s:10PrinterSDK9MediaModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK9MediaModeO8rawValueACSgs6UInt32V_tcfc\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.init(rawValue:)\",\"identifier\":\"s:SY8rawValuexSg03RawB0Qz_tcfc\"},\"target\":\"s:10PrinterSDK9MediaModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:10PrinterSDK9MediaModeO9blackMarkyA2CmF\",\"target\":\"s:10PrinterSDK9MediaModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A7FeatureO\",\"sourceOrigin\":{\"displayName\":\"Equatable.!=(_:_:)\",\"identifier\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ\"},\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"sourceOrigin\":{\"displayName\":\"Equatable.!=(_:_:)\",\"identifier\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ\"},\"target\":\"s:10PrinterSDK0A8SDKErrorV\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK11FinishScopeO\",\"sourceOrigin\":{\"displayName\":\"Equatable.!=(_:_:)\",\"identifier\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ\"},\"target\":\"s:10PrinterSDK11FinishScopeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO\",\"sourceOrigin\":{\"displayName\":\"Equatable.!=(_:_:)\",\"identifier\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ\"},\"target\":\"s:10PrinterSDK15ConnectionStateO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK7CutModeO\",\"sourceOrigin\":{\"displayName\":\"Equatable.!=(_:_:)\",\"identifier\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ\"},\"target\":\"s:10PrinterSDK7CutModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:10PrinterSDK9MediaModeO\",\"sourceOrigin\":{\"displayName\":\"Equatable.!=(_:_:)\",\"identifier\":\"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ\"},\"target\":\"s:10PrinterSDK9MediaModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK0A7FeatureO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hashValue\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp\"},\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK11FinishScopeO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hashValue\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp\"},\"target\":\"s:10PrinterSDK11FinishScopeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hashValue\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp\"},\"target\":\"s:10PrinterSDK15ConnectionStateO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK7CutModeO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hashValue\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp\"},\"target\":\"s:10PrinterSDK7CutModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp::SYNTHESIZED::s:10PrinterSDK9MediaModeO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hashValue\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE04hashB0Sivp\"},\"target\":\"s:10PrinterSDK9MediaModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK0A7FeatureO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hash(into:)\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF\"},\"target\":\"s:10PrinterSDK0A7FeatureO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK11FinishScopeO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hash(into:)\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF\"},\"target\":\"s:10PrinterSDK11FinishScopeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK15ConnectionStateO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hash(into:)\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF\"},\"target\":\"s:10PrinterSDK15ConnectionStateO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK7CutModeO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hash(into:)\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF\"},\"target\":\"s:10PrinterSDK7CutModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF::SYNTHESIZED::s:10PrinterSDK9MediaModeO\",\"sourceOrigin\":{\"displayName\":\"RawRepresentable.hash(into:)\",\"identifier\":\"s:SYsSHRzSH8RawValueSYRpzrlE4hash4intoys6HasherVz_tF\"},\"target\":\"s:10PrinterSDK9MediaModeO\"}\nrelationship {\"kind\":\"memberOf\",\"source\":\"s:s5ErrorP10FoundationE20localizedDescriptionSSvp::SYNTHESIZED::s:10PrinterSDK0A8SDKErrorV\",\"sourceOrigin\":{\"displayName\":\"Error.localizedDescription\",\"identifier\":\"s:s5ErrorP10FoundationE20localizedDescriptionSSvp\"},\"target\":\"s:10PrinterSDK0A8SDKErrorV\"}\nenum {\"cases\":[{\"case\":\"disconnected\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"0\"}},{\"case\":\"connecting\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"1\"}},{\"case\":\"connected\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"2\"}},{\"case\":\"disconnecting\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"3\"}}],\"path\":[\"ConnectionState\"]}\nenum {\"cases\":[{\"case\":\"none\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"0\"}},{\"case\":\"full\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"1\"}},{\"case\":\"partial\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"2\"}}],\"path\":[\"CutMode\"]}\nenum {\"cases\":[{\"case\":\"eachCopy\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"0\"}},{\"case\":\"endOfJob\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"1\"}}],\"path\":[\"FinishScope\"]}\nenum {\"cases\":[{\"case\":\"gap\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"1\"}},{\"case\":\"blackMark\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"2\"}},{\"case\":\"continuous\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"3\"}}],\"path\":[\"MediaMode\"]}\nenum {\"cases\":[{\"case\":\"label\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"1\"}},{\"case\":\"receipt\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"2\"}},{\"case\":\"status\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"3\"}},{\"case\":\"media\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"4\"}},{\"case\":\"cut\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"5\"}},{\"case\":\"raw\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"6\"}},{\"case\":\"image\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"7\"}},{\"case\":\"feedToNextLabel\",\"rawValue\":{\"kind\":\"integer\",\"negative\":false,\"value\":\"8\"}}],\"path\":[\"PrinterFeature\"]}\n",
+      "baseline_sha256": "62ccd5c542c02285429d8942b7eb69a68555180ddb3b9d335780e30009f2fd65"
+    }
+  },
+  "schema": 1,
+  "sdk_version": "0.2.0-preview.3"
+}
