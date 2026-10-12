@@ -1,0 +1,4 @@
+# Preserve the exact upstream Wrapper bytes across core.autocrlf settings.
+/android/gradlew -text
+/android/gradlew.bat -text whitespace=cr-at-eol
+/android/gradle/wrapper/gradle-wrapper.jar -text

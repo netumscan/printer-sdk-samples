@@ -3,10 +3,28 @@
 """Check the source-only sample snapshot and its exact online SDK dependencies."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
+import stat
 import sys
 
+WRAPPER_JAR = "android/gradle/wrapper/gradle-wrapper.jar"
+WRAPPER_SHA256 = "81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f"
+WRAPPER_INPUTS = {
+    ".gitattributes": "01e94d407cac570df3b4a66f2d76e291f19aa22ec4a73cb9a41be03a83f02bfe",
+    "android/gradlew": "734b3879d3501dce471cf0522d3bcbafe76873d9fc5129345b67fb43bd15e933",
+    "android/gradlew.bat": "57931b17dd228e5c24dac90e815d0bf82477e831a4618dfab4136f5446b42a9f",
+    WRAPPER_JAR: WRAPPER_SHA256,
+    "android/gradle/wrapper/LICENSE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+}
+WRAPPER_PROPERTIES = {
+    "distributionBase": "GRADLE_USER_HOME", "distributionPath": "wrapper/dists",
+    "distributionSha256Sum": "20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78",
+    "distributionUrl": r"https\://services.gradle.org/distributions/gradle-8.13-bin.zip",
+    "networkTimeout": "10000", "validateDistributionUrl": "true",
+    "zipStoreBase": "GRADLE_USER_HOME", "zipStorePath": "wrapper/dists",
+}
 IGNORED = {".git", ".gradle", "build", "DerivedData", "SourcePackages", "xcuserdata"}
 
 
@@ -23,6 +41,30 @@ def inventory(root):
     return result
 
 
+def check_wrapper(root, actual, manifest):
+    if manifest.get("executable_files") != ["android/gradlew"]:
+        raise ValueError("Invalid executable-file allowlist; only the official gradlew is executable")
+    for name, expected in WRAPPER_INPUTS.items():
+        if actual.get(name) != expected:
+            raise ValueError("Missing or changed official Gradle 8.13 Wrapper input: " + name)
+    properties = root / "android/gradle/wrapper/gradle-wrapper.properties"
+    values = {}
+    for line in properties.read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith(("#", "!")):
+            continue
+        key, separator, value = line.partition("=")
+        if not separator or key in values:
+            raise ValueError("Malformed or duplicate Gradle Wrapper property")
+        values[key] = value
+    if values != WRAPPER_PROPERTIES:
+        raise ValueError("Gradle Wrapper properties must pin the official HTTPS 8.13 distribution, checksum and timeout")
+    if os.name == "posix":
+        if stat.S_IMODE((root / "android/gradlew").stat().st_mode) != 0o755:
+            raise ValueError("android/gradlew must have executable mode 0755")
+        if stat.S_IMODE((root / "android/gradlew.bat").stat().st_mode) != 0o644:
+            raise ValueError("android/gradlew.bat must have ordinary mode 0644")
+
+
 def check(root):
     manifest = json.loads((root / "samples-manifest.json").read_text())
     if manifest.get("schema") != 1 or manifest.get("hardware_verified") is not False:
@@ -36,6 +78,7 @@ def check(root):
     if actual != expected:
         changes = [p for p in sorted(set(actual) | set(expected)) if actual.get(p) != expected.get(p)]
         raise ValueError("Sample snapshot differs: " + ", ".join(changes))
+    check_wrapper(root, actual, manifest)
     canonical = manifest.get("canonical_full_demos", {})
     generated = manifest.get("generated_build_identity", {})
     identities = {"android/full-demo/src/main/assets/printer-sdk-samples-build.json",
@@ -100,6 +143,9 @@ def check(root):
         r"DEVELOPMENT_TEAM\s*=\s*[A-Z0-9]+|PROVISIONING_PROFILE(?:_SPECIFIER)?\s*=\s*[^;\s]+")
     for name in actual:
         path = root / name
+        if name == WRAPPER_JAR:
+            # Exact path, upstream checksum and associated license were checked above.
+            continue
         if path.suffix.lower() in {".aar", ".jar", ".so", ".a", ".ipa", ".apk", ".aab", ".p12", ".jks", ".keystore", ".mobileprovision"}:
             raise ValueError("Binary/signing material is not a sample source: " + name)
         if "xcuserdata" in path.parts or "xcframework" in name or name.endswith("local.properties"):

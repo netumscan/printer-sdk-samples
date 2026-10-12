@@ -16,20 +16,28 @@ Quick Start 展示最小的发现/选择、连接、显式提交、状态与释�
 
 ## 构建
 
-- Android：JDK 17、Gradle 8.13、Android SDK Platform 35。见 [Android 指南](android/README.md)。
+- Android：JDK 17、Android SDK Platform 35 和 Build Tools 35.0.0；仓库自带固定 Gradle 8.13 Wrapper，无需全局 Gradle。见 [Android 指南](android/README.md)。
 - iOS：Xcode 15+（Swift 5.9+）、iOS 15+。见 [iOS 指南](ios/README.md)。
 - Android SDK：`com.netumscan:printer-sdk-android:0.2.0-preview.3`，来自 Maven Central。
 - iOS SDK：`https://github.com/netumscan/printer-sdk-ios`，Exact Version `0.2.0-preview.3`。
 
+从仓库根目录构建两个 Android App：
+
+```sh
+./android/gradlew -p android :quick-start:assembleDebug :full-demo:assembleDebug
+```
+
+Windows 使用 `android\gradlew.bat -p android` 加相同任务。首次运行需下载带固定校验和的 Gradle 官方分发，缓存及离线要求见 Android 指南。
+
 依赖的版本、SDK 许可地址和已发布制品 SHA-256 见 [sdk-lock.json](sdk-lock.json)。
-仓库只包含应用示例源码；SDK 实现及二进制由对应的在线分发入口提供。
+仓库提供应用示例及受上游校验和保护的 Gradle Wrapper 构建工具；SDK 实现及二进制由对应的在线分发入口提供。
 
 ## 验证与反馈
 
 运行 `python3 tools/check-samples.py` 检查导出完整性和依赖边界。平台构建验证命令见
 各端指南。GitHub Actions 在 push、pull request 和手动触发时执行相同验证；
 Android 检查两个应用的构建、lint 和 R8 制品，iOS 检查两个应用的构建及模拟器基础运行。
-CI 不连接打印机、不发布 APK/IPA，也不使用任何签名密钥。
+CI 不连接打印机、不发布 APK/IPA，也不使用任何签名密钥。双端构建失败定位、脱敏日志和软件报告下载见 [CI 验证证据](VERIFICATION.md)。
 
 两端 Full Demo 的功能源码统一从开发仓库的主 Demo 导出，来源路径及逐文件 SHA-256
 记录在 `samples-manifest.json` 的 `canonical_full_demos` 中。维护者的一键同步流程先
@@ -42,7 +50,7 @@ CI 不连接打印机、不发布 APK/IPA，也不使用任何签名密钥。
 
 ## 许可与预览边界
 
-本仓库自有示例代码、资源和工程配置采用 [MIT](LICENSE)，详见 [许可边界](LICENSING.md)。
+本仓库自有示例代码、资源和工程配置采用 [MIT](LICENSE)，详见 [许可边界](LICENSING.md)。Gradle Wrapper 保留原有 [Apache-2.0 许可](android/gradle/wrapper/LICENSE)。
 **SDK 保持闭源商用许可，MIT 不适用于下载的 SDK、包装层、C 头文件或第三方组件。**
 
 本版是开发预览：原生 SDK 0.2.0、C ABI 2/r10，`hardware_verified=false`。

@@ -61,16 +61,21 @@
       "target": "ios/full-demo/"
     }
   },
+  "executable_files": [
+    "android/gradlew"
+  ],
   "files_sha256": {
-    ".github/workflows/samples.yml": "941cd0020a78ff931e3af1d3b3fad0fd88aa63d9c1f5eff0fd8265eedbc952f4",
+    ".gitattributes": "01e94d407cac570df3b4a66f2d76e291f19aa22ec4a73cb9a41be03a83f02bfe",
+    ".github/workflows/samples.yml": "56df000d15ae280444fa32ef646a6d415b5ec1632d01f4d69d5e0aeec71d42aa",
     ".gitignore": "8d7ca14666cfc127739d8f56e5bc708d4113b0d5625287bc94cd5f95a56e06e3",
     "LICENSE": "ccbe9c8257b2f0702b165aabfcb43fee6965253f0ab5008f405add3552c8daa7",
     "LICENSING.md": "ea37888f42fd87916d9ff8ae536a67d19ecf8a27f49de3e9fd88f1f65cb7b45b",
-    "README.md": "b6a55e8666b443ed8e51ecab7fc6cecc2ddd4f7639d60939bef0224f8fe3467c",
-    "android/README.md": "da9e608cbb84e22c04adfe287cdd3881e6f42bd949f91dff5fe8cd2e6005a0d2",
+    "README.md": "ff2831bf755755f6454c54e8e9c7627d71d4cfc3b0f012fd75537300c5109ff6",
+    "VERIFICATION.md": "cb3644168fe5015427f4ffc50d69b66ac7b6f881d4297609dc34fc5e5e59f326",
+    "android/README.md": "6ced0f22ec20235dc5eb2b0a69b686bbb646532ef49b7c58c58bddc0263ad4a8",
     "android/build.gradle.kts": "9d7fbc099136a6cf4d494fb8f6b8de6f860912ac2a01bccb447d0107b8fb5546",
     "android/full-demo/LICENSE": "ccbe9c8257b2f0702b165aabfcb43fee6965253f0ab5008f405add3552c8daa7",
-    "android/full-demo/README.md": "7e59e1cd30d5c4857ab2bdcf1ae19132383aad52840e4776ea97de33bf94a153",
+    "android/full-demo/README.md": "57de36fc98cc64f539267b8d757eb64eb5ca7a07f1f7d46d7ac47c634dd025ac",
     "android/full-demo/build.gradle.kts": "c1af65d6699422e4e25998aedbbde41e57a139b3f66bf28f2c0d324a9b273dd2",
     "android/full-demo/src/androidTest/java/com/netumscan/printersdk/samples/runtime/RuntimeGate.java": "fe82a204eb09394f62133348973ad23432f8e8434180d2fb470905ce4749d665",
     "android/full-demo/src/main/AndroidManifest.xml": "dcd7e30a2fb75b6cd25805b2637f7334b819d5d2d1273bc6ffb32ba71ec79df6",
@@ -114,8 +119,14 @@
     "android/full-demo/src/main/res/values/styles.xml": "7112883c5406a1d236ce931577a738f5c77a17406043fd8fd2cd366d3111a7cb",
     "android/full-demo/src/main/res/xml/data_extraction_rules.xml": "5537d274cb19fa415ce775720af4e20656a47f0a35cf166f007ca3239c270d16",
     "android/gradle.properties": "801693632e204f89b6a3dec848edc5a5df1204e16d19b2b77017b6aec40c25aa",
+    "android/gradle/wrapper/LICENSE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "android/gradle/wrapper/README.md": "e7d35b8c8f9693e3f88774d88e3d195c72cad3dedc9ffc8cfdd60ae104209f87",
+    "android/gradle/wrapper/gradle-wrapper.jar": "81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f",
+    "android/gradle/wrapper/gradle-wrapper.properties": "c040b6ef2fb893ff5beea5a281614f2848f1c3996a7886f650b713f8240656a2",
+    "android/gradlew": "734b3879d3501dce471cf0522d3bcbafe76873d9fc5129345b67fb43bd15e933",
+    "android/gradlew.bat": "57931b17dd228e5c24dac90e815d0bf82477e831a4618dfab4136f5446b42a9f",
     "android/quick-start/LICENSE": "ccbe9c8257b2f0702b165aabfcb43fee6965253f0ab5008f405add3552c8daa7",
-    "android/quick-start/README.md": "be8a0c85dcee50ea037214263fb90820146d04b6b7082a7dcd4efc0a7a0fae0a",
+    "android/quick-start/README.md": "84b243215c639239166635183013a7995840709c981452c20c20b4af5a6b1c5b",
     "android/quick-start/build.gradle.kts": "aa92e5075392a5835816fc77057da5a5c106fda812692a02fcc947fe236c0160",
     "android/quick-start/src/androidTest/java/com/netumscan/printersdk/samples/runtime/QuickStartRuntimeGate.java": "1b0201d9250bf95f44168b92e47661a57d551443f445b6050ff15d45c588c6a3",
     "android/quick-start/src/main/AndroidManifest.xml": "f3be54e12c890e2999cd1ea25642ae6ce932719397148725805a462ba5cf8fe2",
@@ -124,7 +135,7 @@
     "android/scripts/verify-packaging.py": "068fdf2d6b088c6b3db370f2598b76931e49ddac76879d4a91edbc0079e1b7da",
     "android/scripts/verify-runtime.py": "5d37ddec306da4b642dd98cf4ce9d9fff20306f4d309c4ced547790c4104f3d0",
     "android/settings.gradle.kts": "9925250fca731dfb35f08e3cb946e7edd7c1a8aa6a01329c1af8de8cc0852ee2",
-    "android/verify.sh": "3f92950d3e37039d9b568b01ce55f9b976b58bcdb962316173c7fbb17fe9c7c6",
+    "android/verify.sh": "47fc1170d1564051b7a63cffd8ce3ab7196168d4e37900930e3dc079b2e48929",
     "docs/README.md": "b547fa10373311c8cdfc2147716df81afc7365447051e8b67005c35c75254576",
     "docs/api-lifecycle.md": "32a4f807d08aa66745f8c50fd5fc5f29fc27288a6a14af3fd1d3f7d04bf819e5",
     "docs/compatibility.md": "c46de2fd3ab7eb58a47d878f617ef342239854445e154d109000b4fef70b369f",
@@ -162,7 +173,8 @@
     "ios/verify.py": "34754e0d4f00a4103acca9c121b1175a7c999a4bcdcae887c15bb1d6cc0dfa3e",
     "ios/verify.sh": "36c677a8b53d47b35ef96fd47fb4202ab6804ab1fd62c2ae12c20a544af43c7a",
     "sdk-lock.json": "0169c7ddda8b447912fc13ffae5e5cc9c7fe8d8345860853d9441bf8006ad599",
-    "tools/check-samples.py": "9c420922404383596e9fa8696364a867fb916b9a25ea6ef7039b3aab915d3022"
+    "tools/check-samples.py": "fbee5e105524471811526e8878be89707a88315aa08887d14b941b7236f0f96a",
+    "tools/collect-evidence.py": "a38ab954cca010099ec6587a7025adaae887d598f7d8a169a17dc4e303d08553"
   },
   "generated_build_identity": {
     "android/full-demo/src/main/assets/printer-sdk-samples-build.json": "8a98f4e87a108ef9adb11d82f732f476f95e62c240ddc5bf101986ef1cfcea93",

@@ -18,11 +18,25 @@ if [[ ! "$emulator_serial" =~ ^emulator-[0-9]+$ ]]; then
 fi
 mkdir -p "$output"
 output="$(cd "$output" && pwd)"
-gradle_bin="${GRADLE:-gradle}"
-if ! "$gradle_bin" --version | grep -q '^Gradle 8\.13$'; then
-    echo "Install Gradle 8.13 or set GRADLE to its executable." >&2
+python3 "$android_root/../tools/check-samples.py" > "$output/source-check.json"
+gradle_bin="${GRADLE:-$android_root/gradlew}"
+if ! "$gradle_bin" --version > "$output/gradle-bootstrap.log" 2>&1; then
+    tail -n 80 "$output/gradle-bootstrap.log" >&2
+    echo "Gradle Wrapper bootstrap failed; inspect gradle-bootstrap.log." >&2
     exit 2
 fi
+if ! grep -q '^Gradle 8\.13$' "$output/gradle-bootstrap.log"; then
+    echo "Gradle 8.13 is required; the pinned Wrapper is the default. GRADLE may explicitly override its executable." >&2
+    exit 2
+fi
+python3 - "$output/gradle-tool.json" "${GRADLE:+explicit_override}" <<'PYTHON'
+import json
+from pathlib import Path
+import sys
+Path(sys.argv[1]).write_text(json.dumps({"selection": sys.argv[2] or "pinned_wrapper",
+    "gradle_version": "8.13", "wrapper_jar_sha256": "81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f",
+    "distribution_sha256": "20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78"}, indent=2) + "\n")
+PYTHON
 "$gradle_bin" -p "$android_root" \
     :quick-start:assembleDebug :quick-start:assembleDebugAndroidTest :quick-start:assembleRelease :quick-start:lintRelease :quick-start:copyResolvedSdk \
     :full-demo:assembleDebug :full-demo:assembleDebugAndroidTest :full-demo:assembleRelease :full-demo:lintRelease :full-demo:copyResolvedSdk \

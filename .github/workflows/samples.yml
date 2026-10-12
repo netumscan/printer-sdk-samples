@@ -32,8 +32,6 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
-        with:
-          gradle-version: '8.13'
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -48,13 +46,16 @@ jobs:
           emulator-port: 5554
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           disable-animations: true
-          script: bash android/verify.sh --emulator-serial emulator-5554 --output "$RUNNER_TEMP/printer-samples-android"
-      - name: Archive software verification evidence
+          script: python3 tools/collect-evidence.py run --output "$RUNNER_TEMP/printer-samples-android-command" -- bash android/verify.sh --emulator-serial emulator-5554 --output "$RUNNER_TEMP/printer-samples-android"
+      - name: Collect masked Android verification evidence
+        if: always()
+        run: python3 tools/collect-evidence.py collect --platform android --source "$RUNNER_TEMP/printer-samples-android" --command-output "$RUNNER_TEMP/printer-samples-android-command" --output "$RUNNER_TEMP/printer-samples-android-evidence"
+      - name: Archive masked Android verification evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: android-software-verification
-          path: ${{ runner.temp }}/printer-samples-android
+          path: ${{ runner.temp }}/printer-samples-android-evidence
           if-no-files-found: error
           retention-days: 14
 
@@ -66,4 +67,16 @@ jobs:
         with:
           persist-credentials: false
       - run: python3 tools/check-samples.py
-      - run: bash ios/verify.sh --output "$RUNNER_TEMP/printer-samples-ios"
+      - name: Verify online iOS SDK
+        run: python3 tools/collect-evidence.py run --output "$RUNNER_TEMP/printer-samples-ios-command" -- bash ios/verify.sh --output "$RUNNER_TEMP/printer-samples-ios"
+      - name: Collect masked iOS verification evidence
+        if: always()
+        run: python3 tools/collect-evidence.py collect --platform ios --source "$RUNNER_TEMP/printer-samples-ios" --command-output "$RUNNER_TEMP/printer-samples-ios-command" --output "$RUNNER_TEMP/printer-samples-ios-evidence"
+      - name: Archive masked iOS verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-software-verification
+          path: ${{ runner.temp }}/printer-samples-ios-evidence
+          if-no-files-found: error
+          retention-days: 14
