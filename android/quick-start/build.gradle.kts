@@ -10,6 +10,7 @@ android {
         targetSdk = 35
         versionCode = 2
         versionName = "0.2.0-preview.3"
+        testInstrumentationRunner = "com.netumscan.printersdk.samples.runtime.QuickStartRuntimeGate"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
     buildTypes {

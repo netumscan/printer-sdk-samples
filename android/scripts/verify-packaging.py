@@ -87,6 +87,24 @@ def dex_methods(data):
     return result
 
 
+def validate_debug_payload(application, library, identity=None):
+    """The APK installed by the runtime gate must carry the exact pinned AAR native bytes."""
+    abis = {name.split("/")[1] for name in application.namelist()
+            if name.startswith("lib/") and name.endswith(".so")}
+    if abis != set(ABIS):
+        raise SystemExit("Debug APK has missing or unexpected CPU ABI")
+    for abi in ABIS:
+        for name in ("libprinter_sdk_c.so", "libprinter_sdk_jni.so", "libc++_shared.so"):
+            if application.read(f"lib/{abi}/{name}") != library.read(f"jni/{abi}/{name}"):
+                raise SystemExit("Debug APK native payload differs from the pinned AAR")
+    for name in ("LICENSE", "LICENSE-NOTICE.md", "NOTICE.android-ndk"):
+        path = "assets/printer-sdk/" + name
+        if application.read(path) != library.read(path):
+            raise SystemExit("Debug APK SDK license or notice differs from the pinned AAR")
+    if identity is not None and application.read("assets/printer-sdk-samples-build.json") != identity:
+        raise SystemExit("Debug APK diagnostic identity differs from the exported build identity")
+
+
 def inspect(root, module, application_id):
     build = root / module / "build"
     aar = build / "verification/resolved-sdk.aar"
@@ -94,6 +112,9 @@ def inspect(root, module, application_id):
     debug_apk = build / "outputs/apk/debug" / (module + "-debug.apk")
     if digest(aar) != AAR_SHA256:
         raise SystemExit(f"{module}: online AAR differs from pinned SDK {VERSION}")
+    with zipfile.ZipFile(debug_apk) as application, zipfile.ZipFile(aar) as library:
+        identity = (root / module / "src/main/assets/printer-sdk-samples-build.json").read_bytes() if module == "full-demo" else None
+        validate_debug_payload(application, library, identity)
     with zipfile.ZipFile(apk) as application, zipfile.ZipFile(aar) as library:
         if module == "full-demo":
             identity = "assets/printer-sdk-samples-build.json"
@@ -145,7 +166,7 @@ def inspect(root, module, application_id):
         "java_class_count": len(classes), "aar_sha256": digest(aar),
         "debug_apk_sha256": digest(debug_apk), "r8_apk_sha256": digest(apk),
         "mapping_sha256": digest(build / "outputs/mapping/release/mapping.txt"),
-        "checks": {"online_aar_matches_pin": True, "java8_bytecode": True,
+        "checks": {"online_aar_matches_pin": True, "java8_bytecode": True, "debug_native_payload_matches": True,
                    "r8_jni_12_methods": True, "r8_jni_4_callbacks": True,
                    "three_abi_payload_matches": True, "sdk_license_notices_preserved": True,
                    "application_id": True, "min_sdk_26": True},

@@ -2,7 +2,7 @@
 
 SDK 权限、生命周期、FeatureSupport、错误码和诊断字段见[客户指南](../docs/README.md)。
 
-两个独立 App 固定从 Maven Central 获取 `com.netumscan:printer-sdk-android:0.2.0-preview.2`，不依赖本地 SDK 源码或 AAR。
+两个独立 App 固定从 Maven Central 获取 `com.netumscan:printer-sdk-android:0.2.0-preview.3`，不依赖本地 SDK 源码或 AAR。
 
 | 示例 | 用途 | applicationId |
 | --- | --- | --- |
@@ -18,13 +18,19 @@ export ANDROID_HOME="<Android SDK 安装目录>"
 gradle -p android :quick-start:assembleDebug :full-demo:assembleDebug
 ```
 
-在 Android Studio 中打开本目录时，选择 Gradle 8.13 安装目录。完整 CI 和 R8 / JNI / 三架构验证：
+在 Android Studio 中打开本目录时，选择 Gradle 8.13 安装目录。完整 CI、R8 / JNI / 三架构及实际模拟器运行验证，需要先启动一个包含线上 AAR 对应 ABI 的 Android 模拟器（API 26+），然后显式选择其 serial：
 
 ```sh
-bash android/verify.sh --output /tmp/printer-sdk-samples-android-validation
+bash android/verify.sh --emulator-serial emulator-5554 --output /tmp/printer-sdk-samples-android-validation
 ```
 
-验证脚本使用 Gradle 8.13，可通过 `GRADLE` 指定可执行文件。脚本运行两端 App 的 debug / release 构建和 lint，核对实际解析的在线 SDK、三个 CPU ABI、最终 R8 DEX 中的 JNI 方法与回调，以及 APK 中的 SDK 许可资源；不会连接设备或执行打印。
+验证脚本使用 Gradle 8.13，可通过 `GRADLE` 指定可执行文件。脚本构建两个 App 的 debug / release / 测试 APK 并执行 lint，核对实际解析的在线 SDK、三个 CPU ABI、最终 R8 DEX 中的 JNI 方法与回调，以及 APK 中的 SDK 许可资源。
+
+运行门禁只接受 `emulator-N` 且 `ro.kernel.qemu=1` 的已启动模拟器，拒绝物理设备。它安装这两个样例和测试 APK，并清除这两个样例在所选模拟器中的数据，以保证诊断记录来自本次运行；请使用专用测试模拟器。每次验证使用新的输出目录。
+
+两个测试 runner 直接使用 Android `Instrumentation`，无需 AndroidX。Quick Start 启动后检查没有打印机实例或任务；Full Demo 保持离线、不扫描和不授予蓝牙权限。测试 APK 仅为门禁使用精确 SDK 版本的内部 `BluetoothChannel` / `IoControl` 和既有私有构造方法；客户集成仍使用公共 API。测试 APK 将内存通道注入该构造方法，实际加载 AAR 的 JNI、通过原生 `nCreate` 的 ABI 2 / 最低修订 10 握手，验证最多 3 字节的部分写入和两个 Raw 任务的 14 字节顺序。ABI 握手要求与诊断中的分发清单 ABI 来源会分别记录，避免把清单值当成运行时 getter 的结果。
+
+`runtime-validation.json` 和合并的 `validation.json` 记录本次 nonce、实际进程 ABI、API 级别、APK 哈希和测试结果；`instrumentation-result.json`、`quick-start-runtime.json`、`full-demo-journal.log` 保留本次证据。真实 Full Demo journal 的首次兼容记录必须与固定版本、SDK commit、AAR checksum 和 Demo 来源指纹一致。CI 在 API 35 / x86_64 模拟器执行门禁，并归档软件验证结果。全部流程不连接打印机、不执行真实打印，`hardware_verified=false`。
 
 ## Quick Start
 
