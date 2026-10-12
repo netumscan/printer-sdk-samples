@@ -36,6 +36,16 @@ def check(root):
     if actual != expected:
         changes = [p for p in sorted(set(actual) | set(expected)) if actual.get(p) != expected.get(p)]
         raise ValueError("Sample snapshot differs: " + ", ".join(changes))
+    canonical = manifest.get("canonical_full_demos", {})
+    origins = {"platform/android/demo/src/main": "android/full-demo/src/main/",
+               "platform/ios/Demo": "ios/full-demo/"}
+    if set(canonical) != set(origins):
+        raise ValueError("Missing canonical Full Demo source inventory")
+    for origin, target in origins.items():
+        files = {name: value for name, value in actual.items()
+                 if name.startswith(target) and (origin.endswith("src/main") or name.endswith(".swift"))}
+        if not files or canonical[origin] != {"target": target, "files_sha256": files}:
+            raise ValueError("Full Demo provenance differs from exported sources: " + origin)
     lock = json.loads((root / "sdk-lock.json").read_text())
     version = manifest["sdk_version"]
     if lock["version"] != version or lock["hardware_verified"] is not False:
@@ -50,6 +60,20 @@ def check(root):
     if ("https://github.com/netumscan/printer-sdk-ios" not in project or
             "kind = exactVersion" not in project or version not in project):
         raise ValueError("iOS samples must use the exact public SwiftPM version")
+    if "isa = PBXProject;" in project:
+        refs = {}
+        for identifier, path in re.findall(r'([0-9A-F]{24}) = \{ isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ("(?:[^"\\]|\\.)*"|[^;]+);', project):
+            refs[identifier] = json.loads(path) if path.startswith('"') else path
+        builds = dict(re.findall(r'([0-9A-F]{24}) = \{ isa = PBXBuildFile; fileRef = ([0-9A-F]{24});', project))
+        for folder, phase in [("quick-start", "000000000000000000000026"),
+                              ("full-demo", "000000000000000000000030"),
+                              ("tests", "00000000000000000000003A")]:
+            match = re.search(phase + r' = \{ isa = PBXSourcesBuildPhase; buildActionMask = \d+; files = \(([^)]*)\);', project)
+            ids = re.findall(r"[0-9A-F]{24}", match[1]) if match else []
+            compiled = ["ios/" + folder + "/" + refs.get(builds.get(item), "MISSING") for item in ids]
+            expected_swift = {name for name in actual if name.startswith("ios/" + folder + "/") and name.endswith(".swift")}
+            if len(compiled) != len(set(compiled)) or set(compiled) != expected_swift:
+                raise ValueError("Xcode source membership differs from exported Swift files: " + folder)
     prohibited = re.compile(
         r"/Users/[A-Za-z0-9_.-]+/|/home/[A-Za-z0-9_.-]+/|XCLocalSwiftPackageReference|mavenLocal\s*\(|"
         r"implementation\s*\(\s*project\s*\(|@[A-Z][A-Z0-9_]*@|"

@@ -28,7 +28,13 @@ Quick Start 展示最小的发现/选择、连接、显式提交、状态与释�
 Android 检查两个应用的构建、lint 和 R8 制品，iOS 检查两个应用的构建及模拟器基础运行。
 CI 不连接打印机、不发布 APK/IPA，也不使用任何签名密钥。
 
-示例统一从开发仓库导出，版本发布包含四个示例的一致快照。请在
+两端 Full Demo 的功能源码统一从开发仓库的主 Demo 导出，来源路径及逐文件 SHA-256
+记录在 `samples-manifest.json` 的 `canonical_full_demos` 中。维护者的一键同步流程先
+验证来源一致性及两端在线接入，再推送 `codex/samples-sync-*` 候选分支；双端 CI 通过后
+才快进更新 `main`。现有标签与 Release 保持原样，SDK 依赖继续固定为 `0.2.0-preview.2`。
+请在开发仓库修改 Demo 后同步；直接修改公开导出文件会被完整性检查拒绝。
+
+版本发布包含四个示例的一致快照。请在
 [Issues](https://github.com/netumscan/printer-sdk-samples/issues) 提交可脱敏复现的接入问题。
 
 ## 许可与预览边界
