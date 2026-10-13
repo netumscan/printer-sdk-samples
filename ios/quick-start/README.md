@@ -4,7 +4,17 @@ See the shared [customer guide](../../docs/README.md) for SDK permissions and AP
 
 Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
 `PrinterQuickStart` scheme and run on iOS 15+. Xcode 15+ resolves the exact public
-`PrinterSDK` version `0.2.0-preview.2`; no local SDK checkout is needed.
+`PrinterSDK` dependency below; no local SDK checkout is needed.
+
+## Current SDK dependency
+
+| Field | Value |
+| --- | --- |
+| Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
+| Exact version | `0.2.0-preview.3` |
+| Release commit | `d08676ca6ca11fccf82cc0dce56ba69d9d917557` |
+
+## Running the sample
 
 Scan explicitly, select a BLE candidate, confirm the M90 V1.2 / CPCL development
 settings and connect. Submit one generated grayscale image, observe operation

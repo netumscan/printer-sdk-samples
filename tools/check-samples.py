@@ -27,6 +27,7 @@ WRAPPER_PROPERTIES = {
     "zipStoreBase": "GRADLE_USER_HOME", "zipStorePath": "wrapper/dists",
 }
 IGNORED = {".git", ".gradle", "build", "DerivedData", "SourcePackages", "xcuserdata"}
+IOS_DEPENDENCY_DOCS = ("ios/README.md", "ios/quick-start/README.md", "ios/full-demo/README.md")
 
 
 def inventory(root):
@@ -64,6 +65,41 @@ def check_wrapper(root, actual, manifest):
             raise ValueError("android/gradlew must have executable mode 0755")
         if stat.S_IMODE((root / "android/gradlew.bat").stat().st_mode) != 0o644:
             raise ValueError("android/gradlew.bat must have ordinary mode 0644")
+
+
+def check_ios_dependencies(root, lock):
+    version = lock["version"]
+    ios = lock.get("ios", {})
+    if (ios.get("version") != version or ios.get("repository") not in {
+            "https://github.com/netumscan/printer-sdk-ios", "https://github.com/netumscan/printer-sdk-ios.git"}
+            or not isinstance(ios.get("revision"), str) or not re.fullmatch(r"[0-9a-f]{40}", ios["revision"])):
+        raise ValueError("SDK lock has an invalid current iOS dependency identity")
+    repository = ios["repository"].removesuffix(".git")
+    project = (root / "ios/PrinterSamples.xcodeproj/project.pbxproj").read_text()
+    urls = re.findall(r'\brepositoryURL\s*=\s*"([^"\n]+)"\s*;', project)
+    versions = re.findall(r'\bversion\s*=\s*"?([^";\s]+)"?\s*;', project)
+    kinds = re.findall(r'\bkind\s*=\s*([^;\s]+)\s*;', project)
+    if ([url.removesuffix(".git") for url in urls] != [repository]
+            or versions != [version] or kinds != ["exactVersion"]):
+        raise ValueError("iOS samples must use the exact public SwiftPM version")
+    resolved = root / "ios/PrinterSamples.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+    pins = json.loads(resolved.read_text()).get("pins")
+    if (not isinstance(pins, list) or len(pins) != 1 or not isinstance(pins[0], dict)
+            or pins[0].get("identity") != "printer-sdk-ios" or pins[0].get("kind") != "remoteSourceControl"
+            or pins[0].get("location", "").removesuffix(".git") != repository
+            or pins[0].get("state") != {"version": version, "revision": ios["revision"]}):
+        raise ValueError("SwiftPM resolved SDK identity differs from sdk-lock.json")
+    expected = {"Repository": repository + ".git", "Exact version": version, "Release commit": ios["revision"]}
+    for name in IOS_DEPENDENCY_DOCS:
+        text = (root / name).read_text()
+        sections = re.findall(r"^## Current SDK dependency\s*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+        if len(sections) != 1:
+            raise ValueError("Missing or duplicate current iOS SDK dependency declaration in " + name)
+        # Only this current declaration is compared. Older identities may appear
+        # in separately headed migration or release-history sections.
+        rows = re.findall(r"^\|\s*([^|]+?)\s*\|\s*`([^`\n]+)`\s*\|\s*$", sections[0], re.M)
+        if len(rows) != len(expected) or dict(rows) != expected:
+            raise ValueError("Current iOS SDK dependency differs from sdk-lock.json in " + name)
 
 
 def check(root):
@@ -119,10 +155,8 @@ def check(root):
         text = (root / "android" / sample / "build.gradle.kts").read_text()
         if 'implementation("com.netumscan:printer-sdk-android:' + version + '")' not in text:
             raise ValueError("Android sample must use the exact public Maven coordinate")
+    check_ios_dependencies(root, lock)
     project = (root / "ios/PrinterSamples.xcodeproj/project.pbxproj").read_text()
-    if ("https://github.com/netumscan/printer-sdk-ios" not in project or
-            "kind = exactVersion" not in project or version not in project):
-        raise ValueError("iOS samples must use the exact public SwiftPM version")
     if "isa = PBXProject;" in project:
         refs = {}
         for identifier, path in re.findall(r'([0-9A-F]{24}) = \{ isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ("(?:[^"\\]|\\.)*"|[^;]+);', project):

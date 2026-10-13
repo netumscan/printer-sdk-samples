@@ -10,11 +10,20 @@ Open `PrinterSamples.xcodeproj` with Xcode 15 or newer (Swift 5.9+), then select
 | `PrinterQuickStart` | `quick-start/` | Minimal explicit BLE scan, selection, connection, image submission, cancellation and operation status |
 | `PrinterFullDemo` | `full-demo/` | CPCL / ESC-POS, image import and preview, canvas settings, media controls, Raw diagnostics, local configuration and bounded logs |
 
-Both apps require iOS 15+ and resolve `PrinterSDK` from
-`https://github.com/netumscan/printer-sdk-ios.git` at **exactly `0.2.0-preview.2`**.
-The committed `Package.resolved` pins commit
-`b629ccc1aeddf0370a3845cfb3f47152df0e9a5d`; root `sdk-lock.json` also records the
-binary checksum. No SDK implementation or local package path is included here.
+Both apps require iOS 15+ and use the exact public dependency below.
+The committed `Package.resolved` uses the same version and release commit;
+root `sdk-lock.json` also records the binary checksum. No SDK implementation or
+local package path is included here.
+
+## Current SDK dependency
+
+| Field | Value |
+| --- | --- |
+| Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
+| Exact version | `0.2.0-preview.3` |
+| Release commit | `d08676ca6ca11fccf82cc0dce56ba69d9d917557` |
+
+## App configuration
 
 The sample apps use independent Bundle IDs:
 

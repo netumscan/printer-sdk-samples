@@ -19,6 +19,8 @@ Android 与 iOS 使用同一原生执行器，平台 API 名称和连接方式�
 Android 与 iOS 均提供 Quick Start 和 Full Demo。Quick Start 用于理解最小调用流程；
 Full Demo 增加图片处理、显式配置、取消、Raw 和本地诊断。
 请使用与目标 SDK 版本匹配的示例版本，并核对其 `sdk-lock.json`。
+Samples 的三份 iOS 接入说明、工程 exact 依赖与 `Package.resolved` 均受版本／commit
+一致性检查保护；可运行 `python3 -B tools/check-samples.py` 核对当前声明与锁文件。
 
 完整参考对应已审定的 Java／Swift 编译 API 基线；每个公共 API 均有签名与行为说明。
 在仓库根目录执行 `python3 tools/check-api-reference.py` 可检查覆盖、基线摘要及生成文档
@@ -30,6 +32,8 @@ Full Demo 增加图片处理、显式配置、取消、Raw 和本地诊断。
 同时修改当前基线和摘要不能重置历史锚。缺失历史为 `not_verified`，漂移为失败。
 公开检查不验证下载二进制的完整 ABI 或实现行为；C ABI 的历史冻结由 SDK 发布前的
 独立门禁核对。文档更新通过新的 main 提交发布，已有 SDK 标签、Release 和制品保持。
+新 SDK 发布要求完整本地软件验证及精确在线依赖的模拟器运行通过；下载或签名校验
+仅是中间状态。已发布版本的复验追加独立证据，不改写历史收据，也不补填历史验收结论。
 
 这是开发预览，**`hardware_verified=false`**。构建、签名校验和模拟器通过不能证明
 某台打印机、固件、纸张或手机组合已完成验收。`DATA_SENT` 仅表示数据传输完成；
