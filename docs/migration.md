@@ -1,13 +1,16 @@
 # 迁移与版本政策
 
-[返回指南](README.md) · 适用 SDK `0.2.0-preview.3`
+[返回指南](README.md) · 适用 SDK `0.2.0-preview.4`
 
 ## 当前预览版
 
-分发版本为 `0.2.0-preview.3`，原生核心保持 `0.2.0`，C ABI 保持 `2/r10`。
-此次增加 Android `FeatureSupport` / `MobilePrinter.feature(int)`，旧 `implementsFeature(int)`
-保持原有实现查询语义。Swift 保留现有 `FeatureSupport`。打印、许可和队列行为不因文档或诊断
-更新而改变，`hardware_verified=false`。
+分发版本为 `0.2.0-preview.4`，原生核心保持 `0.2.0`，C ABI 保持 `2/r10`。
+此次将 Android 最低运行版本调整为 Android 5.0 / API 21，并在 SDK 内部静态链接 C++
+运行库，AAR 不再携带或依赖 `libc++_shared.so`。Java / Swift API、打印、许可和队列行为
+保持，`hardware_verified=false`。
+
+从 `0.2.0-preview.3` 升级时更新精确依赖并替换完整 SDK 包；其他 SDK 所需的共享运行库
+应保留，不要全局排除同名 so。原生库合包问题见[排障说明](errors-troubleshooting.md#android-原生库合包冲突)。
 
 从 `0.2.0-preview.2` 升级时更新 Maven 精确依赖或 SwiftPM exact 版本，使用整个匹配的
 SDK 包，再重建应用。新增 Android 方法需要本版 Java/JNI；仅更新示例源码不能让旧 AAR 获得新 API。

@@ -52,7 +52,10 @@ final class QuickStartSession implements AutoCloseable {
             requireConnected();
             if (operation != null) throw new IllegalStateException("请等待当前任务结束");
             int height = 160;
-            byte[] pixels = new byte[Math.multiplyExact(width, height)];
+            long pixelCount = (long)width * height;
+            if (pixelCount <= 0 || pixelCount > Integer.MAX_VALUE)
+                throw new IllegalArgumentException("图像尺寸过大或无效");
+            byte[] pixels = new byte[(int)pixelCount];
             Arrays.fill(pixels, (byte)255);
             // Small Gray8 bars; the app renders pixels and the SDK encodes CPCL.
             for (int y = 24; y < 136; y++) {

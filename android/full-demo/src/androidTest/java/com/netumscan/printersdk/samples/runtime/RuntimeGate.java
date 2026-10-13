@@ -13,7 +13,9 @@ import com.netumscan.printersdk.internal.IoControl;
 import com.netumscan.printersdk.MobilePrinter;
 import com.netumscan.printersdk.PrintOperation;
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -36,6 +38,23 @@ public final class RuntimeGate extends Instrumentation {
 
     private static void require(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
+    }
+
+    private static boolean processIs64Bit() throws IOException {
+        if (Build.VERSION.SDK_INT >= 23) return android.os.Process.is64Bit();
+        // API 21/22 have no Process.is64Bit(); inspect the running executable, not device ABI preferences.
+        byte[] header = new byte[5];
+        try (FileInputStream executable = new FileInputStream("/proc/self/exe")) {
+            int offset = 0;
+            while (offset < header.length) {
+                int count = executable.read(header, offset, header.length - offset);
+                if (count <= 0) throw new IOException("Incomplete process ELF header");
+                offset += count;
+            }
+        }
+        if (header[0] != 0x7f || header[1] != 'E' || header[2] != 'L' || header[3] != 'F' ||
+                (header[4] != 1 && header[4] != 2)) throw new IOException("Invalid process ELF header");
+        return header[4] == 2;
     }
 
     private static Object field(Object target, String name) throws Exception {
@@ -156,7 +175,7 @@ public final class RuntimeGate extends Instrumentation {
                 .put("hardware_verified", false).put("native", nativeResult)
                 .put("full_demo_offline", true).put("bluetooth_runtime_permissions_ungranted", permissionsDenied)
                 .put("api_level", Build.VERSION.SDK_INT).put("os_version", Build.VERSION.RELEASE)
-                .put("process_abi", android.os.Process.is64Bit() ? Build.SUPPORTED_64_BIT_ABIS[0] : Build.SUPPORTED_32_BIT_ABIS[0])
+                .put("process_abi", processIs64Bit() ? Build.SUPPORTED_64_BIT_ABIS[0] : Build.SUPPORTED_32_BIT_ABIS[0])
                 .put("compatibility_record", compatibility[0]).put("journal", snapshot);
             try (FileOutputStream output = getTargetContext().openFileOutput("runtime-gate.json", 0)) {
                 output.write((report.toString(2) + "\n").getBytes(StandardCharsets.UTF_8));

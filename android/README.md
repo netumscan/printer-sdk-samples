@@ -2,7 +2,7 @@
 
 SDK 权限、生命周期、FeatureSupport、错误码和诊断字段见[客户指南](../docs/README.md)。
 
-两个独立 App 固定从 Maven Central 获取 `com.netumscan:printer-sdk-android:0.2.0-preview.3`，不依赖本地 SDK 源码或 AAR。
+两个独立 App 固定从 Maven Central 获取 `com.netumscan:printer-sdk-android:0.2.0-preview.4`，不依赖本地 SDK 源码或 AAR。
 
 | 示例 | 用途 | applicationId |
 | --- | --- | --- |
@@ -11,7 +11,7 @@ SDK 权限、生命周期、FeatureSupport、错误码和诊断字段见[客户�
 
 ## 构建
 
-需要 JDK 17 或更新版本、Android SDK Platform 35 和 Build Tools 35.0.0。仓库自带固定 Gradle 8.13 的标准 Wrapper，无需另行安装 Gradle。最低运行版本 Android 8.0 / API 26；APK 包含 `arm64-v8a`、`armeabi-v7a`、`x86_64`。
+需要 JDK 17 或更新版本、Android SDK Platform 35 和 Build Tools 35.0.0。仓库自带固定 Gradle 8.13 的标准 Wrapper，无需另行安装 Gradle。最低运行版本 Android 5.0 / API 21；APK 包含 `arm64-v8a`、`armeabi-v7a`、`x86_64`。
 
 ```sh
 export ANDROID_HOME="<Android SDK 安装目录>"
@@ -26,7 +26,7 @@ export ANDROID_HOME="<Android SDK 安装目录>"
 ./android/gradlew -p android --offline :quick-start:assembleDebug :full-demo:assembleDebug
 ```
 
-缓存缺失时请先联网完成一次构建；`--offline` 不能替代首次 Wrapper 分发下载。Wrapper 的来源、校验和与第三方许可见 [Wrapper 记录](gradle/wrapper/README.md)。完整 CI、R8 / JNI / 三架构及实际模拟器运行验证，需要先启动一个包含线上 AAR 对应 ABI 的 Android 模拟器（API 26+），然后显式选择其 serial：
+缓存缺失时请先联网完成一次构建；`--offline` 不能替代首次 Wrapper 分发下载。Wrapper 的来源、校验和与第三方许可见 [Wrapper 记录](gradle/wrapper/README.md)。完整 CI、R8 / JNI / 三架构及实际模拟器运行验证，需要先启动一个包含线上 AAR 对应 ABI 的 Android 模拟器（API 21+），然后显式选择其 serial：
 
 ```sh
 bash android/verify.sh --emulator-serial emulator-5554 --output /tmp/printer-sdk-samples-android-validation
@@ -45,13 +45,15 @@ bash android/verify.sh --emulator-serial emulator-5554 --output /tmp/printer-sdk
 1. 在 Android 系统蓝牙设置中配对支持 SPP / CPCL 的打印机。
 2. 构建并按需安装 `quick-start` debug APK。
 3. 填写蓝牙地址、DPI 和设备最大可打印宽度。默认 `203 / 576 dots` 只是示例值，必须按设备文档确认。
-4. 点击“授权并连接”，授予 Android 12+ 的蓝牙连接权限。
+4. 点击“授权并连接”；Android 12+ 按提示授予附近设备权限，Android 5–11 使用安装时授权的旧版蓝牙权限。
 5. 检查纸张后点击“打印测试条纹”。此操作会实际打印一份标签。
 6. `DATA_SENT` 只表示数据已发送，实际打印结果需要观察打印机。结束后点击“关闭连接”。
 
 入口在 [MainActivity.java](quick-start/src/main/java/com/netumscan/printersdk/samples/quickstart/MainActivity.java)，最小 SDK 调用集中在 [QuickStartSession.java](quick-start/src/main/java/com/netumscan/printersdk/samples/quickstart/QuickStartSession.java)。连接、提交、轮询和关闭都在应用工作线程执行；SDK 内部串行设备 IO，示例不会自动重连或重放。
 
 Quick Start 只展示 SPP / CPCL。其他协议和 BLE 的显式配置、扫描权限、任务取消、Raw、图片处理和诊断见 Full Demo。Full Demo 保留已有安装身份，安装它可能更新已安装的同 applicationId 应用；需要独立安装时，可自行修改其 applicationId。
+
+Full Demo 的 BLE 扫描在 Android 6–11 还需运行时位置权限和相应系统设置；Android 5.x 不请求运行时权限，Android 12+ 使用附近设备权限。完整策略见[接入与权限](../docs/integration.md)。
 
 ## 许可和验证边界
 

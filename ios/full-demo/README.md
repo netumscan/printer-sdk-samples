@@ -12,8 +12,8 @@ Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.2.0-preview.3` |
-| Release commit | `d08676ca6ca11fccf82cc0dce56ba69d9d917557` |
+| Exact version | `0.2.0-preview.4` |
+| Release commit | `195458b93a8c7c5465c53dcd563398f7ad18f5b0` |
 
 ## Running the sample
 

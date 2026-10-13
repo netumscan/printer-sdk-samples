@@ -1,14 +1,14 @@
 package com.netumscan.printersdk.demo;
 
 import java.util.concurrent.*;
-import java.util.function.BooleanSupplier;
 
 /** Demo lifecycle orchestration only. SDK owns the actual device IO queue. */
 final class PrinterController implements AutoCloseable {
     enum Phase { OFFLINE, CONNECTING, READY, PRINTING, STOPPING, CLOSED }
     interface Listener { void changed(Phase phase, String message); void log(String message); }
     interface Factory { Session create(); }
-    interface Renderer { byte[] render(BooleanSupplier cancelled); }
+    interface Cancellation { boolean getAsBoolean(); }
+    interface Renderer { byte[] render(Cancellation cancelled); }
     interface Session extends AutoCloseable {
         void connect();
         default boolean supportsMedia() { return true; }

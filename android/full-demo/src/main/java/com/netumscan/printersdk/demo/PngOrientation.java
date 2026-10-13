@@ -3,7 +3,7 @@ package com.netumscan.printersdk.demo;
 import java.io.*;
 import java.util.zip.CRC32;
 
-/** Bounded PNG eXIf reader for API 26+, where the framework did not always support PNG EXIF. */
+/** Bounded PNG eXIf reader for API 21+, where the framework did not always support PNG EXIF. */
 final class PngOrientation {
     private static final int METADATA_LIMIT = 65536;
     static int read(File file) throws IOException {

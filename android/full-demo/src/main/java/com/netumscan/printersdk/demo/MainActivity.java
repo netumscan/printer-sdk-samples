@@ -286,7 +286,7 @@ public final class MainActivity extends Activity {
             ++logInteractionGeneration; pendingLogAnchor = null;
             return false;
         });
-        findViewById(R.id.log_scroll).setOnScrollChangeListener((view, x, y, oldX, oldY) -> {
+        findViewById(R.id.log_scroll).getViewTreeObserver().addOnScrollChangedListener(() -> {
             if (!renderingLogs) followingLogs = logsAtBottom();
             updateLogLatest();
         });
@@ -664,7 +664,7 @@ public final class MainActivity extends Activity {
         pendingLogAnchor = anchor;
         boolean details = ((CheckBox)findViewById(R.id.log_details)).isChecked();
         ArrayList<String> display = new ArrayList<>();
-        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        TimeZone zone = TimeZone.getDefault();
         for (String entry : lines) display.add(details ? entry : LogDisplay.compact(entry, zone));
         renderedLogEntries.clear(); renderedLogEntries.addAll(lines);
         renderedLogStarts = new int[display.size()];
@@ -672,7 +672,7 @@ public final class MainActivity extends Activity {
         for (int index = 0; index < display.size(); index++) {
             renderedLogStarts[index] = start; start += display.get(index).length() + 1;
         }
-        text.setText(String.join("\n", display));
+        text.setText(TextUtils.join("\n", display));
         updateLogTimeZone();
         updateLogLatest();
         // Hidden pages keep their anchor until shown; visible pages position after the new text is measured.
@@ -741,10 +741,12 @@ public final class MainActivity extends Activity {
         findViewById(R.id.log_latest).setVisibility(!followingLogs && !lines.isEmpty() ? View.VISIBLE : View.GONE);
     }
     private void updateLogTimeZone() {
-        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
-        String offset = java.time.ZonedDateTime.now(zone).getOffset().getId();
-        ((TextView)findViewById(R.id.log_time_zone)).setText(getString(R.string.log_time_zone, zone.getId() + "（UTC" +
-            (offset.equals("Z") ? "+00:00" : offset) + "）"));
+        TimeZone zone = TimeZone.getDefault();
+        int offset = zone.getOffset(System.currentTimeMillis()) / 60000;
+        String formattedOffset = String.format(Locale.ROOT, "%s%02d:%02d", offset < 0 ? "-" : "+",
+            Math.abs(offset) / 60, Math.abs(offset) % 60);
+        ((TextView)findViewById(R.id.log_time_zone)).setText(getString(R.string.log_time_zone, zone.getID() + "（UTC" +
+            formattedOffset + "）"));
     }
     private void error(RuntimeException error) {
         String message = error instanceof PrinterException ? "SDK 错误码 " + ((PrinterException)error).code + "；" +
@@ -1054,6 +1056,7 @@ public final class MainActivity extends Activity {
     }
     private void permissions(Runnable action, boolean scan) {
         if (!started || isFinishing() || isDestroyed() || permissionAction != null) return;
+        if (Build.VERSION.SDK_INT < 23) { action.run(); return; }
         ArrayList<String> missing = new ArrayList<>();
         String[] required = Build.VERSION.SDK_INT >= 31 ? new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN} :
             scan ? new String[]{Manifest.permission.ACCESS_FINE_LOCATION} : new String[0];

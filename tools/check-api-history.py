@@ -15,6 +15,9 @@ from pathlib import Path, PurePosixPath
 import re
 import sys
 
+# Reviewed releases with unchanged declarations still use the original proof.
+# This mapping is explicit; neither unknown versions nor contract drift inherit it.
+CONTRACT_BASELINES = {"0.2.0-preview.4": "0.2.0-preview.3"}
 TRUSTED_MOBILE = {
     "0.2.0-preview.3": {
         "android": {"repository": "netumscan/printer-sdk-android",
@@ -269,27 +272,40 @@ def verify_release_history(releases, android):
             "historical_artifacts_reinspected_this_check": False, "remote_release_refs_verified_this_check": False}
 
 
+def contract_baseline(version, snapshots):
+    require(isinstance(version, str), "Current SDK version has no reviewed historical anchor")
+    baseline = CONTRACT_BASELINES.get(version, version)
+    require(baseline in snapshots, "Current SDK version has no reviewed historical anchor")
+    return baseline
+
+
 def verify_bundle(history, reference):
-    exact_keys(history, {"schema", "sdk_version", "native_sdk_version", "abi", "hardware_verified",
-                         "mobile_proofs", "c_abi", "published_releases", "historical_android"})
+    fields = {"schema", "sdk_version", "native_sdk_version", "abi", "hardware_verified",
+              "mobile_proofs", "c_abi", "published_releases", "historical_android"}
+    version = history.get("sdk_version") if isinstance(history, dict) else None
+    if isinstance(version, str) and version in CONTRACT_BASELINES:
+        fields.add("contract_baseline_version")
+    exact_keys(history, fields)
     require(type(history["schema"]) is int and history["schema"] == 1
             and history["hardware_verified"] is False and history["native_sdk_version"] == "0.2.0"
             and history["abi"] == {"version": 2, "revision": 10}, "Invalid public API history identity")
     snapshots = verify_proofs(history["mobile_proofs"])
-    version = history["sdk_version"]
-    require(isinstance(version, str) and version in snapshots, "Current SDK version has no reviewed historical anchor")
+    baseline = contract_baseline(version, snapshots)
+    if version in CONTRACT_BASELINES:
+        require(history["contract_baseline_version"] == baseline, "Reviewed contract baseline identity differs")
     require(isinstance(reference, dict) and reference.get("sdk_version") == version
             and reference.get("native_sdk_version") == history["native_sdk_version"]
             and reference.get("abi") == history["abi"], "Current API reference identity differs from history")
     exact_keys(reference.get("platforms"), {"android", "apple"})
-    for platform, snapshot in snapshots[version].items():
+    for platform, snapshot in snapshots[baseline].items():
         record = reference["platforms"][platform]
         require(isinstance(record, dict) and record.get("baseline") == snapshot["baseline"]
                 and record.get("baseline_sha256") == snapshot["baseline_sha256"],
                 "Current API baseline differs from published history: " + platform)
     c_result = verify_c_snapshot(history["c_abi"])
     release_result = verify_release_history(history["published_releases"], history["historical_android"])
-    return {"public_mobile_api_history_verified": True, "sdk_version": version, "hardware_verified": False,
+    return {"public_mobile_api_history_verified": True, "sdk_version": version,
+            "contract_baseline_version": baseline, "hardware_verified": False,
             "historical_versions": sorted(snapshots), "mobile_anchors": {
                 name: {platform: {key: value for key, value in record.items() if key != "baseline"}
                        for platform, record in entries.items()} for name, entries in snapshots.items()},

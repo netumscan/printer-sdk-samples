@@ -2,12 +2,9 @@ package com.netumscan.printersdk.demo;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.function.Consumer;
 import java.util.regex.*;
 
 /** Two bounded private files. All filesystem work and sequence assignment are serialized. */
@@ -15,7 +12,7 @@ final class DemoJournal implements AutoCloseable {
     static final int FILE_LIMIT = 1024 * 1024, RECORD_LIMIT = 4096;
     static final long RETENTION_MS = 7L * 24 * 60 * 60 * 1000;
     interface Clock { long wall(); long elapsed(); }
-    private static final DateTimeFormatter UTC = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
+    interface Listener { void accept(String record); }
     private static final Pattern PRIVATE = Pattern.compile("(?i)(?:content|file|https?)://|[0-9a-f]{2}(?::[0-9a-f]{2}){5}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|(?:^|\\s)/(?:[^\\s/]+/)+[^\\s]*");
     private static final Pattern PRIVATE_FIELD = Pattern.compile("(?i)(?:image(?:name|path|content)?|file(?:name|path)|uri|path|exif|raw(?:bytes|payload|input)?|pixels|device(?:name|id|address|serial)?|address|identifier|mac|serial(?:number|_number)?|print(?:content|payload)|signing(?:identity|certificate|key|team)?|teamid|certificate|privatekey)\\s*[:=]");
     private static final Pattern WALL = Pattern.compile("(?:^| )utc_ms=(\\d+) "), SEQUENCE = Pattern.compile(" seq=(\\d+) ");
@@ -42,7 +39,7 @@ final class DemoJournal implements AutoCloseable {
         currentFile = new File(directory, "journal-current.log"); previousFile = new File(directory, "journal-previous.log");
         worker.execute(() -> {
             try {
-                Files.createDirectories(directory.toPath());
+                createDirectory();
                 load(previousFile, previous); load(currentFile, current); currentBytes = size(current); prune();
             } catch (IOException | RuntimeException error) { degraded = true; }
         });
@@ -51,7 +48,15 @@ final class DemoJournal implements AutoCloseable {
     private void load(File file, List<String> records) throws IOException {
         if (!file.exists()) return;
         if (file.length() > FILE_LIMIT) throw new IOException("Journal limit");
-        for (String line : new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8).split("\n")) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (InputStream input = new FileInputStream(file)) {
+            byte[] block = new byte[16384]; int read;
+            while ((read = input.read(block)) != -1) {
+                if (bytes.size() + read > FILE_LIMIT) throw new IOException("Journal limit");
+                bytes.write(block, 0, read);
+            }
+        }
+        for (String line : new String(bytes.toByteArray(), StandardCharsets.UTF_8).split("\n")) {
             Matcher stamp = WALL.matcher(line), seq = SEQUENCE.matcher(line);
             if (line.getBytes(StandardCharsets.UTF_8).length + 1 > RECORD_LIMIT || !RECORD.matcher(line).matches() || !stamp.find() || !seq.find()) continue;
             try { sequence = Math.max(sequence, Long.parseLong(seq.group(1))); }
@@ -67,9 +72,23 @@ final class DemoJournal implements AutoCloseable {
     }
     private void prune() throws IOException {
         long cutoff = clock.wall() - RETENTION_MS;
-        boolean changed = previous.removeIf(line -> expired(line, cutoff)) | current.removeIf(line -> expired(line, cutoff));
+        boolean changed = prune(previous, cutoff) | prune(current, cutoff);
         if (changed) currentBytes = size(current);
         if (changed && !degraded) { write(previousFile, previous); write(currentFile, current); }
+    }
+    private static boolean prune(List<String> records, long cutoff) {
+        boolean changed = false;
+        for (Iterator<String> iterator = records.iterator(); iterator.hasNext();) {
+            if (expired(iterator.next(), cutoff)) { iterator.remove(); changed = true; }
+        }
+        return changed;
+    }
+    private void createDirectory() throws IOException {
+        if (!directory.isDirectory() && !directory.mkdirs() && !directory.isDirectory())
+            throw new IOException("Journal directory unavailable");
+    }
+    private static void delete(File file) throws IOException {
+        if (file.exists() && !file.delete()) throw new IOException("Journal deletion failed");
     }
     private static boolean expired(String line, long cutoff) {
         Matcher match = WALL.matcher(line);
@@ -83,7 +102,9 @@ final class DemoJournal implements AutoCloseable {
     }
     private String record(String message, long wall, long elapsed, long connection) {
         String safe = (PRIVATE.matcher(message).find() || PRIVATE_FIELD.matcher(message).find()) ? "诊断内容已隐藏" : message.replace('\r', ' ').replace('\n', ' ');
-        String prefix = "utc=" + UTC.format(Instant.ofEpochMilli(wall)) + " utc_ms=" + wall + " elapsed_ms=" + elapsed +
+        SimpleDateFormat utc = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT);
+        utc.setTimeZone(TimeZone.getTimeZone("UTC"));
+        String prefix = "utc=" + utc.format(new Date(wall)) + " utc_ms=" + wall + " elapsed_ms=" + elapsed +
             " run=" + run + " connection=" + connection + " seq=" + (++sequence) + " message=";
         int available = RECORD_LIMIT - prefix.getBytes(StandardCharsets.UTF_8).length - 1;
         StringBuilder limited = new StringBuilder(); int count = 0;
@@ -95,7 +116,7 @@ final class DemoJournal implements AutoCloseable {
         }
         return prefix + limited + "\n";
     }
-    Future<?> append(String message, long connection, Consumer<String> callback) {
+    Future<?> append(String message, long connection, Listener callback) {
         long wall = clock.wall(), elapsed = clock.elapsed();
         return worker.submit(() -> {
             try { prune(); } catch (IOException | RuntimeException error) { degraded = true; }
@@ -117,17 +138,19 @@ final class DemoJournal implements AutoCloseable {
     Future<String> snapshot() {
         return worker.submit(() -> {
             try { prune(); } catch (IOException | RuntimeException error) { degraded = true; }
-            return "Printer Demo retained diagnostic records; bounded rotation may omit older records.\n" +
-                (degraded ? "Storage unavailable; exporting retained in-memory records.\n" : "") +
-                String.join("", previous) + String.join("", current);
+            StringBuilder result = new StringBuilder("Printer Demo retained diagnostic records; bounded rotation may omit older records.\n");
+            if (degraded) result.append("Storage unavailable; exporting retained in-memory records.\n");
+            for (String record : previous) result.append(record);
+            for (String record : current) result.append(record);
+            return result.toString();
         });
     }
     Future<?> clear() {
         return worker.submit(() -> {
             previous.clear(); current.clear(); currentBytes = 0;
             try {
-                Files.deleteIfExists(previousFile.toPath()); Files.deleteIfExists(currentFile.toPath());
-                degraded = false; Files.createDirectories(directory.toPath());
+                delete(previousFile); delete(currentFile);
+                createDirectory(); degraded = false;
             } catch (IOException | RuntimeException error) { degraded = true; }
         });
     }

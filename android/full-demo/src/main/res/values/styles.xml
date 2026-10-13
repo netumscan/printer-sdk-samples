@@ -5,13 +5,14 @@
     <color name="action_accent">#1955B8</color>
     <color name="action_surface">#FFFFFF</color>
     <color name="error_text">#B3261E</color>
-    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="AppThemeBase" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">@color/action_accent</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">@color/title_text</item>
         <item name="android:windowBackground">#F6F7FA</item>
         <item name="android:colorControlHighlight">#201955B8</item>
     </style>
+    <style name="AppTheme" parent="AppThemeBase" />
     <style name="FieldLabel">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
@@ -33,15 +34,15 @@
         <item name="android:textColor">@color/error_text</item>
         <item name="android:layout_marginTop">2dp</item>
     </style>
-    <style name="Field">
+    <style name="FieldBase">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:minHeight">48dp</item>
         <item name="android:singleLine">true</item>
         <item name="android:textSize">16sp</item>
-        <item name="android:importantForAutofill">no</item>
         <item name="android:imeOptions">actionNext</item>
     </style>
+    <style name="Field" parent="FieldBase" />
     <style name="Selector">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>

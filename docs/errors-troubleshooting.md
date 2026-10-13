@@ -1,6 +1,6 @@
 # 错误码与排障
 
-[返回指南](README.md) · 适用 SDK `0.2.0-preview.3`
+[返回指南](README.md) · 适用 SDK `0.2.0-preview.4`
 
 Android 同步失败通常抛出 `PrinterException`，使用其 `code`；无效 Java 参数也可能抛出
 `IllegalArgumentException`。Swift 使用 `PrinterSDKError.code`。已经入队的异步失败由
@@ -39,6 +39,7 @@ Android `Snapshot.error` / Swift `OperationSnapshot.errorCode` 表示。
 | 取消后残留内容或重连首张异常 | 已接受字节可能仍在设备内；停止发送，记录现象并按固件操作规程人工处理 |
 | 大图失败或 App 内存峰值高 | 先限制解码尺寸和并行图像数量；区分 App 解码/预览与原生提交预算 |
 | Debug 成功、Release 失败 | 核对 AAR consumer R8 规则、完整 JNI 库与 CPU ABI；不要只复制 SDK Java 类 |
+| `mergeReleaseNativeLibs` 报 `libc++_shared.so` 重复 | 核对日志中两个 AAR 的实际来源和精确版本；见下方原生库合包说明 |
 | SwiftPM 下载或链接失败 | 核对 exact 版本、`Package.resolved`、下载 checksum、完整动态 framework 嵌入及对应架构 |
 
 失败后的安全流程是读取并保存快照、显式断开、核对实际纸面，再决定是否建立新会话和新任务。
@@ -46,3 +47,19 @@ Android `Snapshot.error` / Swift `OperationSnapshot.errorCode` 表示。
 
 公开提问前按[反馈模板](support-security.md#提交接入问题)整理最小复现，不附带客户打印内容、
 蓝牙地址、私有日志或签名信息。
+
+### Android 原生库合包冲突
+
+已发布的 `0.2.0-preview.3` AAR 携带 `libc++_shared.so`，其 C / JNI 库也依赖它。
+如果另一个打印机 SDK 同时携带该文件，Gradle 会在 `mergeReleaseNativeLibs` 阶段报告
+`2 files found with path 'lib/arm64-v8a/libc++_shared.so'`。Java 8 的过时选项警告
+不是这个构建失败的原因。
+
+静态运行库修复需要整包升级到包含该修复的新 SDK 版本；只更新示例或文档、重新下载
+同一个 `0.2.0-preview.3` 都不会改变已发布 AAR。核对 Maven 依赖、Flutter 插件的
+`android/libs` 及应用自带 AAR，移除重复的旧 SDK 引用，再重建应用。
+修复后的 SDK 不携带或依赖共享运行库；其他 SDK 所需的 `libc++_shared.so` 仍须保留。
+
+不要直接删除旧版 Printer SDK 的运行库，也不要全局排除全部同名 so。盲目 `pickFirst`
+只能选择其中一份文件，不能证明两个 SDK 与该运行库兼容。静态链接与符号隔离的要求见
+[Android NDK 中间件指南](https://developer.android.com/ndk/guides/middleware-vendors)。

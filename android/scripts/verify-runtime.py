@@ -38,7 +38,7 @@ def validate_runtime(value, nonce, identity, device_started_ms):
             or native != {"jni_loaded": True, "abi_handshake_passed": True, "abi_expected_version": 2,
                           "abi_minimum_revision": 10, "partial_write_calls": 3, "write_calls": 5,
                           "bytes_sent": 14, "raw_order_verified": True, "transport": "in_memory_fake"}
-            or not isinstance(value.get("api_level"), int) or value["api_level"] < 26
+            or not isinstance(value.get("api_level"), int) or value["api_level"] < 21
             or value.get("process_abi") not in {"arm64-v8a", "armeabi-v7a", "x86_64"}):
         raise ValueError("Actual emulator/JNI/ABI/partial-write/Raw runtime evidence is incomplete")
     compatibility = value.get("compatibility_record", {})
@@ -84,7 +84,7 @@ def validate_report(report, lock):
             or set(report.get("checks", {})) != CHECKS
             or any(value is not True for value in report["checks"].values())
             or report.get("process_abi") not in {"arm64-v8a", "armeabi-v7a", "x86_64"}
-            or not isinstance(report.get("api_level"), int) or report["api_level"] < 26
+            or not isinstance(report.get("api_level"), int) or report["api_level"] < 21
             or not isinstance(report.get("device_started_ms"), int) or report["device_started_ms"] <= 0
             or report.get("native") != {"jni_loaded": True, "abi_handshake_passed": True, "abi_expected_version": 2,
                                        "abi_minimum_revision": 10, "partial_write_calls": 3, "write_calls": 5,

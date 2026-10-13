@@ -1,10 +1,10 @@
 # 在线接入与权限
 
-[返回指南](README.md) · 适用 SDK `0.2.0-preview.3`
+[返回指南](README.md) · 适用 SDK `0.2.0-preview.4`
 
 ## Android
 
-运行环境为 Android 8.0 / API 26+，Java 8；AAR 包含 `arm64-v8a`、`armeabi-v7a`、
+运行环境为 Android 5.0 / API 21+，Java 8；AAR 包含 `arm64-v8a`、`armeabi-v7a`、
 `x86_64`。构建工具版本以应用工程配置为准；公开示例使用 JDK 17、Gradle 8.13、
 Android SDK Platform 35。SDK 提供经典蓝牙 SPP 与 BLE，协议显式选择 CPCL 或 ESC/POS。
 
@@ -20,20 +20,27 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.netumscan:printer-sdk-android:0.2.0-preview.3")
+    implementation("com.netumscan:printer-sdk-android:0.2.0-preview.4")
 }
 ```
 
-公共 Java 包名为 `com.netumscan.printersdk`。AAR 自带 consumer R8 规则和
-`libc++_shared.so`，不要从 AAR 只提取 Java 类。与其他原生 SDK 集成时，应核对共同使用的
-C++ 运行库；不要通过盲目 `pickFirst` 掩盖不兼容库。Java/JNI/原生库必须来自同一发布包。
+公共 Java 包名为 `com.netumscan.printersdk`。AAR 自带 consumer R8 规则、JNI 和原生 C 库，
+内部静态链接 C++ 运行库，不包含 `libc++_shared.so`，无需为本 SDK 配置该库的 `pickFirst`。
+其他 SDK 所需的共享运行库应保留，不要全局排除同名 so。不要从 AAR 只提取 Java 类；
+Java/JNI/原生库必须来自同一发布包。
+
+本版 `0.2.0-preview.4` 已包含 API 21 最低版本和静态运行库修复。旧版 `0.2.0-preview.3`
+仍要求 API 26 并使用共享运行库；升级时必须替换完整 SDK 包，仅更新文档或示例不能获得修复。
+与其他原生 SDK 合包失败时，见
+[原生库冲突排障](errors-troubleshooting.md#android-原生库合包冲突)。
 
 宿主负责声明并请求权限、配对、用户选择和蓝牙状态处理：
 
 | 系统 | 操作与权限 |
 | --- | --- |
 | Android 12+ | 连接需 `BLUETOOTH_CONNECT`；发现需 `BLUETOOTH_SCAN`。SPP 连接会取消系统发现，因此也需要 `BLUETOOTH_SCAN` |
-| Android 8–11 | 声明旧版 `BLUETOOTH` / `BLUETOOTH_ADMIN`；BLE 扫描还需运行时 `ACCESS_FINE_LOCATION`，并满足系统定位设置要求 |
+| Android 6–11 | 声明旧版 `BLUETOOTH` / `BLUETOOTH_ADMIN`；BLE 扫描还需运行时 `ACCESS_FINE_LOCATION`，并满足系统定位设置要求 |
+| Android 5.x | 声明旧版 `BLUETOOTH` / `BLUETOOTH_ADMIN`，由安装时授权；不使用运行时权限请求 |
 
 `neverForLocation` 由应用按实际用途决定，SDK 不代为声明该承诺；使用它可能过滤部分 BLE
 广播。SDK 不申请权限、不自动配对、不输入 PIN、不打开蓝牙。
@@ -47,11 +54,11 @@ C++ 运行库；不要通过盲目 `pickFirst` 掩盖不兼容库。Java/JNI/原
 不提供经典蓝牙 SPP。模拟器用于编译和替身验证；实际 BLE 通信需要真机。
 
 在 Xcode Package Dependencies 添加
-`https://github.com/netumscan/printer-sdk-ios`，选择 Exact Version `0.2.0-preview.3`，
+`https://github.com/netumscan/printer-sdk-ios`，选择 Exact Version `0.2.0-preview.4`，
 将 `PrinterSDK` 产品加入 App target。SwiftPM 声明为：
 
 ```swift
-.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.2.0-preview.3")
+.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.2.0-preview.4")
 ```
 
 App 的 `Info.plist` 必须包含符合自身用途的 `NSBluetoothAlwaysUsageDescription`。

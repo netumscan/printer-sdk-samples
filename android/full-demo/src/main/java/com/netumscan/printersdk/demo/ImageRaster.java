@@ -2,7 +2,7 @@ package com.netumscan.printersdk.demo;
 
 import java.util.Arrays;
 import java.util.concurrent.CancellationException;
-import java.util.function.BooleanSupplier;
+import com.netumscan.printersdk.demo.PrinterController.Cancellation;
 
 /** Demo-only geometry and pixel conversion; no Android or SDK IO. */
 final class ImageRaster {
@@ -44,12 +44,14 @@ final class ImageRaster {
         return (299 * r + 587 * g + 114 * b + 500) / 1000;
     }
     static byte[] render(int[] argb, int decodedWidth, int decodedHeight, int orientation,
-                         Layout fit, int canvasWidth, int canvasHeight, BooleanSupplier cancelled) {
+                         Layout fit, int canvasWidth, int canvasHeight, Cancellation cancelled) {
         if (orientation < 1 || orientation > 8 || (long)decodedWidth * decodedHeight != argb.length)
             throw new IllegalArgumentException("无效图片像素");
         int orientedWidth = orientation >= 5 ? decodedHeight : decodedWidth;
         int orientedHeight = orientation >= 5 ? decodedWidth : decodedHeight;
-        byte[] pixels = new byte[Math.multiplyExact(canvasWidth, canvasHeight)]; Arrays.fill(pixels, (byte)255);
+        if (canvasWidth <= 0 || canvasHeight <= 0 || (long)canvasWidth * canvasHeight > MAX_OUTPUT_PIXELS)
+            throw new IllegalArgumentException("画布超过 800 万像素");
+        byte[] pixels = new byte[canvasWidth * canvasHeight]; Arrays.fill(pixels, (byte)255);
         for (int y = 0; y < fit.height; y++) {
             if (cancelled.getAsBoolean()) throw new CancellationException();
             int oy = (int)((long)y * orientedHeight / fit.height);

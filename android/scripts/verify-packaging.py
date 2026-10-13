@@ -11,7 +11,7 @@ import struct
 import subprocess
 import zipfile
 
-VERSION = "0.2.0-preview.3"
+VERSION = "0.2.0-preview.4"
 SDK_LOCK = json.loads((Path(__file__).resolve().parents[2] / "sdk-lock.json").read_text())
 AAR_SHA256 = SDK_LOCK["android"]["aar_sha256"]
 ABIS = ("arm64-v8a", "armeabi-v7a", "x86_64")
@@ -93,8 +93,12 @@ def validate_debug_payload(application, library, identity=None):
             if name.startswith("lib/") and name.endswith(".so")}
     if abis != set(ABIS):
         raise SystemExit("Debug APK has missing or unexpected CPU ABI")
+    expected = {f"lib/{abi}/{name}" for abi in ABIS
+                for name in ("libprinter_sdk_c.so", "libprinter_sdk_jni.so")}
+    if {name for name in application.namelist() if name.startswith("lib/") and name.endswith(".so")} != expected:
+        raise SystemExit("Debug APK contains unexpected native libraries")
     for abi in ABIS:
-        for name in ("libprinter_sdk_c.so", "libprinter_sdk_jni.so", "libc++_shared.so"):
+        for name in ("libprinter_sdk_c.so", "libprinter_sdk_jni.so"):
             if application.read(f"lib/{abi}/{name}") != library.read(f"jni/{abi}/{name}"):
                 raise SystemExit("Debug APK native payload differs from the pinned AAR")
     for name in ("LICENSE", "LICENSE-NOTICE.md", "NOTICE.android-ndk"):
@@ -124,8 +128,12 @@ def inspect(root, module, application_id):
                 if name.startswith("lib/") and name.endswith(".so")}
         if abis != set(ABIS):
             raise SystemExit(f"{module}: missing or unexpected CPU ABI")
+        expected = {f"lib/{abi}/{name}" for abi in ABIS
+                    for name in ("libprinter_sdk_c.so", "libprinter_sdk_jni.so")}
+        if {name for name in application.namelist() if name.startswith("lib/") and name.endswith(".so")} != expected:
+            raise SystemExit(f"{module}: unexpected native libraries")
         for abi in ABIS:
-            for name in ("libprinter_sdk_c.so", "libprinter_sdk_jni.so", "libc++_shared.so"):
+            for name in ("libprinter_sdk_c.so", "libprinter_sdk_jni.so"):
                 if application.read(f"lib/{abi}/{name}") != library.read(f"jni/{abi}/{name}"):
                     raise SystemExit(f"{module}: final native payload differs from pinned AAR")
         for name in ("LICENSE", "LICENSE-NOTICE.md", "NOTICE.android-ndk"):
@@ -156,20 +164,20 @@ def inspect(root, module, application_id):
         raise SystemExit("Android SDK Build Tools 35.0.0 is required for manifest validation")
     manifest = subprocess.run([str(aapt), "dump", "badging", str(apk)], text=True,
                               capture_output=True, check=True).stdout
-    if f"name='{application_id}'" not in manifest or "minSdkVersion:'26'" not in manifest:
+    if f"name='{application_id}'" not in manifest or "minSdkVersion:'21'" not in manifest:
         raise SystemExit(f"{module}: applicationId or minimum API changed")
     classes = sorted((build / "intermediates/javac/release/compileReleaseJavaWithJavac/classes").rglob("*.class"))
     if not classes or any(path.read_bytes()[:8] != b"\xca\xfe\xba\xbe\x00\x00\x004" for path in classes):
         raise SystemExit(f"{module}: application Java classes are not Java 8 bytecode")
     return {
-        "application_id": application_id, "min_sdk": 26, "java_bytecode_release": 8,
+        "application_id": application_id, "min_sdk": 21, "java_bytecode_release": 8,
         "java_class_count": len(classes), "aar_sha256": digest(aar),
         "debug_apk_sha256": digest(debug_apk), "r8_apk_sha256": digest(apk),
         "mapping_sha256": digest(build / "outputs/mapping/release/mapping.txt"),
         "checks": {"online_aar_matches_pin": True, "java8_bytecode": True, "debug_native_payload_matches": True,
                    "r8_jni_12_methods": True, "r8_jni_4_callbacks": True,
                    "three_abi_payload_matches": True, "sdk_license_notices_preserved": True,
-                   "application_id": True, "min_sdk_26": True},
+                   "application_id": True, "min_sdk_21": True},
     }
 
 

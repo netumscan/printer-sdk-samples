@@ -1,6 +1,6 @@
 # 反馈、安全与许可
 
-[返回指南](README.md) · 适用 SDK `0.2.0-preview.3`
+[返回指南](README.md) · 适用 SDK `0.2.0-preview.4`
 
 ## 提交接入问题
 
@@ -11,7 +11,7 @@
 建议包含以下信息：
 
 ```text
-SDK distribution version: 0.2.0-preview.3
+SDK distribution version: 0.2.0-preview.4
 Platform / OS / CPU architecture:
 SDK public release commit / artifact SHA-256:
 Demo source fingerprint / build version:

@@ -15,4 +15,4 @@ SDK 权限和 API 生命周期见[客户指南](../../docs/README.md)。
 - [MainActivity.java](src/main/java/com/netumscan/printersdk/samples/quickstart/MainActivity.java)：界面与显式权限流程。
 - [QuickStartSession.java](src/main/java/com/netumscan/printersdk/samples/quickstart/QuickStartSession.java)：最小连接、打印、轮询和资源释放。
 
-示例采用根目录 MIT 许可；在线依赖 `com.netumscan:printer-sdk-android:0.2.0-preview.3` 保持其闭源商用许可。
+示例采用根目录 MIT 许可；在线依赖 `com.netumscan:printer-sdk-android:0.2.0-preview.4` 保持其闭源商用许可。

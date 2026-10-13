@@ -1,12 +1,12 @@
 # 兼容性与诊断
 
-[返回指南](README.md) · 适用 SDK `0.2.0-preview.3`
+[返回指南](README.md) · 适用 SDK `0.2.0-preview.4`
 
 ## 软件支持范围与证据
 
 | 项目 | 当前范围 | 不能由此推出 |
 | --- | --- | --- |
-| Android 运行 | API 26+，Java 8，arm64-v8a / armeabi-v7a / x86_64 | 每款手机及 Android 版本都完成真机验收 |
+| Android 运行 | Android 5.0 / API 21+，Java 8，arm64-v8a / armeabi-v7a / x86_64 | 每款手机及 Android 版本都完成真机验收 |
 | iOS 运行 | iOS 15+，Swift 5.9+，设备 arm64 / 模拟器 arm64、x86_64 | iOS 15 真机、蓝牙及全部最低内存机型完成验收 |
 | 连接 | Android SPP / BLE；iOS BLE；前台使用 | USB、串口、iOS SPP 或后台连续打印已受支持 |
 | 图像协议 | CPCL 标签、ESC/POS 小票，显式 profile | 任何同名打印机、固件或切刀都受支持 |
@@ -33,7 +33,7 @@ Full Demo 在本机日志/导出中提供版本化兼容诊断记录，`schema_v
 
 | 字段 | 含义 |
 | --- | --- |
-| `sdk.distribution_version` | 在线分发版本；本指南为 `0.2.0-preview.3` |
+| `sdk.distribution_version` | 在线分发版本；本指南为 `0.2.0-preview.4` |
 | `sdk.core_version` | 已验证分发资源声明的原生 SDK 版本，本版为 `0.2.0`；资源缺失时为 `null` |
 | `sdk.abi_version` / `sdk.abi_revision` | 本版为 `2` / `10`；Swift 从运行时读取，Android 从已验证分发资源读取，资源缺失时为 `null` |
 | `sdk.release_commit` | SDK 公开分发仓库 commit；不是私有开发仓库的基准 commit |

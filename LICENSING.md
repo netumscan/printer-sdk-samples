@@ -17,11 +17,11 @@ distribution. References to SDK APIs and remote package coordinates in a sample
 do not relicense the referenced SDK. The samples consume the SDK as a separately
 licensed dependency; this repository does not redistribute the SDK artifacts.
 
-Android SDK `com.netumscan:printer-sdk-android:0.2.0-preview.3` and the `PrinterSDK`
-and `CPrinterSDK` products from iOS SDK `0.2.0-preview.3` remain proprietary under
+Android SDK `com.netumscan:printer-sdk-android:0.2.0-preview.4` and the `PrinterSDK`
+and `CPrinterSDK` products from iOS SDK `0.2.0-preview.4` remain proprietary under
 the Netum Printer SDK License, Version 1.0. Their license and notices are provided
-by the respective [Android](https://github.com/netumscan/printer-sdk-android/blob/v0.2.0-preview.3/LICENSE)
-and [iOS](https://github.com/netumscan/printer-sdk-ios/blob/v0.2.0-preview.3/LICENSE) distributions.
+by the respective [Android](https://github.com/netumscan/printer-sdk-android/blob/v0.2.0-preview.4/LICENSE)
+and [iOS](https://github.com/netumscan/printer-sdk-ios/blob/v0.2.0-preview.4/LICENSE) distributions.
 This sample license does not modify any SDK license or any already published SDK
 package, tag, checksum, or release asset.
 

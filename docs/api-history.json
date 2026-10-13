@@ -137,6 +137,7 @@
       }
     }
   },
+  "contract_baseline_version": "0.2.0-preview.3",
   "hardware_verified": false,
   "historical_android": {
     "artifact_sha256": "3e8c8ceb60df1c94187a95cf776d9776284a41db495b9a96dccdb17a00a85d0b",
@@ -246,5 +247,5 @@
     }
   ],
   "schema": 1,
-  "sdk_version": "0.2.0-preview.3"
+  "sdk_version": "0.2.0-preview.4"
 }

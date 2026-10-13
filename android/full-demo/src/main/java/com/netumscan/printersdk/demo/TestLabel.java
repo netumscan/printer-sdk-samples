@@ -2,7 +2,7 @@ package com.netumscan.printersdk.demo;
 
 import android.graphics.*;
 import java.util.concurrent.CancellationException;
-import java.util.function.BooleanSupplier;
+import com.netumscan.printersdk.demo.PrinterController.Cancellation;
 
 final class TestLabel {
     static Bitmap bitmap(LabelConfig config) {
@@ -38,7 +38,7 @@ final class TestLabel {
         }
         return bitmap;
     }
-    static byte[] gray(LabelConfig config, BooleanSupplier cancelled) {
+    static byte[] gray(LabelConfig config, Cancellation cancelled) {
         if (cancelled.getAsBoolean()) throw new CancellationException();
         Bitmap bitmap = bitmap(config);
         try {

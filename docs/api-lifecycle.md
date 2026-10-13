@@ -1,6 +1,6 @@
 # API 与生命周期
 
-[返回指南](README.md) · 适用 SDK `0.2.0-preview.3`
+[返回指南](README.md) · 适用 SDK `0.2.0-preview.4`
 
 ## 常用入口
 

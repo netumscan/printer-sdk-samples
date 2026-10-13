@@ -5,11 +5,11 @@ import android.graphics.BitmapFactory;
 import android.media.ExifInterface;
 import java.io.*;
 import java.util.concurrent.CancellationException;
-import java.util.function.BooleanSupplier;
+import com.netumscan.printersdk.demo.PrinterController.Cancellation;
 
 /** Platform decoder. Its caller serializes imports and owns the temporary source file. */
 final class ImageImport {
-    static void copy(InputStream input, File destination, BooleanSupplier cancelled) throws IOException {
+    static void copy(InputStream input, File destination, Cancellation cancelled) throws IOException {
         long count = 0;
         try (OutputStream output = new FileOutputStream(destination)) {
             byte[] block = new byte[16384]; int read;
@@ -22,7 +22,7 @@ final class ImageImport {
         }
         if (count == 0) throw new IOException("Empty image");
     }
-    static PreparedImage prepare(File file, LabelConfig config, BooleanSupplier cancelled) throws IOException {
+    static PreparedImage prepare(File file, LabelConfig config, Cancellation cancelled) throws IOException {
         if (cancelled.getAsBoolean()) throw new CancellationException();
         if (file.length() <= 0 || file.length() > ImageRaster.MAX_FILE_BYTES) throw new IOException("Image limit");
         try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
@@ -43,8 +43,8 @@ final class ImageImport {
         ImageRaster.sourceBounds(bounds.outWidth, bounds.outHeight);
         int orientation;
         if ("image/png".equals(bounds.outMimeType)) orientation = PngOrientation.read(file);
-        else try (InputStream input = new FileInputStream(file)) {
-            orientation = new ExifInterface(input).getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
+        else {
+            orientation = new ExifInterface(file.getPath()).getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
             // The platform supplies UNDEFINED for JPEGs without an orientation tag.
             if (orientation == ExifInterface.ORIENTATION_UNDEFINED) orientation = ExifInterface.ORIENTATION_NORMAL;
         }
@@ -63,7 +63,7 @@ final class ImageImport {
             if ((long)width * height > ImageRaster.MAX_OUTPUT_PIXELS || decoded.getAllocationByteCount() > 32L * 1024 * 1024)
                 throw new IOException("Decoded image limit");
             if (cancelled.getAsBoolean()) throw new CancellationException();
-            argb = new int[Math.multiplyExact(width, height)];
+            argb = new int[width * height];
             decoded.getPixels(argb, 0, width, 0, 0, width, height);
         } finally { decoded.recycle(); }
         byte[] pixels = ImageRaster.render(argb, width, height, orientation, fit, config.labelWidthDots, config.height, cancelled);
@@ -71,7 +71,7 @@ final class ImageImport {
     }
     static Bitmap preview(PreparedImage image) { return preview(image, () -> false); }
     /** Bounded display-only sample of the immutable submission canvas. */
-    static Bitmap thumbnail(PreparedImage image, BooleanSupplier cancelled) {
+    static Bitmap thumbnail(PreparedImage image, Cancellation cancelled) {
         int sourceWidth = image.config.labelWidthDots, sourceHeight = image.config.height;
         double scale = Math.min(1.0, 360.0 / Math.max(sourceWidth, sourceHeight));
         int width = Math.max(1, (int)(sourceWidth * scale)), height = Math.max(1, (int)(sourceHeight * scale));
@@ -89,7 +89,7 @@ final class ImageImport {
         }
         return bitmap;
     }
-    static Bitmap preview(PreparedImage image, BooleanSupplier cancelled) {
+    static Bitmap preview(PreparedImage image, Cancellation cancelled) {
         int width = image.config.labelWidthDots, height = image.config.height;
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         int[] row = new int[width];

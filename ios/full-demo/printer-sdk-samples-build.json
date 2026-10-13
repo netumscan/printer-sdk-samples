@@ -1,13 +1,13 @@
 {
   "identity": {
-    "demo_build_version": "0.2.0-preview.3+samples.195b99074095",
-    "demo_source_fingerprint": "195b99074095a44508a0b489f7c1bbe57f1d64a980e79da6f681c17c1d8c55f6",
+    "demo_build_version": "0.2.0-preview.4+samples.fafe6c054504",
+    "demo_source_fingerprint": "fafe6c054504eb3a5bafbe212249a9d9e8447f70ed1297ef2aef8401dfdd38c6",
     "sdk_abi_revision": 10,
     "sdk_abi_version": 2,
     "sdk_artifact_sha256": "c0e7afc018ef533ab5868867446897d77b6f6b0f6531c8639b1d3699287fdeab",
     "sdk_core_version": "0.2.0",
-    "sdk_distribution_version": "0.2.0-preview.3",
-    "sdk_release_commit": "d08676ca6ca11fccf82cc0dce56ba69d9d917557"
+    "sdk_distribution_version": "0.2.0-preview.4",
+    "sdk_release_commit": "195458b93a8c7c5465c53dcd563398f7ad18f5b0"
   },
   "schema_version": 1
 }
