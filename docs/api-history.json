@@ -1,7 +1,7 @@
 {
   "abi": {
-    "revision": 10,
-    "version": 2
+    "revision": 1,
+    "version": 3
   },
   "c_abi": {
     "declarations": {
@@ -137,7 +137,2265 @@
       }
     }
   },
-  "contract_baseline_version": "0.2.0-preview.3",
+  "candidate_contract": {
+    "c_abi": {
+      "declarations": {
+        "printer_sdk.h": "#\nifndef\nPRINTER_SDK_C_API_H\n#\ndefine\nPRINTER_SDK_C_API_H\n#\ninclude\n<\nstddef\n.\nh\n>\n#\ninclude\n<\nstdint\n.\nh\n>\n#\ninclude\n<\nstring\n.\nh\n>\n#\nif\ndefined\n(\n_WIN32\n)\n#\ndefine\nPSDK_CALL\n__cdecl\n#\nif\ndefined\n(\nPRINTER_SDK_CAPI_BUILD\n)\n#\ndefine\nPSDK_API\n__declspec\n(\ndllexport\n)\n#\nelse\n#\ndefine\nPSDK_API\n__declspec\n(\ndllimport\n)\n#\nendif\n#\nelse\n#\ndefine\nPSDK_CALL\n#\ndefine\nPSDK_API\n__attribute__\n(\n(\nvisibility\n(\n\"\ndefault\n\"\n)\n)\n)\n#\nendif\n#\nifdef\n__cplusplus\nextern\n\"\nC\n\"\n{\n#\nendif\n#\ndefine\nPSDK_ABI_VERSION\n3u\n#\ndefine\nPSDK_ABI_REVISION\n1u\n#\ndefine\nPSDK_OK\n0\n#\ndefine\nPSDK_INTERNAL_ERROR\n1000\n#\ndefine\nPSDK_INVALID_ARGUMENT\n1001\n#\ndefine\nPSDK_INVALID_STATE\n1002\n#\ndefine\nPSDK_NOT_INITIALIZED\n1003\n#\ndefine\nPSDK_UNSUPPORTED_OPERATION\n1004\n#\ndefine\nPSDK_CANCELLED\n1005\n#\ndefine\nPSDK_ABI_MISMATCH\n1006\n#\ndefine\nPSDK_BUFFER_TOO_SMALL\n1007\n#\ndefine\nPSDK_RESOURCE_LIMIT\n1008\n#\ndefine\nPSDK_TRANSPORT_NOT_OPEN\n2000\n#\ndefine\nPSDK_TRANSPORT_TIMEOUT\n2001\n#\ndefine\nPSDK_TRANSPORT_CONNECTION_LOST\n2002\n#\ndefine\nPSDK_TRANSPORT_IO_ERROR\n2003\n#\ndefine\nPSDK_TRANSPORT_NO_PROGRESS\n2004\n#\ndefine\nPSDK_PROTOCOL_INVALID_RESPONSE\n3000\n#\ndefine\nPSDK_TCP\n1u\n#\ndefine\nPSDK_SPP\n2u\n#\ndefine\nPSDK_BLE\n3u\n#\ndefine\nPSDK_UNKNOWN\n0u\n#\ndefine\nPSDK_UNSUPPORTED\n1u\n#\ndefine\nPSDK_SUPPORTED\n2u\n#\ndefine\nPSDK_NATIVE\n1u\n#\ndefine\nPSDK_HOST_RENDERED\n2u\n#\ndefine\nPSDK_PROFILE_DECLARED\n1u\n#\ndefine\nPSDK_DEVICE_REPORTED\n2u\n#\ndefine\nPSDK_HARDWARE_VERIFIED\n4u\n#\ndefine\nPSDK_FEATURE_LABEL\n1u\n#\ndefine\nPSDK_FEATURE_RECEIPT\n2u\n#\ndefine\nPSDK_FEATURE_STATUS\n3u\n#\ndefine\nPSDK_FEATURE_MEDIA\n4u\n#\ndefine\nPSDK_FEATURE_CUT\n5u\n#\ndefine\nPSDK_FEATURE_RAW\n6u\n#\ndefine\nPSDK_FEATURE_IMAGE\n7u\n#\ndefine\nPSDK_FEATURE_FEED_TO_NEXT_LABEL\n8u\n#\ndefine\nPSDK_VALUES_KNOWN\n1u\n#\ndefine\nPSDK_REQUIRED_FIELDS_KNOWN\n2u\n#\ndefine\nPSDK_SUPPORTED_FIELDS_KNOWN\n4u\n#\ndefine\nPSDK_GEOMETRY_DPI\n1u\n#\ndefine\nPSDK_GEOMETRY_WIDTH\n2u\n#\ndefine\nPSDK_GEOMETRY_LENGTH\n4u\n#\ndefine\nPSDK_GEOMETRY_CUT_BLANK\n8u\n#\ndefine\nPSDK_CONNECTION_DISCONNECTED\n0u\n#\ndefine\nPSDK_CONNECTION_CONNECTING\n1u\n#\ndefine\nPSDK_CONNECTION_CONNECTED\n2u\n#\ndefine\nPSDK_CONNECTION_DISCONNECTING\n3u\n#\ndefine\nPSDK_CONSTRAINT_COPIES\n1u\n#\ndefine\nPSDK_CONSTRAINT_MEDIA_GAP_UM\n2u\n#\ndefine\nPSDK_CONSTRAINT_JOB_IMAGE_BYTES\n3u\n#\ndefine\nPSDK_CONSTRAINT_PENDING_PAYLOAD_BYTES\n4u\n#\ndefine\nPSDK_PROTOCOL_CPCL\n1u\n#\ndefine\nPSDK_PROTOCOL_ESCPOS\n2u\n#\ndefine\nPSDK_THRESHOLD\n0u\n#\ndefine\nPSDK_FLOYD_STEINBERG\n1u\n#\ndefine\nPSDK_BAYER_4X4\n2u\n#\ndefine\nPSDK_BAYER_8X8\n3u\n#\ndefine\nPSDK_ALLOW_LAST_SENT\n1u\n#\ndefine\nPSDK_REQUIRE_READBACK\n2u\n#\ndefine\nPSDK_MEDIA_BASIS_NONE\n0u\n#\ndefine\nPSDK_MEDIA_BASIS_LAST_SENT\n1u\n#\ndefine\nPSDK_MEDIA_BASIS_READBACK\n2u\n#\ndefine\nPSDK_GAP\n1u\n#\ndefine\nPSDK_BLACK_MARK\n2u\n#\ndefine\nPSDK_CONTINUOUS\n3u\n#\ndefine\nPSDK_MEDIA_TRACKING\n1u\n#\ndefine\nPSDK_MEDIA_GAP_LENGTH\n2u\n#\ndefine\nPSDK_MEDIA_LABEL_LENGTH\n4u\n#\ndefine\nPSDK_MEDIA_WIDTH\n8u\n#\ndefine\nPSDK_MEDIA_MARK_LENGTH\n16u\n#\ndefine\nPSDK_MEDIA_MARK_OFFSET\n32u\n#\ndefine\nPSDK_VOLATILE_ONLY\n0u\n#\ndefine\nPSDK_ALLOW_PERSISTENT\n1u\n#\ndefine\nPSDK_CONTENT_END\n0u\n#\ndefine\nPSDK_NEXT_LABEL_START\n1u\n#\ndefine\nPSDK_CUT_NONE\n0u\n#\ndefine\nPSDK_CUT_FULL\n1u\n#\ndefine\nPSDK_CUT_PARTIAL\n2u\n#\ndefine\nPSDK_EACH_COPY\n0u\n#\ndefine\nPSDK_END_OF_JOB\n1u\n#\ndefine\nPSDK_GRAY8\n1u\n#\ndefine\nPSDK_RGB24\n2u\n#\ndefine\nPSDK_RGBA32\n3u\n#\ndefine\nPSDK_BYTES_SENT_EXACT\n1u\n#\ndefine\nPSDK_BYTES_TOTAL_KNOWN\n2u\n#\ndefine\nPSDK_QUEUED\n0u\n#\ndefine\nPSDK_PREPARING\n1u\n#\ndefine\nPSDK_SENDING\n2u\n#\ndefine\nPSDK_COMPLETED\n4u\n#\ndefine\nPSDK_FAILED\n5u\n#\ndefine\nPSDK_OPERATION_CANCELLED\n6u\n#\ndefine\nPSDK_COMPLETION_NONE\n0u\n#\ndefine\nPSDK_DATA_SENT\n1u\n#\ndefine\nPSDK_DEVICE_CONFIRMED\n2u\n#\ndefine\nPSDK_OP_PRINT\n1u\n#\ndefine\nPSDK_OP_STATUS\n2u\n#\ndefine\nPSDK_OP_MEDIA\n3u\n#\ndefine\nPSDK_OP_RAW\n4u\n#\ndefine\nPSDK_OP_FEED_TO_NEXT_LABEL\n5u\n#\ndefine\nPSDK_PAPER_OUT\n1u\n#\ndefine\nPSDK_COVER_OPEN\n2u\n#\ndefine\nPSDK_PAPER_NEAR_END\n4u\n#\ndefine\nPSDK_CUTTER_ERROR\n8u\n#\ndefine\nPSDK_WORK_IDLE\n0u\n#\ndefine\nPSDK_WORK_QUEUED\n1u\n#\ndefine\nPSDK_WORK_PREPARING\n2u\n#\ndefine\nPSDK_WORK_SENDING\n3u\n#\ndefine\nPSDK_HARDWARE_UNKNOWN\n0u\n#\ndefine\nPSDK_DIAGNOSTIC_NONE\n0u\n#\ndefine\nPSDK_DIAGNOSTIC_CONNECT\n1u\n#\ndefine\nPSDK_DIAGNOSTIC_OPERATION\n2u\n#\ndefine\nPSDK_DIAGNOSTIC_TRANSPORT\n3u\n#\ndefine\nPSDK_DIAGNOSTIC_USER_DISCONNECT\n4u\n#\ndefine\nPSDK_WRITE_ERROR_COUNT_EXACT\n1u\n#\ndefine\nPSDK_JOB_LABEL\n1u\n#\ndefine\nPSDK_JOB_RECEIPT\n2u\n#\ndefine\nPSDK_ITEM_IMAGE\n1u\n#\ndefine\nPSDK_ITEM_BLANK\n2u\n#\ndefine\nPSDK_FEATURE_COUNT\n8u\n#\ndefine\nPSDK_CONSTRAINT_COUNT\n4u\ntypedef\nstruct\npsdk_device\npsdk_device\n;\ntypedef\nstruct\npsdk_image\npsdk_image\n;\ntypedef\nstruct\npsdk_job\npsdk_job\n;\ntypedef\nstruct\npsdk_operation\npsdk_operation\n;\ntypedef\nstruct\npsdk_transport_observer\npsdk_transport_observer\n;\ntypedef\nstruct\npsdk_scalar_constraint\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nparameter_id\n,\nknown\n;\nint32_t\nminimum\n,\nmaximum\n;\nuint32_t\nstep\n,\nevidence\n;\n}\npsdk_scalar_constraint\n;\ntypedef\nstruct\npsdk_feature\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nfeature_id\n,\nimplementation\n,\ndevice_support\n,\nevidence\n;\nuint32_t\nsupported_values\n,\nrequired_fields\n,\nknown_fields\n,\nsupported_fields\n;\n}\npsdk_feature\n;\ntypedef\nstruct\npsdk_geometry\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ndpi_x\n,\ndpi_y\n,\nprintable_width_dots\n,\nmax_job_length_dots\n;\nuint32_t\nmin_cut_blank_dots\n,\nevidence\n,\npresent_fields\n;\n}\npsdk_geometry\n;\ntypedef\nstruct\npsdk_label_options\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nwidth_dots\n,\nheight_dots\n,\ndpi_x\n,\ndpi_y\n;\nint32_t\norigin_x_dots\n,\norigin_y_dots\n;\nuint32_t\ncopies\n,\nfinish_policy\n;\n}\npsdk_label_options\n;\ntypedef\nstruct\npsdk_receipt_options\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprint_width_dots\n,\nmax_total_length_dots\n,\ndpi_x\n,\ndpi_y\n;\nuint32_t\nmargin_left_dots\n,\nmargin_right_dots\n,\ncopies\n;\n}\npsdk_receipt_options\n;\ntypedef\nstruct\npsdk_receipt_finish\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ntrailing_blank_dots\n,\ncut_mode\n,\nscope\n;\n}\npsdk_receipt_finish\n;\ntypedef\nstruct\npsdk_image_data\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nwidth\n,\nheight\n,\npixel_format\n;\nconst\nuint8_t\n*\ndata\n;\nsize_t\ndata_size\n;\nuint32_t\nalgorithm\n,\nthreshold\n,\ninvert\n,\nfit_width\n,\ntarget_width_dots\n;\n}\npsdk_image_data\n;\ntypedef\nstruct\npsdk_media_settings\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\npresent_fields\n,\ntracking\n,\nwidth_um\n,\nlabel_length_um\n;\nuint32_t\ngap_length_um\n,\nmark_length_um\n;\nint32_t\nmark_offset_um\n;\nuint32_t\npersistence_policy\n;\n}\npsdk_media_settings\n;\ntypedef\nstruct\npsdk_media_requirement\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\npresent_fields\n,\ntracking\n,\nwidth_um\n,\nlabel_length_um\n;\nuint32_t\ngap_length_um\n,\nmark_length_um\n;\nint32_t\nmark_offset_um\n;\nuint32_t\nverification_policy\n;\n}\npsdk_media_requirement\n;\ntypedef\nstruct\npsdk_operation_options\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ntimeout_ms\n,\nrequired_completion\n;\n}\npsdk_operation_options\n;\ntypedef\nstruct\npsdk_operation_snapshot\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint64_t\noperation_id\n;\nuint32_t\nkind\n,\nstate\n,\ncompletion\n;\nint32_t\nerror_code\n;\nuint32_t\nside_effects_possible\n,\nresponse_valid\n;\nuint64_t\nbytes_sent\n,\nbytes_total\n;\nuint32_t\nmedia_basis\n,\nbyte_count_flags\n;\n}\npsdk_operation_snapshot\n;\ntypedef\nstruct\npsdk_status_result\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nknown_conditions\n,\nactive_conditions\n;\nuint64_t\nsampled_monotonic_ms\n,\nconnection_generation\n;\nuint32_t\nevidence\n;\n}\npsdk_status_result\n;\ntypedef\nstruct\npsdk_device_state_snapshot\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nconnection_state\n,\nwork_state\n,\nqueued_count\n,\nhas_active_operation\n;\nuint64_t\nactive_operation_id\n;\nuint32_t\nactive_operation_kind\n,\nactive_operation_state\n,\nhardware_state\n;\nuint32_t\nhardware_known_conditions\n,\nhardware_active_conditions\n;\nuint64_t\nhardware_sampled_monotonic_ms\n,\nconnection_generation\n;\n}\npsdk_device_state_snapshot\n;\ntypedef\nstruct\npsdk_error_diagnostic\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint64_t\nsequence\n,\nconnection_generation\n,\ntransport_epoch\n,\noperation_id\n,\nsampled_monotonic_ms\n;\nint32_t\nerror_code\n;\nuint32_t\nsource\n;\nint64_t\nnative_code\n;\nuint32_t\nhas_native_code\n;\nchar\ndomain\n[\n32\n]\n,\nmessage\n[\n192\n]\n;\n}\npsdk_error_diagnostic\n;\ntypedef\nstruct\npsdk_resource_snapshot\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint64_t\nmax_image_bytes\n,\nmax_job_image_bytes\n,\nmax_raw_bytes\n;\nuint64_t\nmax_pending_payload_bytes\n,\npending_payload_bytes\n;\nuint32_t\nmax_pending_operations\n,\noutstanding_operations\n,\nmax_copies\n;\n}\npsdk_resource_snapshot\n;\ntypedef\nstruct\npsdk_sdk_info\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nabi_revision\n,\nbuild_id_known\n;\nchar\nnative_version\n[\n32\n]\n,\ndistribution_version\n[\n64\n]\n,\nbuild_id\n[\n65\n]\n;\n}\npsdk_sdk_info\n;\ntypedef\nstruct\npsdk_io_control\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nremaining_timeout_ms\n;\nvoid\n*\ncancellation_context\n;\nint32_t\n(\nPSDK_CALL\n*\nis_cancelled\n)\n(\nvoid\n*\n)\n;\n}\npsdk_io_control\n;\ntypedef\nstruct\npsdk_transport_callbacks\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ntransport_type\n,\nwrite_count_flags\n;\nvoid\n*\ncontext\n;\nint32_t\n(\nPSDK_CALL\n*\nopen\n)\n(\nvoid\n*\n,\nconst\npsdk_io_control\n*\n)\n;\nvoid\n(\nPSDK_CALL\n*\nclose\n)\n(\nvoid\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\nis_open\n)\n(\nvoid\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\nwrite\n)\n(\nvoid\n*\n,\nconst\nuint8_t\n*\n,\nsize_t\n,\nconst\npsdk_io_control\n*\n,\nsize_t\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\nread\n)\n(\nvoid\n*\n,\nuint8_t\n*\n,\nsize_t\n,\nconst\npsdk_io_control\n*\n,\nsize_t\n*\n)\n;\nvoid\n(\nPSDK_CALL\n*\ndispose\n)\n(\nvoid\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\ncopy_error\n)\n(\nvoid\n*\n,\npsdk_error_diagnostic\n*\n)\n;\n}\npsdk_transport_callbacks\n;\ntypedef\nstruct\npsdk_print_config\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprotocol\n,\ndpi\n,\nwidth_dots\n,\nmax_label_height_dots\n;\nuint32_t\nstripe_height\n,\nchunk_size\n,\nwrite_timeout_ms\n,\nquery_timeout_ms\n,\ninter_chunk_delay_ms\n;\nuint32_t\ncpcl_resolution\n;\n}\npsdk_print_config\n;\ntypedef\nstruct\npsdk_status_query_config\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprotocol\n,\nquery_timeout_ms\n;\n}\npsdk_status_query_config\n;\ntypedef\nstruct\npsdk_job_item\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nkind\n;\nunion\n{\nstruct\n{\nconst\npsdk_image\n*\nimage\n;\nint32_t\nx\n,\ny\n;\n}\nimage\n;\nstruct\n{\nuint32_t\ndots\n;\n}\nblank\n;\n}\ndata\n;\n}\npsdk_job_item\n;\ntypedef\nstruct\npsdk_job_descriptor\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nkind\n,\nitem_count\n;\nconst\npsdk_job_item\n*\nitems\n;\nunion\n{\npsdk_label_options\nlabel\n;\npsdk_receipt_options\nreceipt\n;\n}\noptions\n;\nconst\npsdk_receipt_finish\n*\nreceipt_finish\n;\nconst\npsdk_media_requirement\n*\nmedia_requirement\n;\n}\npsdk_job_descriptor\n;\ntypedef\nstruct\npsdk_execute_request\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nkind\n;\nunion\n{\nstruct\n{\nconst\nuint8_t\n*\ndata\n;\nsize_t\ndata_size\n;\nuint32_t\ncopies\n,\nreserved\n;\n}\nraw\n;\nstruct\n{\npsdk_media_settings\nsettings\n;\npsdk_print_config\nconfig\n;\n}\nmedia\n;\nstruct\n{\npsdk_print_config\nconfig\n;\n}\nfeed\n;\nstruct\n{\npsdk_status_query_config\nconfig\n;\n}\nstatus\n;\n}\ndata\n;\n}\npsdk_execute_request\n;\ntypedef\nstruct\npsdk_capabilities\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\npsdk_feature\nfeatures\n[\nPSDK_FEATURE_COUNT\n]\n;\npsdk_scalar_constraint\nconstraints\n[\nPSDK_CONSTRAINT_COUNT\n]\n;\npsdk_geometry\ngeometry\n;\n}\npsdk_capabilities\n;\ntypedef\nstruct\npsdk_operation_result\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\npsdk_operation_snapshot\nsnapshot\n;\npsdk_error_diagnostic\ndiagnostic\n;\npsdk_status_result\nstatus\n;\n}\npsdk_operation_result\n;\n#\ndefine\nPSDK_INLINE_INIT\n(\nname\n)\n\\\nstatic\ninline\nint32_t\nPSDK_CALL\nname\n#\n#\n_init\n(\nname\n*\nvalue\n,\nsize_t\nsize\n)\n{\n\\\nif\n(\n!\nvalue\n)\nreturn\nPSDK_INVALID_ARGUMENT\n;\n\\\nif\n(\nsize\n<\nsizeof\n(\nname\n)\n)\nreturn\nPSDK_BUFFER_TOO_SMALL\n;\n\\\nif\n(\nsize\n>\nUINT32_MAX\n)\nreturn\nPSDK_INVALID_ARGUMENT\n;\n\\\nmemset\n(\nvalue\n,\n0\n,\nsize\n)\n;\n\\\nvalue\n-\n>\nstruct_size\n=\n(\nuint32_t\n)\nsize\n;\nvalue\n-\n>\nabi_version\n=\nPSDK_ABI_VERSION\n;\n\\\nreturn\nPSDK_OK\n;\n\\\n}\nPSDK_INLINE_INIT\n(\npsdk_scalar_constraint\n)\nPSDK_INLINE_INIT\n(\npsdk_feature\n)\nPSDK_INLINE_INIT\n(\npsdk_geometry\n)\nPSDK_INLINE_INIT\n(\npsdk_label_options\n)\nPSDK_INLINE_INIT\n(\npsdk_receipt_options\n)\nPSDK_INLINE_INIT\n(\npsdk_receipt_finish\n)\nPSDK_INLINE_INIT\n(\npsdk_image_data\n)\nPSDK_INLINE_INIT\n(\npsdk_media_settings\n)\nPSDK_INLINE_INIT\n(\npsdk_media_requirement\n)\nPSDK_INLINE_INIT\n(\npsdk_operation_options\n)\nPSDK_INLINE_INIT\n(\npsdk_operation_snapshot\n)\nPSDK_INLINE_INIT\n(\npsdk_status_result\n)\nPSDK_INLINE_INIT\n(\npsdk_device_state_snapshot\n)\nPSDK_INLINE_INIT\n(\npsdk_error_diagnostic\n)\nPSDK_INLINE_INIT\n(\npsdk_resource_snapshot\n)\nPSDK_INLINE_INIT\n(\npsdk_sdk_info\n)\nPSDK_INLINE_INIT\n(\npsdk_io_control\n)\nPSDK_INLINE_INIT\n(\npsdk_transport_callbacks\n)\nPSDK_INLINE_INIT\n(\npsdk_print_config\n)\nPSDK_INLINE_INIT\n(\npsdk_status_query_config\n)\nPSDK_INLINE_INIT\n(\npsdk_job_item\n)\nPSDK_INLINE_INIT\n(\npsdk_job_descriptor\n)\nPSDK_INLINE_INIT\n(\npsdk_execute_request\n)\nPSDK_INLINE_INIT\n(\npsdk_capabilities\n)\nPSDK_INLINE_INIT\n(\npsdk_operation_result\n)\n#\nundef\nPSDK_INLINE_INIT\nPSDK_API\nuint32_t\nPSDK_CALL\npsdk_abi_version\n(\nvoid\n)\n;\nPSDK_API\nuint32_t\nPSDK_CALL\npsdk_abi_revision\n(\nvoid\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_get_sdk_info\n(\npsdk_sdk_info\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_create\n(\nconst\npsdk_transport_callbacks\n*\n,\npsdk_device\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_connect\n(\npsdk_device\n*\n,\nuint32_t\ntimeout_ms\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_disconnect\n(\npsdk_device\n*\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_device_destroy\n(\npsdk_device\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_state\n(\nconst\npsdk_device\n*\n,\npsdk_device_state_snapshot\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_resources\n(\nconst\npsdk_device\n*\n,\npsdk_resource_snapshot\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_capabilities\n(\nconst\npsdk_device\n*\n,\npsdk_capabilities\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_diagnostic\n(\nconst\npsdk_device\n*\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_image_create_copy\n(\nconst\npsdk_image_data\n*\n,\npsdk_image\n*\n*\nout\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_image_release\n(\npsdk_image\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_job_create\n(\nconst\npsdk_job_descriptor\n*\n,\npsdk_job\n*\n*\nout\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_job_release\n(\npsdk_job\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_submit\n(\npsdk_device\n*\n,\nconst\npsdk_job\n*\n,\nconst\npsdk_print_config\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_execute\n(\npsdk_device\n*\n,\nconst\npsdk_execute_request\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_get_snapshot\n(\nconst\npsdk_operation\n*\n,\npsdk_operation_snapshot\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_get_result\n(\nconst\npsdk_operation\n*\n,\npsdk_operation_result\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_cancel\n(\npsdk_operation\n*\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_operation_release\n(\npsdk_operation\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_create_transport_observer\n(\nconst\npsdk_device\n*\n,\npsdk_transport_observer\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_transport_observer_get_epoch\n(\nconst\npsdk_transport_observer\n*\n,\nuint64_t\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_transport_observer_notify_lost\n(\npsdk_transport_observer\n*\n,\nuint64_t\n,\nconst\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_transport_observer_release\n(\npsdk_transport_observer\n*\n)\n;\n#\nifdef\n__cplusplus\n}\n#\nendif\n#\nendif"
+      },
+      "manifest": {
+        "abi": {
+          "revision": 1,
+          "version": 3
+        },
+        "baseline": "ABI-3-r1-candidate",
+        "exports": [
+          "psdk_abi_revision",
+          "psdk_abi_version",
+          "psdk_device_connect",
+          "psdk_device_create",
+          "psdk_device_create_transport_observer",
+          "psdk_device_destroy",
+          "psdk_device_disconnect",
+          "psdk_device_execute",
+          "psdk_device_get_capabilities",
+          "psdk_device_get_diagnostic",
+          "psdk_device_get_resources",
+          "psdk_device_get_state",
+          "psdk_device_submit",
+          "psdk_get_sdk_info",
+          "psdk_image_create_copy",
+          "psdk_image_release",
+          "psdk_job_create",
+          "psdk_job_release",
+          "psdk_operation_cancel",
+          "psdk_operation_get_result",
+          "psdk_operation_get_snapshot",
+          "psdk_operation_release",
+          "psdk_transport_observer_get_epoch",
+          "psdk_transport_observer_notify_lost",
+          "psdk_transport_observer_release"
+        ],
+        "header": "capi/include/printer_sdk/printer_sdk.h",
+        "header_token_sha256": "df2f02213076bcf862b1ccf30c8b5711078da15f3312826a66bb83dfbdb60205",
+        "inline_initializers": [
+          "psdk_capabilities_init",
+          "psdk_device_state_snapshot_init",
+          "psdk_error_diagnostic_init",
+          "psdk_execute_request_init",
+          "psdk_feature_init",
+          "psdk_geometry_init",
+          "psdk_image_data_init",
+          "psdk_io_control_init",
+          "psdk_job_descriptor_init",
+          "psdk_job_item_init",
+          "psdk_label_options_init",
+          "psdk_media_requirement_init",
+          "psdk_media_settings_init",
+          "psdk_operation_options_init",
+          "psdk_operation_result_init",
+          "psdk_operation_snapshot_init",
+          "psdk_print_config_init",
+          "psdk_receipt_finish_init",
+          "psdk_receipt_options_init",
+          "psdk_resource_snapshot_init",
+          "psdk_scalar_constraint_init",
+          "psdk_sdk_info_init",
+          "psdk_status_query_config_init",
+          "psdk_status_result_init",
+          "psdk_transport_callbacks_init"
+        ],
+        "layouts": {
+          "aarch64-linux-android21": {
+            "psdk_capabilities": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "constraints": 400,
+                "features": 16,
+                "flags": 8,
+                "geometry": 560,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 604
+            },
+            "psdk_device_state_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "active_operation_id": 32,
+                "active_operation_kind": 40,
+                "active_operation_state": 44,
+                "connection_generation": 72,
+                "connection_state": 16,
+                "flags": 8,
+                "hardware_active_conditions": 56,
+                "hardware_known_conditions": 52,
+                "hardware_sampled_monotonic_ms": 64,
+                "hardware_state": 48,
+                "has_active_operation": 28,
+                "queued_count": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "work_state": 20
+              },
+              "size": 80
+            },
+            "psdk_error_diagnostic": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "connection_generation": 24,
+                "domain": 76,
+                "error_code": 56,
+                "flags": 8,
+                "has_native_code": 72,
+                "message": 108,
+                "native_code": 64,
+                "operation_id": 40,
+                "reserved": 12,
+                "sampled_monotonic_ms": 48,
+                "sequence": 16,
+                "source": 60,
+                "struct_size": 0,
+                "transport_epoch": 32
+              },
+              "size": 304
+            },
+            "psdk_execute_request": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "data": 24,
+                "data.feed.config": 24,
+                "data.media.config": 72,
+                "data.media.settings": 24,
+                "data.raw.copies": 40,
+                "data.raw.data": 24,
+                "data.raw.data_size": 32,
+                "data.raw.reserved": 44,
+                "data.status.config": 24,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 128
+            },
+            "psdk_feature": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "device_support": 24,
+                "evidence": 28,
+                "feature_id": 16,
+                "flags": 8,
+                "implementation": 20,
+                "known_fields": 40,
+                "required_fields": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "supported_fields": 44,
+                "supported_values": 32
+              },
+              "size": 48
+            },
+            "psdk_geometry": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "dpi_x": 16,
+                "dpi_y": 20,
+                "evidence": 36,
+                "flags": 8,
+                "max_job_length_dots": 28,
+                "min_cut_blank_dots": 32,
+                "present_fields": 40,
+                "printable_width_dots": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_image_data": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "algorithm": 48,
+                "data": 32,
+                "data_size": 40,
+                "fit_width": 60,
+                "flags": 8,
+                "height": 20,
+                "invert": 56,
+                "pixel_format": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "target_width_dots": 64,
+                "threshold": 52,
+                "width": 16
+              },
+              "size": 72
+            },
+            "psdk_io_control": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "cancellation_context": 24,
+                "flags": 8,
+                "is_cancelled": 32,
+                "remaining_timeout_ms": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_job_descriptor": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "item_count": 20,
+                "items": 24,
+                "kind": 16,
+                "media_requirement": 88,
+                "options": 32,
+                "options.label": 32,
+                "options.receipt": 32,
+                "receipt_finish": 80,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 96
+            },
+            "psdk_job_item": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "data": 24,
+                "data.blank.dots": 24,
+                "data.image.image": 24,
+                "data.image.x": 32,
+                "data.image.y": 36,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_label_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "finish_policy": 44,
+                "flags": 8,
+                "height_dots": 20,
+                "origin_x_dots": 32,
+                "origin_y_dots": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "width_dots": 16
+              },
+              "size": 48
+            },
+            "psdk_media_requirement": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "verification_policy": 44,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_media_settings": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "persistence_policy": 44,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_operation_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "required_completion": 20,
+                "reserved": 12,
+                "struct_size": 0,
+                "timeout_ms": 16
+              },
+              "size": 24
+            },
+            "psdk_operation_result": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "diagnostic": 88,
+                "flags": 8,
+                "reserved": 12,
+                "snapshot": 16,
+                "status": 392,
+                "struct_size": 0
+              },
+              "size": 440
+            },
+            "psdk_operation_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "byte_count_flags": 68,
+                "bytes_sent": 48,
+                "bytes_total": 56,
+                "completion": 32,
+                "error_code": 36,
+                "flags": 8,
+                "kind": 24,
+                "media_basis": 64,
+                "operation_id": 16,
+                "reserved": 12,
+                "response_valid": 44,
+                "side_effects_possible": 40,
+                "state": 28,
+                "struct_size": 0
+              },
+              "size": 72
+            },
+            "psdk_print_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "chunk_size": 36,
+                "cpcl_resolution": 52,
+                "dpi": 20,
+                "flags": 8,
+                "inter_chunk_delay_ms": 48,
+                "max_label_height_dots": 28,
+                "protocol": 16,
+                "query_timeout_ms": 44,
+                "reserved": 12,
+                "stripe_height": 32,
+                "struct_size": 0,
+                "width_dots": 24,
+                "write_timeout_ms": 40
+              },
+              "size": 56
+            },
+            "psdk_receipt_finish": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "cut_mode": 20,
+                "flags": 8,
+                "reserved": 12,
+                "scope": 24,
+                "struct_size": 0,
+                "trailing_blank_dots": 16
+              },
+              "size": 28
+            },
+            "psdk_receipt_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "flags": 8,
+                "margin_left_dots": 32,
+                "margin_right_dots": 36,
+                "max_total_length_dots": 20,
+                "print_width_dots": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_resource_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "max_copies": 64,
+                "max_image_bytes": 16,
+                "max_job_image_bytes": 24,
+                "max_pending_operations": 56,
+                "max_pending_payload_bytes": 40,
+                "max_raw_bytes": 32,
+                "outstanding_operations": 60,
+                "pending_payload_bytes": 48,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 72
+            },
+            "psdk_scalar_constraint": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "evidence": 36,
+                "flags": 8,
+                "known": 20,
+                "maximum": 28,
+                "minimum": 24,
+                "parameter_id": 16,
+                "reserved": 12,
+                "step": 32,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_sdk_info": {
+              "alignment": 4,
+              "offsets": {
+                "abi_revision": 16,
+                "abi_version": 4,
+                "build_id": 120,
+                "build_id_known": 20,
+                "distribution_version": 56,
+                "flags": 8,
+                "native_version": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 188
+            },
+            "psdk_status_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
+            },
+            "psdk_status_result": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "active_conditions": 20,
+                "connection_generation": 32,
+                "evidence": 40,
+                "flags": 8,
+                "known_conditions": 16,
+                "reserved": 12,
+                "sampled_monotonic_ms": 24,
+                "struct_size": 0
+              },
+              "size": 48
+            },
+            "psdk_transport_callbacks": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "close": 40,
+                "context": 24,
+                "copy_error": 80,
+                "dispose": 72,
+                "flags": 8,
+                "is_open": 48,
+                "open": 32,
+                "read": 64,
+                "reserved": 12,
+                "struct_size": 0,
+                "transport_type": 16,
+                "write": 56,
+                "write_count_flags": 20
+              },
+              "size": 88
+            }
+          },
+          "arm64-apple-ios15.0": {
+            "psdk_capabilities": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "constraints": 400,
+                "features": 16,
+                "flags": 8,
+                "geometry": 560,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 604
+            },
+            "psdk_device_state_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "active_operation_id": 32,
+                "active_operation_kind": 40,
+                "active_operation_state": 44,
+                "connection_generation": 72,
+                "connection_state": 16,
+                "flags": 8,
+                "hardware_active_conditions": 56,
+                "hardware_known_conditions": 52,
+                "hardware_sampled_monotonic_ms": 64,
+                "hardware_state": 48,
+                "has_active_operation": 28,
+                "queued_count": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "work_state": 20
+              },
+              "size": 80
+            },
+            "psdk_error_diagnostic": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "connection_generation": 24,
+                "domain": 76,
+                "error_code": 56,
+                "flags": 8,
+                "has_native_code": 72,
+                "message": 108,
+                "native_code": 64,
+                "operation_id": 40,
+                "reserved": 12,
+                "sampled_monotonic_ms": 48,
+                "sequence": 16,
+                "source": 60,
+                "struct_size": 0,
+                "transport_epoch": 32
+              },
+              "size": 304
+            },
+            "psdk_execute_request": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "data": 24,
+                "data.feed.config": 24,
+                "data.media.config": 72,
+                "data.media.settings": 24,
+                "data.raw.copies": 40,
+                "data.raw.data": 24,
+                "data.raw.data_size": 32,
+                "data.raw.reserved": 44,
+                "data.status.config": 24,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 128
+            },
+            "psdk_feature": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "device_support": 24,
+                "evidence": 28,
+                "feature_id": 16,
+                "flags": 8,
+                "implementation": 20,
+                "known_fields": 40,
+                "required_fields": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "supported_fields": 44,
+                "supported_values": 32
+              },
+              "size": 48
+            },
+            "psdk_geometry": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "dpi_x": 16,
+                "dpi_y": 20,
+                "evidence": 36,
+                "flags": 8,
+                "max_job_length_dots": 28,
+                "min_cut_blank_dots": 32,
+                "present_fields": 40,
+                "printable_width_dots": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_image_data": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "algorithm": 48,
+                "data": 32,
+                "data_size": 40,
+                "fit_width": 60,
+                "flags": 8,
+                "height": 20,
+                "invert": 56,
+                "pixel_format": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "target_width_dots": 64,
+                "threshold": 52,
+                "width": 16
+              },
+              "size": 72
+            },
+            "psdk_io_control": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "cancellation_context": 24,
+                "flags": 8,
+                "is_cancelled": 32,
+                "remaining_timeout_ms": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_job_descriptor": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "item_count": 20,
+                "items": 24,
+                "kind": 16,
+                "media_requirement": 88,
+                "options": 32,
+                "options.label": 32,
+                "options.receipt": 32,
+                "receipt_finish": 80,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 96
+            },
+            "psdk_job_item": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "data": 24,
+                "data.blank.dots": 24,
+                "data.image.image": 24,
+                "data.image.x": 32,
+                "data.image.y": 36,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_label_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "finish_policy": 44,
+                "flags": 8,
+                "height_dots": 20,
+                "origin_x_dots": 32,
+                "origin_y_dots": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "width_dots": 16
+              },
+              "size": 48
+            },
+            "psdk_media_requirement": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "verification_policy": 44,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_media_settings": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "persistence_policy": 44,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_operation_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "required_completion": 20,
+                "reserved": 12,
+                "struct_size": 0,
+                "timeout_ms": 16
+              },
+              "size": 24
+            },
+            "psdk_operation_result": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "diagnostic": 88,
+                "flags": 8,
+                "reserved": 12,
+                "snapshot": 16,
+                "status": 392,
+                "struct_size": 0
+              },
+              "size": 440
+            },
+            "psdk_operation_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "byte_count_flags": 68,
+                "bytes_sent": 48,
+                "bytes_total": 56,
+                "completion": 32,
+                "error_code": 36,
+                "flags": 8,
+                "kind": 24,
+                "media_basis": 64,
+                "operation_id": 16,
+                "reserved": 12,
+                "response_valid": 44,
+                "side_effects_possible": 40,
+                "state": 28,
+                "struct_size": 0
+              },
+              "size": 72
+            },
+            "psdk_print_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "chunk_size": 36,
+                "cpcl_resolution": 52,
+                "dpi": 20,
+                "flags": 8,
+                "inter_chunk_delay_ms": 48,
+                "max_label_height_dots": 28,
+                "protocol": 16,
+                "query_timeout_ms": 44,
+                "reserved": 12,
+                "stripe_height": 32,
+                "struct_size": 0,
+                "width_dots": 24,
+                "write_timeout_ms": 40
+              },
+              "size": 56
+            },
+            "psdk_receipt_finish": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "cut_mode": 20,
+                "flags": 8,
+                "reserved": 12,
+                "scope": 24,
+                "struct_size": 0,
+                "trailing_blank_dots": 16
+              },
+              "size": 28
+            },
+            "psdk_receipt_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "flags": 8,
+                "margin_left_dots": 32,
+                "margin_right_dots": 36,
+                "max_total_length_dots": 20,
+                "print_width_dots": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_resource_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "max_copies": 64,
+                "max_image_bytes": 16,
+                "max_job_image_bytes": 24,
+                "max_pending_operations": 56,
+                "max_pending_payload_bytes": 40,
+                "max_raw_bytes": 32,
+                "outstanding_operations": 60,
+                "pending_payload_bytes": 48,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 72
+            },
+            "psdk_scalar_constraint": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "evidence": 36,
+                "flags": 8,
+                "known": 20,
+                "maximum": 28,
+                "minimum": 24,
+                "parameter_id": 16,
+                "reserved": 12,
+                "step": 32,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_sdk_info": {
+              "alignment": 4,
+              "offsets": {
+                "abi_revision": 16,
+                "abi_version": 4,
+                "build_id": 120,
+                "build_id_known": 20,
+                "distribution_version": 56,
+                "flags": 8,
+                "native_version": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 188
+            },
+            "psdk_status_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
+            },
+            "psdk_status_result": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "active_conditions": 20,
+                "connection_generation": 32,
+                "evidence": 40,
+                "flags": 8,
+                "known_conditions": 16,
+                "reserved": 12,
+                "sampled_monotonic_ms": 24,
+                "struct_size": 0
+              },
+              "size": 48
+            },
+            "psdk_transport_callbacks": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "close": 40,
+                "context": 24,
+                "copy_error": 80,
+                "dispose": 72,
+                "flags": 8,
+                "is_open": 48,
+                "open": 32,
+                "read": 64,
+                "reserved": 12,
+                "struct_size": 0,
+                "transport_type": 16,
+                "write": 56,
+                "write_count_flags": 20
+              },
+              "size": 88
+            }
+          },
+          "armv7a-linux-androideabi21": {
+            "psdk_capabilities": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "constraints": 400,
+                "features": 16,
+                "flags": 8,
+                "geometry": 560,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 604
+            },
+            "psdk_device_state_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "active_operation_id": 32,
+                "active_operation_kind": 40,
+                "active_operation_state": 44,
+                "connection_generation": 72,
+                "connection_state": 16,
+                "flags": 8,
+                "hardware_active_conditions": 56,
+                "hardware_known_conditions": 52,
+                "hardware_sampled_monotonic_ms": 64,
+                "hardware_state": 48,
+                "has_active_operation": 28,
+                "queued_count": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "work_state": 20
+              },
+              "size": 80
+            },
+            "psdk_error_diagnostic": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "connection_generation": 24,
+                "domain": 76,
+                "error_code": 56,
+                "flags": 8,
+                "has_native_code": 72,
+                "message": 108,
+                "native_code": 64,
+                "operation_id": 40,
+                "reserved": 12,
+                "sampled_monotonic_ms": 48,
+                "sequence": 16,
+                "source": 60,
+                "struct_size": 0,
+                "transport_epoch": 32
+              },
+              "size": 304
+            },
+            "psdk_execute_request": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "data": 20,
+                "data.feed.config": 20,
+                "data.media.config": 68,
+                "data.media.settings": 20,
+                "data.raw.copies": 28,
+                "data.raw.data": 20,
+                "data.raw.data_size": 24,
+                "data.raw.reserved": 32,
+                "data.status.config": 20,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 124
+            },
+            "psdk_feature": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "device_support": 24,
+                "evidence": 28,
+                "feature_id": 16,
+                "flags": 8,
+                "implementation": 20,
+                "known_fields": 40,
+                "required_fields": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "supported_fields": 44,
+                "supported_values": 32
+              },
+              "size": 48
+            },
+            "psdk_geometry": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "dpi_x": 16,
+                "dpi_y": 20,
+                "evidence": 36,
+                "flags": 8,
+                "max_job_length_dots": 28,
+                "min_cut_blank_dots": 32,
+                "present_fields": 40,
+                "printable_width_dots": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_image_data": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "algorithm": 36,
+                "data": 28,
+                "data_size": 32,
+                "fit_width": 48,
+                "flags": 8,
+                "height": 20,
+                "invert": 44,
+                "pixel_format": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "target_width_dots": 52,
+                "threshold": 40,
+                "width": 16
+              },
+              "size": 56
+            },
+            "psdk_io_control": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "cancellation_context": 20,
+                "flags": 8,
+                "is_cancelled": 24,
+                "remaining_timeout_ms": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 28
+            },
+            "psdk_job_descriptor": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "item_count": 20,
+                "items": 24,
+                "kind": 16,
+                "media_requirement": 80,
+                "options": 28,
+                "options.label": 28,
+                "options.receipt": 28,
+                "receipt_finish": 76,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 84
+            },
+            "psdk_job_item": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "data": 20,
+                "data.blank.dots": 20,
+                "data.image.image": 20,
+                "data.image.x": 24,
+                "data.image.y": 28,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 32
+            },
+            "psdk_label_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "finish_policy": 44,
+                "flags": 8,
+                "height_dots": 20,
+                "origin_x_dots": 32,
+                "origin_y_dots": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "width_dots": 16
+              },
+              "size": 48
+            },
+            "psdk_media_requirement": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "verification_policy": 44,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_media_settings": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "persistence_policy": 44,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_operation_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "required_completion": 20,
+                "reserved": 12,
+                "struct_size": 0,
+                "timeout_ms": 16
+              },
+              "size": 24
+            },
+            "psdk_operation_result": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "diagnostic": 88,
+                "flags": 8,
+                "reserved": 12,
+                "snapshot": 16,
+                "status": 392,
+                "struct_size": 0
+              },
+              "size": 440
+            },
+            "psdk_operation_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "byte_count_flags": 68,
+                "bytes_sent": 48,
+                "bytes_total": 56,
+                "completion": 32,
+                "error_code": 36,
+                "flags": 8,
+                "kind": 24,
+                "media_basis": 64,
+                "operation_id": 16,
+                "reserved": 12,
+                "response_valid": 44,
+                "side_effects_possible": 40,
+                "state": 28,
+                "struct_size": 0
+              },
+              "size": 72
+            },
+            "psdk_print_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "chunk_size": 36,
+                "cpcl_resolution": 52,
+                "dpi": 20,
+                "flags": 8,
+                "inter_chunk_delay_ms": 48,
+                "max_label_height_dots": 28,
+                "protocol": 16,
+                "query_timeout_ms": 44,
+                "reserved": 12,
+                "stripe_height": 32,
+                "struct_size": 0,
+                "width_dots": 24,
+                "write_timeout_ms": 40
+              },
+              "size": 56
+            },
+            "psdk_receipt_finish": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "cut_mode": 20,
+                "flags": 8,
+                "reserved": 12,
+                "scope": 24,
+                "struct_size": 0,
+                "trailing_blank_dots": 16
+              },
+              "size": 28
+            },
+            "psdk_receipt_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "flags": 8,
+                "margin_left_dots": 32,
+                "margin_right_dots": 36,
+                "max_total_length_dots": 20,
+                "print_width_dots": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_resource_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "max_copies": 64,
+                "max_image_bytes": 16,
+                "max_job_image_bytes": 24,
+                "max_pending_operations": 56,
+                "max_pending_payload_bytes": 40,
+                "max_raw_bytes": 32,
+                "outstanding_operations": 60,
+                "pending_payload_bytes": 48,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 72
+            },
+            "psdk_scalar_constraint": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "evidence": 36,
+                "flags": 8,
+                "known": 20,
+                "maximum": 28,
+                "minimum": 24,
+                "parameter_id": 16,
+                "reserved": 12,
+                "step": 32,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_sdk_info": {
+              "alignment": 4,
+              "offsets": {
+                "abi_revision": 16,
+                "abi_version": 4,
+                "build_id": 120,
+                "build_id_known": 20,
+                "distribution_version": 56,
+                "flags": 8,
+                "native_version": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 188
+            },
+            "psdk_status_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
+            },
+            "psdk_status_result": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "active_conditions": 20,
+                "connection_generation": 32,
+                "evidence": 40,
+                "flags": 8,
+                "known_conditions": 16,
+                "reserved": 12,
+                "sampled_monotonic_ms": 24,
+                "struct_size": 0
+              },
+              "size": 48
+            },
+            "psdk_transport_callbacks": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "close": 32,
+                "context": 24,
+                "copy_error": 52,
+                "dispose": 48,
+                "flags": 8,
+                "is_open": 36,
+                "open": 28,
+                "read": 44,
+                "reserved": 12,
+                "struct_size": 0,
+                "transport_type": 16,
+                "write": 40,
+                "write_count_flags": 20
+              },
+              "size": 56
+            }
+          },
+          "i686-linux-android21": {
+            "psdk_capabilities": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "constraints": 400,
+                "features": 16,
+                "flags": 8,
+                "geometry": 560,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 604
+            },
+            "psdk_device_state_snapshot": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "active_operation_id": 32,
+                "active_operation_kind": 40,
+                "active_operation_state": 44,
+                "connection_generation": 68,
+                "connection_state": 16,
+                "flags": 8,
+                "hardware_active_conditions": 56,
+                "hardware_known_conditions": 52,
+                "hardware_sampled_monotonic_ms": 60,
+                "hardware_state": 48,
+                "has_active_operation": 28,
+                "queued_count": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "work_state": 20
+              },
+              "size": 76
+            },
+            "psdk_error_diagnostic": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "connection_generation": 24,
+                "domain": 76,
+                "error_code": 56,
+                "flags": 8,
+                "has_native_code": 72,
+                "message": 108,
+                "native_code": 64,
+                "operation_id": 40,
+                "reserved": 12,
+                "sampled_monotonic_ms": 48,
+                "sequence": 16,
+                "source": 60,
+                "struct_size": 0,
+                "transport_epoch": 32
+              },
+              "size": 300
+            },
+            "psdk_execute_request": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "data": 20,
+                "data.feed.config": 20,
+                "data.media.config": 68,
+                "data.media.settings": 20,
+                "data.raw.copies": 28,
+                "data.raw.data": 20,
+                "data.raw.data_size": 24,
+                "data.raw.reserved": 32,
+                "data.status.config": 20,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 124
+            },
+            "psdk_feature": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "device_support": 24,
+                "evidence": 28,
+                "feature_id": 16,
+                "flags": 8,
+                "implementation": 20,
+                "known_fields": 40,
+                "required_fields": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "supported_fields": 44,
+                "supported_values": 32
+              },
+              "size": 48
+            },
+            "psdk_geometry": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "dpi_x": 16,
+                "dpi_y": 20,
+                "evidence": 36,
+                "flags": 8,
+                "max_job_length_dots": 28,
+                "min_cut_blank_dots": 32,
+                "present_fields": 40,
+                "printable_width_dots": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_image_data": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "algorithm": 36,
+                "data": 28,
+                "data_size": 32,
+                "fit_width": 48,
+                "flags": 8,
+                "height": 20,
+                "invert": 44,
+                "pixel_format": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "target_width_dots": 52,
+                "threshold": 40,
+                "width": 16
+              },
+              "size": 56
+            },
+            "psdk_io_control": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "cancellation_context": 20,
+                "flags": 8,
+                "is_cancelled": 24,
+                "remaining_timeout_ms": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 28
+            },
+            "psdk_job_descriptor": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "item_count": 20,
+                "items": 24,
+                "kind": 16,
+                "media_requirement": 80,
+                "options": 28,
+                "options.label": 28,
+                "options.receipt": 28,
+                "receipt_finish": 76,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 84
+            },
+            "psdk_job_item": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "data": 20,
+                "data.blank.dots": 20,
+                "data.image.image": 20,
+                "data.image.x": 24,
+                "data.image.y": 28,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 32
+            },
+            "psdk_label_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "finish_policy": 44,
+                "flags": 8,
+                "height_dots": 20,
+                "origin_x_dots": 32,
+                "origin_y_dots": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "width_dots": 16
+              },
+              "size": 48
+            },
+            "psdk_media_requirement": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "verification_policy": 44,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_media_settings": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "persistence_policy": 44,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_operation_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "required_completion": 20,
+                "reserved": 12,
+                "struct_size": 0,
+                "timeout_ms": 16
+              },
+              "size": 24
+            },
+            "psdk_operation_result": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "diagnostic": 88,
+                "flags": 8,
+                "reserved": 12,
+                "snapshot": 16,
+                "status": 388,
+                "struct_size": 0
+              },
+              "size": 432
+            },
+            "psdk_operation_snapshot": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "byte_count_flags": 68,
+                "bytes_sent": 48,
+                "bytes_total": 56,
+                "completion": 32,
+                "error_code": 36,
+                "flags": 8,
+                "kind": 24,
+                "media_basis": 64,
+                "operation_id": 16,
+                "reserved": 12,
+                "response_valid": 44,
+                "side_effects_possible": 40,
+                "state": 28,
+                "struct_size": 0
+              },
+              "size": 72
+            },
+            "psdk_print_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "chunk_size": 36,
+                "cpcl_resolution": 52,
+                "dpi": 20,
+                "flags": 8,
+                "inter_chunk_delay_ms": 48,
+                "max_label_height_dots": 28,
+                "protocol": 16,
+                "query_timeout_ms": 44,
+                "reserved": 12,
+                "stripe_height": 32,
+                "struct_size": 0,
+                "width_dots": 24,
+                "write_timeout_ms": 40
+              },
+              "size": 56
+            },
+            "psdk_receipt_finish": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "cut_mode": 20,
+                "flags": 8,
+                "reserved": 12,
+                "scope": 24,
+                "struct_size": 0,
+                "trailing_blank_dots": 16
+              },
+              "size": 28
+            },
+            "psdk_receipt_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "flags": 8,
+                "margin_left_dots": 32,
+                "margin_right_dots": 36,
+                "max_total_length_dots": 20,
+                "print_width_dots": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_resource_snapshot": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "max_copies": 64,
+                "max_image_bytes": 16,
+                "max_job_image_bytes": 24,
+                "max_pending_operations": 56,
+                "max_pending_payload_bytes": 40,
+                "max_raw_bytes": 32,
+                "outstanding_operations": 60,
+                "pending_payload_bytes": 48,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 68
+            },
+            "psdk_scalar_constraint": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "evidence": 36,
+                "flags": 8,
+                "known": 20,
+                "maximum": 28,
+                "minimum": 24,
+                "parameter_id": 16,
+                "reserved": 12,
+                "step": 32,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_sdk_info": {
+              "alignment": 4,
+              "offsets": {
+                "abi_revision": 16,
+                "abi_version": 4,
+                "build_id": 120,
+                "build_id_known": 20,
+                "distribution_version": 56,
+                "flags": 8,
+                "native_version": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 188
+            },
+            "psdk_status_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
+            },
+            "psdk_status_result": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "active_conditions": 20,
+                "connection_generation": 32,
+                "evidence": 40,
+                "flags": 8,
+                "known_conditions": 16,
+                "reserved": 12,
+                "sampled_monotonic_ms": 24,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_transport_callbacks": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "close": 32,
+                "context": 24,
+                "copy_error": 52,
+                "dispose": 48,
+                "flags": 8,
+                "is_open": 36,
+                "open": 28,
+                "read": 44,
+                "reserved": 12,
+                "struct_size": 0,
+                "transport_type": 16,
+                "write": 40,
+                "write_count_flags": 20
+              },
+              "size": 56
+            }
+          },
+          "x86_64-linux-android21": {
+            "psdk_capabilities": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "constraints": 400,
+                "features": 16,
+                "flags": 8,
+                "geometry": 560,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 604
+            },
+            "psdk_device_state_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "active_operation_id": 32,
+                "active_operation_kind": 40,
+                "active_operation_state": 44,
+                "connection_generation": 72,
+                "connection_state": 16,
+                "flags": 8,
+                "hardware_active_conditions": 56,
+                "hardware_known_conditions": 52,
+                "hardware_sampled_monotonic_ms": 64,
+                "hardware_state": 48,
+                "has_active_operation": 28,
+                "queued_count": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "work_state": 20
+              },
+              "size": 80
+            },
+            "psdk_error_diagnostic": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "connection_generation": 24,
+                "domain": 76,
+                "error_code": 56,
+                "flags": 8,
+                "has_native_code": 72,
+                "message": 108,
+                "native_code": 64,
+                "operation_id": 40,
+                "reserved": 12,
+                "sampled_monotonic_ms": 48,
+                "sequence": 16,
+                "source": 60,
+                "struct_size": 0,
+                "transport_epoch": 32
+              },
+              "size": 304
+            },
+            "psdk_execute_request": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "data": 24,
+                "data.feed.config": 24,
+                "data.media.config": 72,
+                "data.media.settings": 24,
+                "data.raw.copies": 40,
+                "data.raw.data": 24,
+                "data.raw.data_size": 32,
+                "data.raw.reserved": 44,
+                "data.status.config": 24,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 128
+            },
+            "psdk_feature": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "device_support": 24,
+                "evidence": 28,
+                "feature_id": 16,
+                "flags": 8,
+                "implementation": 20,
+                "known_fields": 40,
+                "required_fields": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "supported_fields": 44,
+                "supported_values": 32
+              },
+              "size": 48
+            },
+            "psdk_geometry": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "dpi_x": 16,
+                "dpi_y": 20,
+                "evidence": 36,
+                "flags": 8,
+                "max_job_length_dots": 28,
+                "min_cut_blank_dots": 32,
+                "present_fields": 40,
+                "printable_width_dots": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_image_data": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "algorithm": 48,
+                "data": 32,
+                "data_size": 40,
+                "fit_width": 60,
+                "flags": 8,
+                "height": 20,
+                "invert": 56,
+                "pixel_format": 24,
+                "reserved": 12,
+                "struct_size": 0,
+                "target_width_dots": 64,
+                "threshold": 52,
+                "width": 16
+              },
+              "size": 72
+            },
+            "psdk_io_control": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "cancellation_context": 24,
+                "flags": 8,
+                "is_cancelled": 32,
+                "remaining_timeout_ms": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_job_descriptor": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "item_count": 20,
+                "items": 24,
+                "kind": 16,
+                "media_requirement": 88,
+                "options": 32,
+                "options.label": 32,
+                "options.receipt": 32,
+                "receipt_finish": 80,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 96
+            },
+            "psdk_job_item": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "data": 24,
+                "data.blank.dots": 24,
+                "data.image.image": 24,
+                "data.image.x": 32,
+                "data.image.y": 36,
+                "flags": 8,
+                "kind": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_label_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "finish_policy": 44,
+                "flags": 8,
+                "height_dots": 20,
+                "origin_x_dots": 32,
+                "origin_y_dots": 36,
+                "reserved": 12,
+                "struct_size": 0,
+                "width_dots": 16
+              },
+              "size": 48
+            },
+            "psdk_media_requirement": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "verification_policy": 44,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_media_settings": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "gap_length_um": 32,
+                "label_length_um": 28,
+                "mark_length_um": 36,
+                "mark_offset_um": 40,
+                "persistence_policy": 44,
+                "present_fields": 16,
+                "reserved": 12,
+                "struct_size": 0,
+                "tracking": 20,
+                "width_um": 24
+              },
+              "size": 48
+            },
+            "psdk_operation_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "required_completion": 20,
+                "reserved": 12,
+                "struct_size": 0,
+                "timeout_ms": 16
+              },
+              "size": 24
+            },
+            "psdk_operation_result": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "diagnostic": 88,
+                "flags": 8,
+                "reserved": 12,
+                "snapshot": 16,
+                "status": 392,
+                "struct_size": 0
+              },
+              "size": 440
+            },
+            "psdk_operation_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "byte_count_flags": 68,
+                "bytes_sent": 48,
+                "bytes_total": 56,
+                "completion": 32,
+                "error_code": 36,
+                "flags": 8,
+                "kind": 24,
+                "media_basis": 64,
+                "operation_id": 16,
+                "reserved": 12,
+                "response_valid": 44,
+                "side_effects_possible": 40,
+                "state": 28,
+                "struct_size": 0
+              },
+              "size": 72
+            },
+            "psdk_print_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "chunk_size": 36,
+                "cpcl_resolution": 52,
+                "dpi": 20,
+                "flags": 8,
+                "inter_chunk_delay_ms": 48,
+                "max_label_height_dots": 28,
+                "protocol": 16,
+                "query_timeout_ms": 44,
+                "reserved": 12,
+                "stripe_height": 32,
+                "struct_size": 0,
+                "width_dots": 24,
+                "write_timeout_ms": 40
+              },
+              "size": 56
+            },
+            "psdk_receipt_finish": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "cut_mode": 20,
+                "flags": 8,
+                "reserved": 12,
+                "scope": 24,
+                "struct_size": 0,
+                "trailing_blank_dots": 16
+              },
+              "size": 28
+            },
+            "psdk_receipt_options": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "copies": 40,
+                "dpi_x": 24,
+                "dpi_y": 28,
+                "flags": 8,
+                "margin_left_dots": 32,
+                "margin_right_dots": 36,
+                "max_total_length_dots": 20,
+                "print_width_dots": 16,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 44
+            },
+            "psdk_resource_snapshot": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "max_copies": 64,
+                "max_image_bytes": 16,
+                "max_job_image_bytes": 24,
+                "max_pending_operations": 56,
+                "max_pending_payload_bytes": 40,
+                "max_raw_bytes": 32,
+                "outstanding_operations": 60,
+                "pending_payload_bytes": 48,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 72
+            },
+            "psdk_scalar_constraint": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "evidence": 36,
+                "flags": 8,
+                "known": 20,
+                "maximum": 28,
+                "minimum": 24,
+                "parameter_id": 16,
+                "reserved": 12,
+                "step": 32,
+                "struct_size": 0
+              },
+              "size": 40
+            },
+            "psdk_sdk_info": {
+              "alignment": 4,
+              "offsets": {
+                "abi_revision": 16,
+                "abi_version": 4,
+                "build_id": 120,
+                "build_id_known": 20,
+                "distribution_version": 56,
+                "flags": 8,
+                "native_version": 24,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 188
+            },
+            "psdk_status_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
+            },
+            "psdk_status_result": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "active_conditions": 20,
+                "connection_generation": 32,
+                "evidence": 40,
+                "flags": 8,
+                "known_conditions": 16,
+                "reserved": 12,
+                "sampled_monotonic_ms": 24,
+                "struct_size": 0
+              },
+              "size": 48
+            },
+            "psdk_transport_callbacks": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "close": 40,
+                "context": 24,
+                "copy_error": 80,
+                "dispose": 72,
+                "flags": 8,
+                "is_open": 48,
+                "open": 32,
+                "read": 64,
+                "reserved": 12,
+                "struct_size": 0,
+                "transport_type": 16,
+                "write": 56,
+                "write_count_flags": 20
+              },
+              "size": 88
+            }
+          }
+        },
+        "schema": 1,
+        "snapshot": "docs/api/candidates/0.3.0-preview.2/printer_sdk.h"
+      }
+    },
+    "manifest": {
+      "abi": {
+        "revision": 1,
+        "version": 3
+      },
+      "c_abi": {
+        "baseline": "docs/api/candidates/0.3.0-preview.2/BASELINE.json",
+        "baseline_sha256": "138f099808fae95a67fc430d11d0e6d40a7784f142122abbbc798beb186a9252"
+      },
+      "contract_status": "candidate",
+      "historical_baseline_version": "0.2.0-preview.3",
+      "jni_exports": [
+        "Java_com_netumscan_printersdk_MobilePrinter_nCancelled",
+        "Java_com_netumscan_printersdk_MobilePrinter_nCapabilities",
+        "Java_com_netumscan_printersdk_MobilePrinter_nConnect",
+        "Java_com_netumscan_printersdk_MobilePrinter_nCreate",
+        "Java_com_netumscan_printersdk_MobilePrinter_nDestroy",
+        "Java_com_netumscan_printersdk_MobilePrinter_nDiagnostic",
+        "Java_com_netumscan_printersdk_MobilePrinter_nDisconnect",
+        "Java_com_netumscan_printersdk_MobilePrinter_nExecute",
+        "Java_com_netumscan_printersdk_MobilePrinter_nObserverEpoch",
+        "Java_com_netumscan_printersdk_MobilePrinter_nObserverLost",
+        "Java_com_netumscan_printersdk_MobilePrinter_nObserverRelease",
+        "Java_com_netumscan_printersdk_MobilePrinter_nResources",
+        "Java_com_netumscan_printersdk_MobilePrinter_nSdkInfo",
+        "Java_com_netumscan_printersdk_MobilePrinter_nStateSnapshot",
+        "Java_com_netumscan_printersdk_MobilePrinter_nSubmit",
+        "Java_com_netumscan_printersdk_PrintJob_nCreate",
+        "Java_com_netumscan_printersdk_PrintJob_nRelease",
+        "Java_com_netumscan_printersdk_PrintOperation_nCancel",
+        "Java_com_netumscan_printersdk_PrintOperation_nRelease",
+        "Java_com_netumscan_printersdk_PrintOperation_nResult",
+        "Java_com_netumscan_printersdk_PrintOperation_nSnapshot",
+        "Java_com_netumscan_printersdk_PrinterImage_nCreate",
+        "Java_com_netumscan_printersdk_PrinterImage_nRelease"
+      ],
+      "mobile": {
+        "android": {
+          "annotations": "docs/api/candidates/0.3.0-preview.2/android.json",
+          "annotations_sha256": "52b10f1869e4be989fa4c6c42b7f13f7c825e271c5063695e7b83b5f35d30d1d",
+          "baseline": "docs/api/candidates/0.3.0-preview.2/android-java.txt",
+          "baseline_sha256": "07ff86b2327a0fc2ba155928f4847d8047eb1b61826bcdb6b7e223e563442fe6"
+        },
+        "apple": {
+          "annotations": "docs/api/candidates/0.3.0-preview.2/apple.json",
+          "annotations_sha256": "afd03452fa8d2aec34328dc559062b0dad501d2c9d47aba5a70848b06e2ff556",
+          "baseline": "docs/api/candidates/0.3.0-preview.2/apple-swift.txt",
+          "baseline_sha256": "7e2a51b45f07800a08a180161ad6bfff71b19bc2fd46dc70d0d124c74a44416c"
+        }
+      },
+      "native_sdk_version": "0.3.0",
+      "schema": 3,
+      "sdk_version": "0.3.0-preview.2"
+    }
+  },
+  "contract_status": "candidate",
   "hardware_verified": false,
   "historical_android": {
     "artifact_sha256": "3e8c8ceb60df1c94187a95cf776d9776284a41db495b9a96dccdb17a00a85d0b",
@@ -147,6 +2405,7 @@
     "members": 101,
     "types": 14
   },
+  "historical_baseline_version": "0.2.0-preview.3",
   "mobile_proofs": {
     "objects": {
       "150f9b18a6df1a2cb36fcc51bd8d97753761f995": {
@@ -193,7 +2452,8 @@
       }
     ]
   },
-  "native_sdk_version": "0.2.0",
+  "native_sdk_version": "0.3.0",
+  "published_contract_verified": false,
   "published_releases": [
     {
       "api_baseline_sha256": "dbbab332f2d1280ef680de940b1ccad9848b658a2e9659f74ae45b2b9515b823",
@@ -246,6 +2506,6 @@
       "tag": "v0.2.0-preview.3"
     }
   ],
-  "schema": 1,
-  "sdk_version": "0.2.0-preview.4"
+  "schema": 2,
+  "sdk_version": "0.3.0-preview.2"
 }

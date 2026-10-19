@@ -70,7 +70,7 @@
     <string name="test_description">导入需断开连接，限 32 MiB；等比居中白底，修改参数后请更新预览。</string>
     <string name="connect">连接打印机</string>
     <string name="disconnect">断开连接</string>
-    <string name="connect_help">连接后可设置画布与纸张；修改设备参数需先断开。</string>
+    <string name="connect_help">连接只需设备地址和传输参数；协议、DPI 与打印宽度随每次操作提供。</string>
     <string name="preview">预览图片</string>
     <string name="print_test">打印图片</string>
     <string name="cancel">取消当前任务</string>

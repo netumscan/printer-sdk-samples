@@ -3,7 +3,7 @@
 See the shared [customer guide](../docs/README.md) for SDK permissions, lifecycle,
 FeatureSupport, errors, compatibility records and support boundaries.
 
-Open `PrinterSamples.xcodeproj` with Xcode 15 or newer (Swift 5.9+), then select a scheme:
+Open `PrinterSamples.xcodeproj` with Xcode 16 or newer (Swift 6+), then select a scheme:
 
 | Scheme | Source | Purpose |
 | --- | --- | --- |
@@ -11,6 +11,8 @@ Open `PrinterSamples.xcodeproj` with Xcode 15 or newer (Swift 5.9+), then select
 | `PrinterFullDemo` | `full-demo/` | CPCL / ESC-POS, image import and preview, canvas settings, media controls, Raw diagnostics, local configuration and bounded logs |
 
 Both apps require iOS 15+ and use the exact public dependency below.
+Quick Start and its tests use Swift 6.0 language mode; Full Demo retains
+Swift 5 language mode with the same SDK. The shared APP owner supports Swift 6 strict concurrency without a preconcurrency import.
 The committed `Package.resolved` uses the same version and release commit;
 root `sdk-lock.json` also records the binary checksum. No SDK implementation or
 local package path is included here.
@@ -20,8 +22,8 @@ local package path is included here.
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.2.0-preview.4` |
-| Release commit | `195458b93a8c7c5465c53dcd563398f7ad18f5b0` |
+| Exact version | `0.3.0-preview.2` |
+| Release commit | `599ab4f496cbdfdb53f2f75bcd072f3a79240e5a` |
 
 ## App configuration
 
@@ -80,7 +82,7 @@ Use a new output directory for each run. The verifier downloads the public
 Swift package and binary into fresh caches, checks the exact commit and ZIP
 checksum, compares unpacked bytes, and builds both apps for device arm64 and
 simulator arm64/x86_64. Each build checks the dynamic framework, its Bundle ID,
-49 C exports and privacy resource. Four tests then run on an available iPhone
+25 C exports and privacy resource. 6 tests then run on an available iPhone
 simulator: ABI handshake/catalog, Swift configuration validation, Quick Start
 invalid configuration, and partial writes/Raw ordering through an in-memory
 transport. Both apps are launched afterward. No test scans BLE or contacts a

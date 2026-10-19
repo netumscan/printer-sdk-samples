@@ -11,6 +11,10 @@ import subprocess
 import time
 import zipfile
 from pathlib import Path
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+from sdk_contract import c_export_count, ios_test_count
 
 IOS = Path(__file__).resolve().parent
 SDK_LOCK = json.loads((IOS.parent / "sdk-lock.json").read_text())
@@ -190,8 +194,8 @@ def main():
             run(["xcrun", "lipo", framework / "CPrinterSDK", "-verify_arch", arch])
             symbols = run(["xcrun", "nm", "-gU", framework / "CPrinterSDK"])
             exports = set(re.findall(r"\b(_psdk_[A-Za-z0-9_]+)\s*$", symbols, re.MULTILINE))
-            if len(exports) != 49:
-                raise SystemExit("Expected 49 C ABI exports in the embedded framework")
+            if len(exports) != c_export_count(SDK_LOCK):
+                raise SystemExit("Unexpected C ABI export count in the embedded framework")
             privacy = list(app.rglob("PrivacyInfo.xcprivacy"))
             if (len(privacy) != 1 or plistlib.loads(privacy[0].read_bytes())
                     .get("NSPrivacyAccessedAPITypes", [{}])[0].get("NSPrivacyAccessedAPITypeReasons") != ["35F9.1"]):
@@ -229,9 +233,10 @@ def main():
                       "-parallel-testing-enabled", "NO", f"ARCHS={simulator_arch}", "ONLY_ACTIVE_ARCH=YES",
                       "CODE_SIGN_IDENTITY=-", "test"], timeout=900)
         summary = json.loads(run(["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", result_bundle]))
-        if (summary.get("passedTests") != 4 or summary.get("failedTests") != 0
-                or summary.get("skippedTests") != 0 or summary.get("totalTestCount") != 4):
-            raise SystemExit("Expected four executed, passed hardware-free sample tests")
+        expected_tests = ios_test_count(SDK_LOCK)
+        if (summary.get("passedTests") != expected_tests or summary.get("failedTests") != 0
+                or summary.get("skippedTests") != 0 or summary.get("totalTestCount") != expected_tests):
+            raise SystemExit("Expected " + str(expected_tests) + " executed, passed hardware-free sample tests")
         launched = []
         for scheme, app in simulator_apps.items():
             run(["codesign", "--force", "--deep", "--sign", "-", app])
@@ -251,13 +256,13 @@ def main():
             if scheme == "PrinterFullDemo":
                 evidence["runtime_compatibility"] = verify_runtime_compatibility(container, app, previous_journal)
                 evidence["runtime_compatibility_verified"] = True
-        evidence.update(simulator_runtime=True, simulator_name=simulator["name"], tests_passed=4, tests_failed=0,
+        evidence.update(simulator_runtime=True, simulator_name=simulator["name"], tests_passed=expected_tests, tests_failed=0,
                         tests_skipped=0, simulator_apps_launched=launched)
     if resolved.read_bytes() != pinned_bytes:
         raise SystemExit("Committed dependency resolution changed during verification")
     (output / "validation.json").write_text(json.dumps(evidence, indent=2) + "\n")
     print("PASS: both iOS samples build using the exact online SDK" +
-          ("; 4 tests and 2 simulator launches passed" if evidence["simulator_runtime"] else "; runtime omitted"))
+          ("; " + str(evidence["tests_passed"]) + " tests and 2 simulator launches passed" if evidence["simulator_runtime"] else "; runtime omitted"))
 
 
 if __name__ == "__main__":

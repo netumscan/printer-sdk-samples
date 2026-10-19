@@ -10,6 +10,9 @@ import re
 import subprocess
 import sys
 import uuid
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+from sdk_contract import abi_identity, native_evidence
 
 sys.dont_write_bytecode = True
 FULL = "com.netum.printersdk.demo"
@@ -35,9 +38,8 @@ def validate_runtime(value, nonce, identity, device_started_ms):
     if (value.get("schema_version") != 1 or value.get("success") is not True or value.get("nonce") != nonce
             or value.get("hardware_verified") is not False or value.get("full_demo_offline") is not True
             or value.get("bluetooth_runtime_permissions_ungranted") is not True
-            or native != {"jni_loaded": True, "abi_handshake_passed": True, "abi_expected_version": 2,
-                          "abi_minimum_revision": 10, "partial_write_calls": 3, "write_calls": 5,
-                          "bytes_sent": 14, "raw_order_verified": True, "transport": "in_memory_fake"}
+            or native != native_evidence(identity["sdk_abi_version"], identity["sdk_abi_revision"],
+                                         identity["sdk_core_version"], identity["sdk_distribution_version"])
             or not isinstance(value.get("api_level"), int) or value["api_level"] < 21
             or value.get("process_abi") not in {"arm64-v8a", "armeabi-v7a", "x86_64"}):
         raise ValueError("Actual emulator/JNI/ABI/partial-write/Raw runtime evidence is incomplete")
@@ -73,6 +75,7 @@ def validate_runtime(value, nonce, identity, device_started_ms):
 
 def validate_report(report, lock):
     """Reject old packaging-only reports and mismatched runtime SDK identities."""
+    abi_version, abi_revision = abi_identity(lock)
     if (report.get("schema_version") != 1 or report.get("success") is not True
             or report.get("emulator_only") is not True or report.get("hardware_verified") is not False
             or report.get("physical_device_installed") is not False
@@ -86,9 +89,8 @@ def validate_report(report, lock):
             or report.get("process_abi") not in {"arm64-v8a", "armeabi-v7a", "x86_64"}
             or not isinstance(report.get("api_level"), int) or report["api_level"] < 21
             or not isinstance(report.get("device_started_ms"), int) or report["device_started_ms"] <= 0
-            or report.get("native") != {"jni_loaded": True, "abi_handshake_passed": True, "abi_expected_version": 2,
-                                       "abi_minimum_revision": 10, "partial_write_calls": 3, "write_calls": 5,
-                                       "bytes_sent": 14, "raw_order_verified": True, "transport": "in_memory_fake"}
+            or report.get("native") != native_evidence(abi_version, abi_revision,
+                                                      lock["native_sdk_version"], lock["version"])
             or set(report.get("apks_sha256", {})) != {"quick-start", "full-demo", "runtime-test", "quick-start-test"}
             or set(report.get("evidence_sha256", {})) != {"instrumentation-result.json", "quick-start-runtime.json", "full-demo-journal.log"}
             or any(not re.fullmatch(r"[0-9a-f]{64}", value) for group in ("apks_sha256", "evidence_sha256")
@@ -108,7 +110,7 @@ def validate_report(report, lock):
             or set(platform) != {"platform", "os_version", "transport"}
             or compatibility.get("known_limitations") != ["hardware_acceptance_deferred", "data_sent_is_not_printed", "no_automatic_replay"]
             or sdk != {"distribution_version": lock["version"], "core_version": lock["native_sdk_version"],
-                       "abi_version": 2, "abi_revision": 10, "release_commit": lock["android"]["revision"],
+                       "abi_version": abi_version, "abi_revision": abi_revision, "release_commit": lock["android"]["revision"],
                        "artifact_sha256": lock["android"]["aar_sha256"], "identity_source": "distribution_manifest",
                        "abi_source": "distribution_manifest"}):
         raise ValueError("Android runtime compatibility identity differs from the SDK pin")

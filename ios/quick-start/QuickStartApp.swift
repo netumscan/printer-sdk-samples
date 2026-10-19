@@ -39,18 +39,19 @@ struct PrinterQuickStartApp: App {
                             TextField("宽度", text: $model.widthDots).keyboardType(.numberPad)
                                 .multilineTextAlignment(.trailing).accessibilityLabel("设备最大宽度（dots）")
                         }.disabled(model.connected || model.busy)
-                        Button(model.connected ? "断开" : "连接所选设备") {
-                            model.connected ? model.disconnect() : model.connect()
+                        Button(model.hasSession ? "释放当前会话" : "连接所选设备") {
+                            model.hasSession ? model.disconnect() : model.connect()
                         }
-                        .disabled(model.busy || model.scanning || (!model.connected && model.selected == nil))
+                        .disabled(model.busy || model.scanning || (!model.hasSession && model.selected == nil))
                     }
                     Section("3. 提交并观察结果") {
                         Button("打印一张测试图") { model.printSample() }
                             .disabled(!model.connected || model.busy || model.printing)
                         Button("取消当前任务") { model.cancel() }
                             .disabled(!model.printing)
-                        Button("刷新本地连接状态") { model.refreshConnectionState() }
+                        Button("刷新连接、工作和队列状态") { model.refreshConnectionState() }
                             .disabled(!model.connected || model.busy)
+                        Text(model.deviceStatus)
                         Text(model.status).accessibilityIdentifier("quickStart.status")
                         Text("DATA_SENT 只表示传输完成。取消不能撤回已发送的数据；断开或回到前台不会自动续打、重连或重放。")
                             .font(.footnote)

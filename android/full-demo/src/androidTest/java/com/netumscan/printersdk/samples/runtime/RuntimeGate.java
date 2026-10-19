@@ -8,7 +8,9 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import com.netumscan.printersdk.internal.BluetoothChannel;
-import com.netumscan.printersdk.CpclProfile;
+import com.netumscan.printersdk.SdkInfo;
+import com.netumscan.printersdk.Subscription;
+import com.netumscan.printersdk.DeviceStateSnapshot;
 import com.netumscan.printersdk.internal.IoControl;
 import com.netumscan.printersdk.MobilePrinter;
 import com.netumscan.printersdk.PrintOperation;
@@ -104,33 +106,45 @@ public final class RuntimeGate extends Instrumentation {
     }
 
     private JSONObject nativeGate() throws Exception {
+        SdkInfo info = MobilePrinter.sdkInfo();
+        require(info.abiVersion == 3 && info.abiRevision == 1 && "0.3.0".equals(info.nativeVersion)
+            && "0.3.0-preview.2".equals(info.distributionVersion), "Loaded native SDK identity differs");
         Fake fake = new Fake();
         Constructor<MobilePrinter> create = MobilePrinter.class.getDeclaredConstructor(
-            BluetoothChannel.class, int.class, CpclProfile.class);
+            BluetoothChannel.class, int.class);
         create.setAccessible(true);
-        // MobilePrinter loads the real JNI library. nCreate checks ABI 2 / minimum revision 10.
+        // MobilePrinter loads the real JNI library. nCreate checks ABI 3 / revision 1.
         // No native build, alternate SDK class, or test hook is supplied by this application.
-        try (MobilePrinter printer = create.newInstance(fake, 3, new CpclProfile(203, 384, 65535, true))) {
-            require(printer.connectionState() == MobilePrinter.DISCONNECTED, "Unexpected initial state");
+        try (MobilePrinter printer = create.newInstance(fake, 3)) {
+            require(printer.stateSnapshot().connectionState == MobilePrinter.DISCONNECTED, "Unexpected initial state");
             printer.connect(1000);
             byte[] first = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
             byte[] following = new byte[]{10, 11, 12, 13, 14};
             try (PrintOperation a = printer.sendRaw(first, 1, 10000)) {
                 require(fake.firstWrite.await(5, TimeUnit.SECONDS), "Native write was not called");
+                CountDownLatch callback = new CountDownLatch(1);
+                java.util.concurrent.atomic.AtomicReference<PrintOperation.Result> copied = new java.util.concurrent.atomic.AtomicReference<>();
+                Subscription subscription = a.onComplete(Runnable::run, value -> {
+                    copied.set(value); callback.countDown();
+                });
                 try (PrintOperation b = printer.sendRaw(following, 1, 10000)) {
                     fake.release.countDown();
                     PrintOperation.Snapshot left = finish(a), right = finish(b);
                     require(left.state == 4 && right.state == 4 && left.completion == 1 && right.completion == 1,
                         "Native tasks did not reach DATA_SENT");
                     require(left.bytesSent == 9 && right.bytesSent == 5, "Incorrect native byte counts");
-                }
+                    require(callback.await(5, TimeUnit.SECONDS) && copied.get().snapshot.completion == 1
+                        && copied.get().diagnostic.errorCode == 0, "Owned terminal callback differs");
+                } finally { subscription.close(); }
             }
             require(Arrays.equals(fake.bytes.toByteArray(), new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}),
                 "Raw tasks interleaved or partial writes lost bytes");
             require(fake.calls == 5 && fake.partialWrites == 3, "Partial-write loop did not execute");
         } finally { fake.release.countDown(); }
         return new JSONObject().put("jni_loaded", true).put("abi_handshake_passed", true)
-            .put("abi_expected_version", 2).put("abi_minimum_revision", 10)
+            .put("abi_expected_version", info.abiVersion).put("abi_minimum_revision", info.abiRevision)
+            .put("native_version", info.nativeVersion).put("distribution_version", info.distributionVersion)
+            .put("completion_callback_verified", true)
             .put("partial_write_calls", fake.partialWrites).put("write_calls", fake.calls)
             .put("bytes_sent", fake.bytes.size()).put("raw_order_verified", true)
             .put("transport", "in_memory_fake");
@@ -153,9 +167,12 @@ public final class RuntimeGate extends Instrumentation {
             runOnMainSync(() -> {
                 try {
                     require(Boolean.FALSE.equals(field(current, "scanning")), "Full Demo started discovery");
-                    require(field(current, "connectedConfig") == null, "Full Demo connected on launch");
                     Object controller = field(current, "controller");
-                    require("OFFLINE".equals(String.valueOf(call(controller, "phase"))), "Full Demo is not offline");
+                    require(controller != null, "Full Demo controller was not created");
+                    synchronized (controller) {
+                        require(field(controller, "session") == null, "Full Demo created a session on launch");
+                        require("OFFLINE".equals(String.valueOf(call(controller, "phase"))), "Full Demo is not offline");
+                    }
                     compatibility[0] = new JSONObject((String)call(call(current, "compatibilityRecord"), "json"));
                 } catch (Throwable error) { failure[0] = error; }
             });
@@ -183,7 +200,7 @@ public final class RuntimeGate extends Instrumentation {
             result.putString("stream", "Printer SDK online runtime gate passed; nonce=" + nonce + "\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable error) {
-            result.putString("stream", "Printer SDK runtime gate failed: " + error.getClass().getSimpleName() + ": " + error.getMessage() + "\n");
+            result.putString("stream", "Printer SDK runtime gate failed:\n" + android.util.Log.getStackTraceString(error));
             finish(Activity.RESULT_CANCELED, result);
         } finally {
             if (activity != null) {

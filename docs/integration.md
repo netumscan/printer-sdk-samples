@@ -1,80 +1,273 @@
-# 在线接入与权限
+# Android/iOS App 接入
 
-[返回指南](README.md) · 适用 SDK `0.2.0-preview.4`
+[返回指南](README.md) · 适用发布候选 `0.3.0-preview.2` · native `0.3.0` · ABI `3/r1`
 
-## Android
+Android 最低 API 21、Java 8，在依赖仓库启用 `google()` 和 `mavenCentral()`，应用模块声明
+`implementation("com.netumscan:printer-sdk-android:0.3.0-preview.2")`。iOS 最低 iOS 15、Swift 5.9，
+使用 `.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.3.0-preview.2")` 并选择
+`PrinterSDK` product；Info.plist 配置 `NSBluetoothAlwaysUsageDescription`。发布前使用本地
+AAR/Swift Package 验证，精确公开坐标只有在对应发布完成后可用，不用其他版本制品替代。
 
-运行环境为 Android 5.0 / API 21+，Java 8；AAR 包含 `arm64-v8a`、`armeabi-v7a`、
-`x86_64`。构建工具版本以应用工程配置为准；公开示例使用 JDK 17、Gradle 8.13、
-Android SDK Platform 35。SDK 提供经典蓝牙 SPP 与 BLE，协议显式选择 CPCL 或 ESC/POS。
+App 负责授权、选择设备及必要的配对。BLE 的服务/特征/流控和打印 Profile 必须来自已确认
+配置，不从设备名推断。连接只建立通信；每次打印另外传入协议、DPI、宽度和纸张参数。
 
-在 `settings.gradle.kts` 配置仓库：
+以下完整代码直接取自 SDK 仓库中接受持续编译检查的 `LabelSession.java` 和
+`AppPrinter.swift`，避免文档另维护一份示例。Android 与当前 Java SDK 一起按 Java 8 编译；
+iOS 与新编译的 SDK module 一起按 iOS 15、Swift 5/6 类型检查。编译验证不表示真机打印通过。
 
-```kotlin
-dependencyResolutionManagement {
-    repositories { google(); mavenCentral() }
+## Android 会话
+
+将下面代码保存为 App 源码 `LabelSession.java`，按项目添加 package。实例独占 Manager/设备，
+演示一个在途任务；SDK 自身支持排队。构造和公开入口从主线程调用，图像准备/提交在后台。
+构造时传入应用 Context、所选蓝牙地址、已确认 CpclProfile 和 Ui；BleOptions 为 null 选择
+SPP，否则选择 BLE。`Ui.connection(null)` 表示连接调用成功，之后调用
+`print(gray8, width, height, copies, timeoutMs)`；状态和终态由 Ui 方法接收。
+
+```java
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import com.netumscan.printersdk.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/** Main-thread owner: one in-flight task, an exclusive manager/device, caller-supplied profile.
+ * null BleOptions selects SPP. Bluetooth permissions and endpoint selection belong to the App. */
+public final class LabelSession implements AutoCloseable {
+    public interface Ui {
+        void connection(Throwable failure);
+        void state(DeviceStateSnapshot state);
+        void completed(PrintOperation.Result result);
+        void failed(Throwable failure);
+    }
+    private final PrinterManager manager = new PrinterManager();
+    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final AtomicBoolean stopped = new AtomicBoolean();
+    private final MobilePrinter printer;
+    private final CpclProfile profile;
+    private volatile Ui ui; // May also be cleared if the main looper stops accepting work.
+    private Subscription connection, state, completion; // Remaining mutable state is main-thread-only.
+    private PrintOperation active;
+    private boolean ready, submitting, cancelRequested;
+    private long generation;
+
+    public LabelSession(Context context, String address, BleOptions ble,
+                        CpclProfile profile, int connectTimeoutMs, Ui ui) {
+        requireMain(); this.profile = profile; this.ui = ui;
+        try {
+            if (profile == null || ui == null) throw new IllegalArgumentException("Profile and Ui are required");
+            printer = ble == null ? manager.spp(context, address) : manager.ble(context, address, ble);
+            state = printer.observeState(this::onState);
+            connection = manager.connect(printer, connectTimeoutMs, this::onConnected);
+        } catch (RuntimeException | Error failure) {
+            try { close(); } catch (RuntimeException | Error cleanup) { failure.addSuppressed(cleanup); }
+            throw failure;
+        }
+    }
+    private void onState(DeviceStateSnapshot value) {
+        if (stopped.get() || value.connectionGeneration < generation) return;
+        generation = value.connectionGeneration;
+        if (value.connectionState != MobilePrinter.CONNECTED) ready = false;
+        Ui target = ui; if (target != null) target.state(value);
+    }
+    private void onConnected(Throwable failure) {
+        if (stopped.get()) return;
+        ready = false;
+        DeviceStateSnapshot current = null;
+        if (failure == null) {
+            try { current = printer.stateSnapshot(); } // Local observation; no printer IO.
+            catch (RuntimeException unavailable) { failure = unavailable; }
+        }
+        if (current != null) {
+            generation = current.connectionGeneration;
+            ready = current.connectionState == MobilePrinter.CONNECTED;
+            if (!ready) failure = new PrinterException(2002); // The connection was lost before callback delivery.
+            Ui target = ui; if (target != null) target.state(current);
+        }
+        Ui target = ui; if (target != null) target.connection(failure);
+    }
+    /** Transfer gray8 as read-only: do not modify it after this call. */
+    public void print(byte[] gray8, int width, int height, int copies, int timeoutMs) {
+        requireMain();
+        if (stopped.get() || !ready || submitting || active != null)
+            throw new IllegalStateException("Session not connected or already has work");
+        submitting = true; cancelRequested = false;
+        try {
+            worker.execute(() -> {
+                if (stopped.get()) return;
+                try {
+                    PrintOperation next = printer.submitLabelGray8(gray8, width, height, profile,
+                        copies, 0, profile.xOffsetDots, 0, profile.form, timeoutMs);
+                    boolean posted = false;
+                    try { if (!stopped.get()) posted = main.post(() -> publish(next)); }
+                    finally { if (!posted) { next.close(); stopBackground(); } }
+                } catch (RuntimeException failure) {
+                    if (!main.post(() -> { submitting = false; report(failure); })) stopBackground();
+                }
+            });
+        } catch (RuntimeException failure) { submitting = false; report(failure); }
+    }
+    private void publish(PrintOperation next) {
+        submitting = false;
+        if (stopped.get()) { next.close(); return; }
+        active = next;
+        try {
+            completion = next.onComplete(result -> {
+                if (active != next) return;
+                releaseActive(); Ui target = ui; if (target != null) target.completed(result);
+            });
+            if (cancelRequested) next.cancel();
+        } catch (RuntimeException failure) {
+            try { next.cancel(); } catch (RuntimeException error) { failure.addSuppressed(error); }
+            releaseActive(); report(failure);
+        }
+    }
+    public void cancel() {
+        requireMain(); if (stopped.get()) return;
+        cancelRequested = true; // Also applied if submit has started but has not published its operation.
+        if (active != null) active.cancel(); // A cancellation request cannot withdraw accepted bytes.
+    }
+    private void report(Throwable failure) { Ui target = ui; if (target != null) target.failed(failure); }
+    private void releaseActive() {
+        if (completion != null) { completion.close(); completion = null; }
+        if (active != null) { active.close(); active = null; }
+    }
+    private void stopBackground() {
+        stopped.set(true); ui = null; manager.close(); worker.shutdown();
+    }
+    @Override public void close() {
+        requireMain(); if (!stopped.compareAndSet(false, true)) return;
+        ready = false; ui = null;
+        if (connection != null) { connection.close(); connection = null; }
+        if (state != null) { state.close(); state = null; }
+        releaseActive(); // Unsubscribe/release; manager shutdown cancels remaining device work.
+        manager.close(failure -> { if (failure != null) Log.e("PrinterApp", "Printer cleanup failed"); });
+        worker.shutdown(); // No get/await/join on the main thread; late submit closes its own operation.
+    }
+    private static void requireMain() {
+        if (Looper.myLooper() != Looper.getMainLooper()) throw new IllegalStateException("Call on the main thread");
+    }
 }
 ```
 
-在应用模块的 `build.gradle.kts` 添加精确版本：
+像素须是紧密排列的 GRAY8 原始数据，每像素一字节，长度等于 width*height；PNG/JPEG
+须先解码。将数组作为只读输入交给会话，不在后台复制期间修改。取消请求不能撤回已发送
+字节。页面离开时调用 close，它注销页面通知并异步关闭独占 Manager，不在主线程等待 Future。
 
-```kotlin
-dependencies {
-    implementation("com.netumscan:printer-sdk-android:0.2.0-preview.4")
-}
-```
+## iOS 会话
 
-公共 Java 包名为 `com.netumscan.printersdk`。AAR 自带 consumer R8 规则、JNI 和原生 C 库，
-内部静态链接 C++ 运行库，不包含 `libc++_shared.so`，无需为本 SDK 配置该库的 `pickFirst`。
-其他 SDK 所需的共享运行库应保留，不要全局排除同名 so。不要从 AAR 只提取 Java 类；
-Java/JNI/原生库必须来自同一发布包。
-
-本版 `0.2.0-preview.4` 已包含 API 21 最低版本和静态运行库修复。旧版 `0.2.0-preview.3`
-仍要求 API 26 并使用共享运行库；升级时必须替换完整 SDK 包，仅更新文档或示例不能获得修复。
-与其他原生 SDK 合包失败时，见
-[原生库冲突排障](errors-troubleshooting.md#android-原生库合包冲突)。
-
-宿主负责声明并请求权限、配对、用户选择和蓝牙状态处理：
-
-| 系统 | 操作与权限 |
-| --- | --- |
-| Android 12+ | 连接需 `BLUETOOTH_CONNECT`；发现需 `BLUETOOTH_SCAN`。SPP 连接会取消系统发现，因此也需要 `BLUETOOTH_SCAN` |
-| Android 6–11 | 声明旧版 `BLUETOOTH` / `BLUETOOTH_ADMIN`；BLE 扫描还需运行时 `ACCESS_FINE_LOCATION`，并满足系统定位设置要求 |
-| Android 5.x | 声明旧版 `BLUETOOTH` / `BLUETOOTH_ADMIN`，由安装时授权；不使用运行时权限请求 |
-
-`neverForLocation` 由应用按实际用途决定，SDK 不代为声明该承诺；使用它可能过滤部分 BLE
-广播。SDK 不申请权限、不自动配对、不输入 PIN、不打开蓝牙。
-`BluetoothDiscovery.bondedDevices()` 仅列出已配对候选，不验证 SPP 或协议支持；
-`scanBle(...)` 为有限时长扫描，完成回调在主线程。扫描器停止后可以再次显式启动。
-
-## iOS
-
-运行环境为 iOS 15+、Swift 5.9+。包包含设备 arm64 和模拟器 arm64/x86_64；
-公共模块为 `PrinterSDK`，C 模块为 `CPrinterSDK`。当前移动包装通过 BLE 连接，
-不提供经典蓝牙 SPP。模拟器用于编译和替身验证；实际 BLE 通信需要真机。
-
-在 Xcode Package Dependencies 添加
-`https://github.com/netumscan/printer-sdk-ios`，选择 Exact Version `0.2.0-preview.4`，
-将 `PrinterSDK` 产品加入 App target。SwiftPM 声明为：
+将下面代码保存为 App 源码 `AppPrinter.swift`，由 ViewModel 长期持有。MainActor 上设置
+showState/showResult，再 await connect 和 printGray8。await printGray8 只等待准备/接纳，
+终态由 showResult 交付。新版 SDK 和示例均接受 Swift 5/6 严格并发检查，直接
+`import PrinterSDK`；跨队列回调为 `@Sendable`，UI 更新显式切回 MainActor。
 
 ```swift
-.package(url: "https://github.com/netumscan/printer-sdk-ios", exact: "0.2.0-preview.4")
+import Foundation
+import PrinterSDK
+
+// App-owned Manager/device, one in-flight print. Retain this owner until close().
+@MainActor
+final class AppPrinter {
+    private let manager: PrinterManager
+    private let preparation = DispatchQueue(label: "App.printer.prepare")
+    private var device: MobilePrinter?
+    private var operation: PrintOperation?
+    private var stateToken: ObservationSubscription?
+    private var completionToken: ObservationSubscription?
+    private var epoch: UInt64 = 0
+    private var connectionGeneration: UInt64 = 0
+    private var connected = false, submitting = false, cancelPending = false, closed = false
+    var showState: (DeviceStateSnapshot) -> Void = { _ in }
+    var showResult: (OperationResult) -> Void = { _ in }
+    init(manager: PrinterManager = PrinterManager()) { self.manager = manager }
+    func connect(identifier: UUID, options: BLEOptions) async throws {
+        guard !closed, device == nil else { throw PrinterSDKError(1002) }
+        epoch &+= 1; let version = epoch
+        connectionGeneration = 0; connected = false
+        let printer = try manager.printer(bleIdentifier: identifier, options: options)
+        device = printer
+        do {
+            stateToken = try printer.observeState { [weak self] value in
+                Task { @MainActor [weak self] in
+                    guard let self, self.epoch == version,
+                          value.connectionGeneration >= self.connectionGeneration else { return }
+                    self.connectionGeneration = value.connectionGeneration
+                    if value.connectionState != .connected { self.connected = false }
+                    self.showState(value)
+                }
+            }
+            try await manager.connect(printer)
+            guard epoch == version, device === printer else { throw CancellationError() }
+            let value = try printer.stateSnapshot() // Local snapshot, no printer IO.
+            guard value.connectionState == .connected else { throw PrinterSDKError(2002) }
+            connectionGeneration = value.connectionGeneration; connected = true
+            showState(value)
+        } catch {
+            if epoch == version { await disconnect() }
+            throw error
+        }
+    }
+    func printGray8(_ pixels: Data, width: UInt32, height: UInt32, profile: CpclProfile) async throws {
+        guard connected, !submitting, operation == nil, let printer = device else { throw PrinterSDKError(1002) }
+        let version = epoch; submitting = true; cancelPending = false
+        defer { if epoch == version { submitting = false } }
+        let op = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<PrintOperation, Error>) in
+            preparation.async {
+                // Decode/render images here too, then submit tightly packed GRAY8.
+                do { continuation.resume(returning: try printer.submitGray8(pixels, width: width, height: height, profile: profile)) }
+                catch { continuation.resume(throwing: error) }
+            }
+        }
+        guard epoch == version, device === printer else {
+            try? op.cancel(); op.close(); throw CancellationError()
+        }
+        operation = op
+        do {
+            completionToken = try op.onComplete { [weak self] result in
+                Task { @MainActor [weak self] in
+                    guard let self, self.epoch == version, self.operation?.id == result.snapshot.id else { return }
+                    self.completionToken?.cancel(); self.completionToken = nil
+                    self.operation?.close(); self.operation = nil
+                    self.showResult(result)
+                }
+            }
+            if cancelPending { try op.cancel() }
+        } catch {
+            completionToken?.cancel(); completionToken = nil
+            try? op.cancel(); op.close(); operation = nil
+            throw error
+        }
+    }
+
+    func cancelPrint() {
+        if let operation { try? operation.cancel() }
+        else if submitting { cancelPending = true }
+    }
+
+    func disconnect() async {
+        epoch &+= 1
+        let printer = device; connected = false
+        submitting = false; cancelPending = false
+        stateToken?.cancel(); stateToken = nil
+        completionToken?.cancel(); completionToken = nil // Notification only.
+        try? operation?.cancel(); operation?.close(); operation = nil
+        if let printer {
+            await manager.release(printer)
+            if device === printer { device = nil }
+        }
+    }
+    func close() async {
+        closed = true; await disconnect(); await manager.close() // Permanently closed.
+    }
+}
 ```
 
-App 的 `Info.plist` 必须包含符合自身用途的 `NSBluetoothAlwaysUsageDescription`。
-用户授权、蓝牙状态和前后台策略由宿主处理。保留 `BLEScanner`，显式调用
-`scan(seconds:service:completion:)`；完成回调在主线程，正常窗口结束可能返回空列表。
-使用扫描得到的 `UUID` 创建连接；它是不透明外设标识符，不能使用 Android MAC 地址替代。
+像素同样是 GRAY8 原始 Data。点击取消调用 cancelPrint；断开某设备 await disconnect，
+结束独占会话 await close。共享设备应由应用级所有者管理，页面退出仅注销自己的订阅。
+Swift Task 取消不会自动关闭共享设备。
 
-## 两端共同的接入顺序
-
-1. 确认设备协议和连接参数，依据实际纸张建立 profile。发现名称不是型号识别依据。
-2. 由用户选择端点，在工作线程连接；连接成功只证明通信路径建立。
-3. 将图像转换为紧密排列的 GRAY8，显式提交并持有 `PrintOperation`。
-4. 读取快照至终态，保存诊断结果后释放 operation；结束会话时关闭打印设备。
-
-两端 SDK 的连接、断开和设备关闭会阻塞。不要在 UI 线程、蓝牙回调队列中调用，
-也不要在 UI 线程等待打印完成。完整方法对应关系见 [API 与生命周期](api-lifecycle.md)。
-
-在线依赖失败时先核对精确版本、仓库地址及代理网络，勿回退到未知本地 AAR、源码包或混合
-framework。已发布版本修复使用新版本，参见[迁移政策](migration.md)。
+应用级共享所有者和页面订阅示例随同版
+[Samples](https://github.com/netumscan/printer-sdk-samples) 提供。页面退出只注销通知，不默认
+取消已接纳工作或关闭共享设备；进入后台的断开策略、重试和取消均由应用显式发起。

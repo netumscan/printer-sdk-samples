@@ -36,9 +36,10 @@ public final class MainActivity extends Activity {
         width = input(content, "设备最大可打印宽度（dots，8 的倍数）", "576", true);
         button(content, "授权并连接", view -> connect());
         button(content, "打印测试条纹（1 份）", view -> session.print());
-        button(content, "查看连接状态", view -> session.connectionState());
+        button(content, "取消当前任务", view -> session.cancel());
+        button(content, "查看连接、工作和队列状态", view -> session.connectionState());
         button(content, "关闭连接", view -> session.disconnect());
-        status = text(content, "未连接；SDK 0.2.0-preview.4，hardware_verified=false");
+        status = text(content, "未连接；SDK 0.3.0-preview.2 · native 0.3.0 / ABI 3/r1；硬件未知");
         session = new QuickStartSession(this, message -> runOnUiThread(() -> {
             if (!destroyed) status.setText(message);
         }));

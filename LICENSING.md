@@ -5,7 +5,8 @@ project files, and sample documentation are available under the [MIT License](LI
 You may modify and reuse these samples in your applications under those terms.
 
 In the development repository, this separate grant covers NetumScan-owned files
-under `samples/`, `platform/android/demo/`, and `platform/ios/Demo/`. In the public
+under `samples/`, `platform/android/demo/`, `platform/ios/Demo/`, and the application
+integration examples under `docs/api/examples/abi3/`. In the public
 [`netumscan/printer-sdk-samples`](https://github.com/netumscan/printer-sdk-samples)
 repository, it covers the exported Quick Start and Full Demo applications,
 their original resources and documentation, and the original sample build and
@@ -17,11 +18,10 @@ distribution. References to SDK APIs and remote package coordinates in a sample
 do not relicense the referenced SDK. The samples consume the SDK as a separately
 licensed dependency; this repository does not redistribute the SDK artifacts.
 
-Android SDK `com.netumscan:printer-sdk-android:0.2.0-preview.4` and the `PrinterSDK`
-and `CPrinterSDK` products from iOS SDK `0.2.0-preview.4` remain proprietary under
-the Netum Printer SDK License, Version 1.0. Their license and notices are provided
-by the respective [Android](https://github.com/netumscan/printer-sdk-android/blob/v0.2.0-preview.4/LICENSE)
-and [iOS](https://github.com/netumscan/printer-sdk-ios/blob/v0.2.0-preview.4/LICENSE) distributions.
+The Android SDK `com.netumscan:printer-sdk-android` and the iOS `PrinterSDK`
+and `CPrinterSDK` products remain proprietary under the Netum Printer SDK
+License, Version 1.0. The exact dependency versions and version-specific SDK
+license URLs are recorded in [sdk-lock.json](sdk-lock.json).
 This sample license does not modify any SDK license or any already published SDK
 package, tag, checksum, or release asset.
 

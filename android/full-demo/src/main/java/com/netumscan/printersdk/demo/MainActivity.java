@@ -36,20 +36,18 @@ public final class MainActivity extends Activity {
     private final int[] draftChoiceIds = {R.id.transport, R.id.ble_profile, R.id.form,
         R.id.print_format, R.id.media, R.id.write_mode, R.id.origin_mode};
     private PrinterController controller;
+    private final PrinterManager printerManager = new PrinterManager();
     private DemoDiscovery discovery;
     interface DiscoveryFactory { DemoDiscovery create(); }
     private DiscoveryFactory discoveryFactory = () -> DemoDiscovery.create(this);
     private long discoveryGeneration;
     private AlertDialog devicePicker;
-    private ConnectionConfig connectedConfig;
     interface ConnectionFactory {
-        PrinterController.Session create(String address, boolean useBle, BleOptions options, ConnectionConfig config);
+        PrinterController.Session create(String address, boolean useBle, BleOptions options);
     }
-    private ConnectionFactory sessionFactory = (address, useBle, options, config) -> new SdkSession(config.receipt ?
-        (useBle ? MobilePrinter.ble(getApplicationContext(), address, options, config.receiptProfile()) :
-                  MobilePrinter.spp(getApplicationContext(), address, config.receiptProfile())) :
-        (useBle ? MobilePrinter.ble(getApplicationContext(), address, options, config.profile()) :
-                  MobilePrinter.spp(getApplicationContext(), address, config.profile())), config);
+    private ConnectionFactory sessionFactory = (address, useBle, options) -> new SdkSession(printerManager, useBle ?
+        printerManager.ble(getApplicationContext(), address, options) :
+        printerManager.spp(getApplicationContext(), address));
     private Runnable permissionAction;
     private int permissionRequest = PERMISSIONS, nextPermissionRequest = PERMISSIONS;
     private String exportText;
@@ -192,8 +190,14 @@ public final class MainActivity extends Activity {
                     }
                 });
             }
+            public void deviceStateChanged(DeviceStateSnapshot snapshot) {
+                main.post(() -> { if (!isDestroyed()) updateConnectionStatus(controller.phase()); });
+            }
+            public void deviceDetailsChanged(ResourceSnapshot resources, Diagnostic diagnostic) {
+                main.post(() -> { if (!isDestroyed()) updateConnectionStatus(controller.phase()); });
+            }
             public void log(String message) { main.post(() -> { if (!isDestroyed()) MainActivity.this.log(message); }); }
-        });
+        }, printerManager::close);
         findViewById(R.id.discover).setOnClickListener(v -> {
             if (!started) return;
             if (scanning) stopDiscovery(true);
@@ -253,11 +257,11 @@ public final class MainActivity extends Activity {
         findViewById(R.id.form_help_button).setOnClickListener(v -> showHelp(R.string.form_help_title, R.string.form_help));
         findViewById(R.id.media_help_button).setOnClickListener(v -> showHelp(R.string.media_help_title, R.string.media_help));
         findViewById(R.id.apply_media).setOnClickListener(v -> {
-            try { pendingMedia = choice(R.id.media) + 1; controller.mediaControl(pendingMedia); }
+            try { pendingMedia = choice(R.id.media) + 1; controller.mediaControl(pendingMedia, config()); }
             catch (RuntimeException error) { pendingMedia = -1; error(error); }
         });
         findViewById(R.id.locate_label).setOnClickListener(v -> {
-            try { pendingMedia = 0; controller.mediaControl(0); }
+            try { pendingMedia = 0; controller.mediaControl(0, config()); }
             catch (RuntimeException error) { error(error); }
         });
         findViewById(R.id.export).setOnClickListener(v -> export());
@@ -319,6 +323,7 @@ public final class MainActivity extends Activity {
         boolean restoredDraft = restoreEditDraft(saved);
         buildIdentity = readBuildIdentity();
         log("compatibility_record=" + compatibilityRecord().json());
+        log(PrinterController.sdkInfoText(MobilePrinter.sdkInfo()));
         transportChanged(); updateButtons(PrinterController.Phase.OFFLINE);
         if (restoredDraft) {
             status("已保留填写参数；请重新选择设备并更新预览");
@@ -385,6 +390,14 @@ public final class MainActivity extends Activity {
         menu.setOnMenuItemClickListener(item -> {
             if (!started || !item.isEnabled()) return true;
             if (item.getItemId() == R.id.raw_diagnostics) { showRaw(true); return true; }
+            if (item.getItemId() == R.id.sdk_diagnostics) {
+                new AlertDialog.Builder(this).setTitle("SDK 与设备诊断")
+                    .setMessage(PrinterController.sdkInfoText(MobilePrinter.sdkInfo()) + "\n\n" +
+                        PrinterController.resourceStatusText(controller.resourceSnapshot()) + "\n" +
+                        PrinterController.diagnosticText(controller.diagnostic()) + "\n\n硬件状态未知；当前协议未提供已验证的状态读回。")
+                    .setPositiveButton("关闭", null).show();
+                return true;
+            }
             if (!offlineIdle()) return true;
             int action;
             if (item.getItemId() == R.id.save_config) action = 0;
@@ -403,7 +416,7 @@ public final class MainActivity extends Activity {
         Menu menu = configMenu.getMenu();
         for (int index = 0; index < menu.size(); index++) {
             MenuItem item = menu.getItem(index);
-            item.setEnabled(item.getItemId() == R.id.raw_diagnostics ? started : enabled);
+            item.setEnabled(item.getItemId() == R.id.raw_diagnostics || item.getItemId() == R.id.sdk_diagnostics ? started : enabled);
         }
     }
     private void dismissConfigMenu() {
@@ -506,7 +519,7 @@ public final class MainActivity extends Activity {
             ((Spinner)findViewById(R.id.origin_mode)).setSelection(OriginPlacement.CENTERED);
             ((EditText)findViewById(R.id.origin_adjustment)).setText("0");
             ((EditText)findViewById(R.id.address)).setText("");
-            connectedConfig = null; selectedDeviceName = null; clearFieldErrors(); captureChoices();
+            selectedDeviceName = null; clearFieldErrors(); captureChoices();
         } finally { applyingFields = false; }
         invalidatePrepared();
         status("M90 开发预设 r" + M90DevelopmentPreset.REVISION + " 已应用；画布与纸张参数保留，请重新选择设备");
@@ -533,16 +546,7 @@ public final class MainActivity extends Activity {
     }
     private void updatePresentation(PrinterController.Phase phase) {
         updateOriginPresentation();
-        String connection;
-        switch (phase) {
-            case CONNECTING: connection = "正在连接"; break;
-            case READY: connection = "已连接 · 空闲"; break;
-            case PRINTING: connection = "已连接 · 任务进行中"; break;
-            case STOPPING: connection = "正在断开"; break;
-            case CLOSED: connection = "会话已关闭"; break;
-            default: connection = "未连接";
-        }
-        ((TextView)findViewById(R.id.connection_status)).setText(connection + " · " + (ble() ? "BLE" : "SPP"));
+        updateConnectionStatus(phase);
         boolean selected = BluetoothAdapter.checkBluetoothAddress(text(R.id.address).toUpperCase(Locale.ROOT));
         ((TextView)findViewById(R.id.device_summary)).setText(selected ?
             selectedDeviceName == null ? "已填写设备地址" : "已选择：" + selectedDeviceName : "尚未选择设备");
@@ -572,8 +576,7 @@ public final class MainActivity extends Activity {
         ((Button)findViewById(R.id.import_image)).setText(phase == PrinterController.Phase.READY ? R.string.disconnect_import_image : R.string.import_image);
         String dimensions = prepared == null ? "等待准备" : prepared.config.labelWidthDots + " × " + prepared.config.height + " dots";
         ((TextView)findViewById(R.id.image_summary)).setText("来源：" + source + "\n画布：" + dimensions);
-        boolean valid = currentImage() && (phase != PrinterController.Phase.READY ||
-            connectedConfig != null && connectedConfig.matches(prepared.config));
+        boolean valid = currentImage();
         String imageState = previewing ? imageOperation : valid ?
             phase == PrinterController.Phase.READY ? "图片已准备，可打印" :
             phase == PrinterController.Phase.OFFLINE ? "图片已准备，待连接" : "图片已准备，等待当前操作结束" :
@@ -583,6 +586,12 @@ public final class MainActivity extends Activity {
         updateActionHint(phase, valid, selected);
         ((TextView)findViewById(R.id.media_status)).setText(pendingMedia > 0 ? R.string.media_sending :
             sentMedia == choice(R.id.media) + 1 ? R.string.media_sent : R.string.media_not_sent);
+    }
+    private void updateConnectionStatus(PrinterController.Phase phase) {
+        TextView view = findViewById(R.id.connection_status);
+        String text = PrinterController.deviceStatusText(controller.deviceState(), phase) + " · " + (ble() ? "BLE" : "SPP") +
+            "\n" + PrinterController.resourceStatusText(controller.resourceSnapshot());
+        if (!text.contentEquals(view.getText())) view.setText(text);
     }
     private void updateCanvasLayout() {
         View panel = findViewById(R.id.canvas_panel);
@@ -611,14 +620,12 @@ public final class MainActivity extends Activity {
                 if (phase == PrinterController.Phase.OFFLINE) {
                     if (!selected) { hint = "请选择设备 · 点击定位"; hintTarget = R.id.discover; }
                     else {
-                        readConnectionConfig(); if (ble()) bleOptions();
-                        hint = "设备参数已填写 · 点击定位连接按钮"; hintTarget = R.id.connect;
+                        if (ble()) bleOptions();
+                        hint = "连接参数已填写 · 点击定位连接按钮"; hintTarget = R.id.connect;
                     }
                 } else {
-                    LabelConfig label = readConfig();
-                    if (connectedConfig == null || !connectedConfig.matches(label)) {
-                        hint = "设备参数已变化 · 请断开后重新连接"; hintTarget = R.id.disconnect;
-                    } else if (!valid) {
+                    readConfig();
+                    if (!valid) {
                         hint = hadPreparedImage ? "参数已修改 · 点击定位，更新预览" : "请准备图片 · 点击定位预览按钮";
                         hintTarget = R.id.preview;
                     } else { hint = "图片已准备 · 点击定位打印按钮"; hintTarget = R.id.print; }
@@ -829,13 +836,6 @@ public final class MainActivity extends Activity {
         return new LabelConfig(dpi, width, canvas, number(R.id.height, "标签高度"),
             number(R.id.copies, "份数"), choice(R.id.form), x, receipt(), number(R.id.trailing_blank, "结束留白"));
     }
-    private ConnectionConfig connectionConfig() {
-        clearFieldErrors();
-        return readConnectionConfig();
-    }
-    private ConnectionConfig readConnectionConfig() {
-        return new ConnectionConfig(number(R.id.dpi, "DPI"), number(R.id.width, "打印机最大宽度"), receipt());
-    }
     private boolean currentImage() {
         if (prepared == null) return false;
         try { return prepared.matches(readConfig()); }
@@ -859,23 +859,22 @@ public final class MainActivity extends Activity {
     private void connect() {
         if (!started || !offlineIdle()) return;
         try {
-            connectionConfig();
+            clearFieldErrors();
             String address = text(R.id.address).toUpperCase(Locale.ROOT);
             if (!BluetoothAdapter.checkBluetoothAddress(address)) throw new LabelConfig.ValidationError("address", "请选择设备或填写有效蓝牙地址");
             if (ble()) bleOptions();
             permissions(() -> {
                 if (!started || !offlineIdle()) return;
                 try {
-                    ConnectionConfig connection = connectionConfig();
                     String selected = text(R.id.address).toUpperCase(Locale.ROOT);
                     if (!BluetoothAdapter.checkBluetoothAddress(selected))
                         throw new LabelConfig.ValidationError("address", "请选择设备或填写有效蓝牙地址");
                     boolean useBle = ble(); BleOptions options = useBle ? bleOptions() : null;
-                    connectedConfig = connection; pendingMedia = -1; sentMedia = -1; connectionCounter.incrementAndGet();
-                    log((useBle ? "BLE / " : "SPP / ") + connection.description());
+                    pendingMedia = -1; sentMedia = -1; connectionCounter.incrementAndGet();
+                    log((useBle ? "BLE" : "SPP") + " / 仅建立通信连接；打印参数逐次提交");
                     if (options != null) log("BLE creditFlow=" + (options.creditFlowControl != null) +
                         " / requestedMtu=" + options.requestedMtu + " / payloadCap=" + options.maxWriteBytes);
-                    controller.connect(() -> sessionFactory.create(selected, useBle, options, connection));
+                    controller.connect(() -> sessionFactory.create(selected, useBle, options));
                 } catch (RuntimeException failure) { error(failure); }
             }, false);
         } catch (RuntimeException failure) { error(failure); }
@@ -884,8 +883,9 @@ public final class MainActivity extends Activity {
         if (!started || !idle() || controller.phase() != PrinterController.Phase.READY) return;
         try {
             LabelConfig label = config(); PreparedImage snapshot = prepared;
-            if (connectedConfig == null || !connectedConfig.matches(label) || snapshot == null || !snapshot.matches(label))
-                throw new IllegalArgumentException("请先更新当前图片预览；设备参数变化时需重新连接");
+            if (snapshot == null || !snapshot.matches(label))
+                throw new IllegalArgumentException("请先更新当前图片预览");
+            if (label.receipt) sentMedia = -1;
             controller.print(cancelled -> {
                 if (cancelled.getAsBoolean()) throw new CancellationException();
                 return snapshot.copyPixels();
@@ -906,6 +906,7 @@ public final class MainActivity extends Activity {
             if (count < 1 || count > 20) { copies.setError("Raw 每次限 1–20 份"); return; }
             RawCommand command = RawCommand.parse(raw.getText().toString(), count);
             raw.setError(null); copies.setError(null);
+            sentMedia = -1;
             controller.sendRaw(command.copyBytes(), command.copies);
         } catch (IllegalArgumentException failure) {
             raw.setError(failure.getMessage()); status(failure.getMessage());
@@ -1015,14 +1016,15 @@ public final class MainActivity extends Activity {
         boolean offline = phase == PrinterController.Phase.OFFLINE;
         boolean editDevice = offline && idle();
         for (int id : fieldIds) findViewById(id).setEnabled(editDevice);
-        for (int id : new int[]{R.id.label_width, R.id.height, R.id.copies, R.id.trailing_blank, R.id.raw_hex, R.id.raw_copies})
+        for (int id : new int[]{R.id.dpi, R.id.width, R.id.label_width, R.id.height, R.id.copies, R.id.trailing_blank, R.id.raw_hex, R.id.raw_copies})
             findViewById(id).setEnabled(idle());
         findViewById(R.id.send_raw).setEnabled(phase == PrinterController.Phase.READY && idle());
         ((TextView)findViewById(R.id.raw_hint)).setText(phase == PrinterController.Phase.READY && idle() ?
             "已连接；发送前请确认命令与份数，无需画布或 FORM" : phase == PrinterController.Phase.OFFLINE ?
             "请返回打印页，选择设备并手动连接" : "当前操作进行中；完成后才能发送 Raw");
-        for (int id : new int[]{R.id.transport, R.id.print_format, R.id.write_mode, R.id.ble_profile, R.id.connect, R.id.discover})
+        for (int id : new int[]{R.id.transport, R.id.write_mode, R.id.ble_profile, R.id.connect, R.id.discover})
             findViewById(id).setEnabled(editDevice);
+        findViewById(R.id.print_format).setEnabled(idle());
         findViewById(R.id.discover).setEnabled(offline && (scanning || editDevice));
         updateDiscoveryButton();
         for (int id : new int[]{R.id.service, R.id.characteristic, R.id.write_mode})
@@ -1050,8 +1052,7 @@ public final class MainActivity extends Activity {
         findViewById(R.id.builtin_image).setEnabled(offlineIdle() && sourceFile != null);
         updateConfigMenu();
         findViewById(R.id.export).setEnabled(idle()); findViewById(R.id.clear_log).setEnabled(idle());
-        findViewById(R.id.print).setEnabled(phase == PrinterController.Phase.READY && idle() && currentImage() &&
-            connectedConfig != null && connectedConfig.matches(prepared.config));
+        findViewById(R.id.print).setEnabled(phase == PrinterController.Phase.READY && idle() && currentImage());
         updatePresentation(phase);
     }
     private void permissions(Runnable action, boolean scan) {
@@ -1244,7 +1245,7 @@ public final class MainActivity extends Activity {
                 Object value = loaded.values.get(getResources().getResourceEntryName(id));
                 ((Spinner)findViewById(id)).setSelection(value == null ? 0 : ((Number)value).intValue());
             }
-            connectedConfig = null; selectedDeviceName = null; prepared = null; preparationGeneration.incrementAndGet();
+            selectedDeviceName = null; prepared = null; preparationGeneration.incrementAndGet();
             clearThumbnail(); clearFieldErrors();
             captureChoices();
         } finally { applyingFields = false; }

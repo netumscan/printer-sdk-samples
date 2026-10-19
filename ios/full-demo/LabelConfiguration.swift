@@ -55,7 +55,7 @@ enum DemoHorizontalOrigin {
     }
 }
 
-/// Device/session parameters do not depend on the next canvas or paper settings.
+/// Explicit printer parameters validated for each print or control submission.
 struct DemoConnectionConfiguration: Equatable, Sendable {
     // Demo validation ceiling, not a detected hardware capability.
     static let maximumPageHeight = 65535

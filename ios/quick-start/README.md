@@ -3,7 +3,7 @@
 See the shared [customer guide](../../docs/README.md) for SDK permissions and API lifecycle.
 
 Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
-`PrinterQuickStart` scheme and run on iOS 15+. Xcode 15+ resolves the exact public
+`PrinterQuickStart` scheme and run on iOS 15+. Xcode 16+ resolves the exact public
 `PrinterSDK` dependency below; no local SDK checkout is needed.
 
 ## Current SDK dependency
@@ -11,8 +11,8 @@ Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.2.0-preview.4` |
-| Release commit | `195458b93a8c7c5465c53dcd563398f7ad18f5b0` |
+| Exact version | `0.3.0-preview.2` |
+| Release commit | `599ab4f496cbdfdb53f2f75bcd072f3a79240e5a` |
 
 ## Running the sample
 

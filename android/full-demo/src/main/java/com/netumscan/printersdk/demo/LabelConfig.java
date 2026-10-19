@@ -4,6 +4,8 @@ import com.netumscan.printersdk.CpclProfile;
 
 /** Diagnostic label geometry is independent of the configured device width limit. */
 final class LabelConfig {
+    // Demo validation ceiling, not a detected hardware capability.
+    static final int MAX_PAGE_HEIGHT = 65535;
     static final class ValidationError extends IllegalArgumentException {
         private static final long serialVersionUID = 1L;
         final String field;
@@ -37,7 +39,7 @@ final class LabelConfig {
         if (copies < 1 || copies > 20) throw new ValidationError("copies", "联调每次限 1–20 份");
         if (trailingBlankDots < 0 || trailingBlankDots > 65535)
             throw new ValidationError("trailing_blank", "结束留白须为 0–65535 dots");
-        if (!receipt && (long)height + trailingBlankDots > ConnectionConfig.MAX_PAGE_HEIGHT)
+        if (!receipt && (long)height + trailingBlankDots > MAX_PAGE_HEIGHT)
             throw new ValidationError("trailing_blank", "标签高度与结束留白合计不能超过 65535 dots");
         if (receipt && (dpi > 255 || xOffsetDots != 0))
             throw new ValidationError("dpi", "小票 DPI 须为 1–255，横向起点为 0");

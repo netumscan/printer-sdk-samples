@@ -2,142 +2,196 @@
 package com.netumscan.printersdk.samples.quickstart;
 
 import android.content.Context;
-import com.netumscan.printersdk.CpclProfile;
-import com.netumscan.printersdk.MobilePrinter;
-import com.netumscan.printersdk.PrintOperation;
-import com.netumscan.printersdk.PrinterException;
+import android.os.Handler;
+import android.os.Looper;
+import com.netumscan.printersdk.*;
 import java.util.Arrays;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Application worker owns every SDK call; the SDK owns the device IO queue. */
+/** Main-thread session owner. Only image preparation/submission runs on worker; SDK owns IO ordering. */
 final class QuickStartSession implements AutoCloseable {
     interface Listener { void changed(String message); }
     private final Context context;
     private final Listener listener;
+    private final PrinterManager manager = new PrinterManager();
+    private final Handler main = new Handler(Looper.getMainLooper());
     private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
     private final AtomicBoolean closing = new AtomicBoolean();
-    // These fields are accessed only by worker.
     private MobilePrinter printer;
     private PrintOperation operation;
-    private int width;
-    private long lastBytes = -1;
-    private int lastState = -1;
+    private CpclProfile profile;
+    private Subscription connection, state, completion;
+    private boolean ready, submitting, releasing, cancelPending;
+    private AtomicBoolean preparationCancellation;
+    private long epoch, connectionGeneration;
 
     QuickStartSession(Context context, Listener listener) {
-        this.context = context.getApplicationContext();
-        this.listener = listener;
-        worker.scheduleWithFixedDelay(this::poll, 100, 100, TimeUnit.MILLISECONDS);
+        requireMain(); this.context = context.getApplicationContext(); this.listener = listener;
+        SdkInfo info = MobilePrinter.sdkInfo();
+        if (info.abiVersion != 3 || info.abiRevision != 1 || !"0.3.0".equals(info.nativeVersion)
+                || !"0.3.0-preview.2".equals(info.distributionVersion)) throw new PrinterException(1006);
     }
-
     void connect(String address, int dpi, int widthDots) {
-        execute(() -> {
-            if (printer != null) throw new IllegalStateException("请先关闭当前连接");
-            if (!address.matches("(?i)[0-9a-f]{2}(:[0-9a-f]{2}){5}"))
-                throw new IllegalArgumentException("请填写已配对设备的蓝牙地址，例如 AA:BB:CC:DD:EE:FF");
-            CpclProfile profile = new CpclProfile(dpi, widthDots, 65535, false);
-            listener.changed("正在连接 SPP / CPCL…");
-            // Pair in Android Settings first. A sample profile is not a hardware guarantee.
-            printer = MobilePrinter.spp(context, address, profile);
-            width = widthDots;
-            printer.connect(10000);
-            listener.changed("已连接；请确认纸张和参数后点击打印");
-        });
-    }
-
-    void print() {
-        execute(() -> {
-            requireConnected();
-            if (operation != null) throw new IllegalStateException("请等待当前任务结束");
-            int height = 160;
-            long pixelCount = (long)width * height;
-            if (pixelCount <= 0 || pixelCount > Integer.MAX_VALUE)
-                throw new IllegalArgumentException("图像尺寸过大或无效");
-            byte[] pixels = new byte[(int)pixelCount];
-            Arrays.fill(pixels, (byte)255);
-            // Small Gray8 bars; the app renders pixels and the SDK encodes CPCL.
-            for (int y = 24; y < 136; y++) {
-                for (int x = 16; x < width - 16; x++) {
-                    if ((x / 12) % 2 == 0) pixels[y * width + x] = 0;
-                }
-            }
-            operation = printer.submitLabelGray8(pixels, width, height, 1, 0, 0, 0, false, 30000);
-            lastBytes = -1; lastState = -1;
-            listener.changed("任务已入队；正在发送…");
-        });
-    }
-
-    void connectionState() {
-        execute(() -> {
-            requireConnected();
-            listener.changed("连接缓存状态=" + printer.connectionState()
-                + "（2=CONNECTED；此值不代表纸张、就绪或打印完成）");
-        });
-    }
-
-    void disconnect() {
-        execute(() -> {
-            release();
-            listener.changed("已关闭；不会自动重连或重放打印任务");
-        });
-    }
-
-    private void requireConnected() {
-        if (printer == null) throw new IllegalStateException("请先连接打印机");
-    }
-
-    private void execute(Runnable action) {
-        if (closing.get()) return;
-        worker.execute(() -> {
-            if (closing.get()) return;
-            try { action.run(); }
-            catch (IllegalArgumentException | IllegalStateException error) { listener.changed(error.getMessage()); }
-            catch (RuntimeException error) { failed(error); }
-        });
-    }
-
-    private void poll() {
-        if (closing.get() || operation == null) return;
+        requireMain();
         try {
-            PrintOperation.Snapshot snapshot = operation.snapshot();
-            if (snapshot.terminal()) {
-                operation.close(); operation = null;
-                if (snapshot.state == 4 && snapshot.completion == 1) {
-                    listener.changed("DATA_SENT：数据已发送；实际出纸和打印效果需在打印机上确认");
-                } else {
-                    release();
-                    listener.changed("任务结束：state=" + snapshot.state + " error=" + snapshot.error
-                        + "；已发送数据无法撤回，请检查出纸后手动重连");
+            if (closing.get() || printer != null || releasing) throw new IllegalStateException("请先关闭当前连接");
+            profile = new CpclProfile(dpi, widthDots, 65535, false);
+            MobilePrinter created = manager.spp(context, address);
+            printer = created; ready = false; connectionGeneration = 0;
+            long version = ++epoch;
+            state = created.observeState(value -> {
+                if (!current(version, created) || value.connectionGeneration < connectionGeneration) return;
+                connectionGeneration = value.connectionGeneration;
+                if (value.connectionState != MobilePrinter.CONNECTED) ready = false;
+                show(stateMessage(value));
+            });
+            connection = manager.connect(created, 10000, failure -> {
+                if (!current(version, created)) return;
+                if (failure != null) { fail(failure); return; }
+                try {
+                    DeviceStateSnapshot value = created.stateSnapshot();
+                    ready = value.connectionState == MobilePrinter.CONNECTED;
+                    connectionGeneration = value.connectionGeneration;
+                    if (!ready) throw new PrinterException(2002);
+                    show("已连接；" + stateMessage(value));
+                } catch (RuntimeException error) { fail(error); }
+            });
+            show("正在连接 SPP / CPCL…");
+        } catch (RuntimeException error) { fail(error); }
+    }
+    void print() {
+        requireMain();
+        if (!ready || submitting || operation != null || closing.get()) {
+            show("请先连接并等待当前任务结束"); return;
+        }
+        final MobilePrinter target = printer;
+        final CpclProfile selected = profile;
+        final long version = epoch;
+        final AtomicBoolean cancelled = new AtomicBoolean();
+        preparationCancellation = cancelled;
+        submitting = true; cancelPending = false;
+        show("正在准备测试图…");
+        worker.execute(() -> {
+            try {
+                if (closing.get()) return;
+                PrintOperation next = prepareAndSubmit(cancelled, () -> {
+                    int width = Math.min(selected.widthDots, 384), height = 64;
+                    byte[] pixels = testImage(width, height);
+                    checkCancellation(cancelled);
+                    try (PrinterImage image = PrinterImage.gray8(pixels, width, height)) {
+                        return PrintJob.label(width, height, selected.dpi).addImage(image, 0, 0).build();
+                    }
+                }, job -> target.submit(job, selected, 30000));
+                // Cancellation may race the final check/admission. Interrupt immediately,
+                // without waiting for the main dispatcher to publish the caller handle.
+                boolean posted = false;
+                try {
+                    if (cancelled.get()) next.cancel();
+                    posted = main.post(() -> publish(next, version, target));
+                } finally {
+                    if (!posted) { next.close(); manager.close(); worker.shutdown(); closing.set(true); }
                 }
-            } else if (snapshot.bytesSent != lastBytes || snapshot.state != lastState) {
-                lastBytes = snapshot.bytesSent; lastState = snapshot.state;
-                listener.changed("state=" + snapshot.state + "，已发送=" + snapshot.bytesSent
-                    + " bytes，总计=" + (snapshot.bytesTotalKnown() ? Long.toString(snapshot.bytesTotal) : "未知"));
+            } catch (CancellationException cancelledPreparation) {
+                main.post(() -> {
+                    if (current(version, target)) { submitting = false; preparationCancellation = null; show("已取消准备；未提交打印任务"); }
+                });
+            } catch (RuntimeException error) {
+                main.post(() -> { if (current(version, target)) { submitting = false; fail(error); } });
             }
-        } catch (RuntimeException error) { failed(error); }
+        });
     }
-
-    private void failed(RuntimeException error) {
-        release();
-        listener.changed(error instanceof PrinterException ? "SDK error=" + ((PrinterException)error).code
-            + "；" + error.getMessage() : error instanceof SecurityException
-            ? "蓝牙权限不可用；请在系统设置授权后手动重连" : error.getMessage());
+    private void publish(PrintOperation next, long version, MobilePrinter target) {
+        if (!current(version, target)) { try { next.cancel(); } finally { next.close(); } return; }
+        submitting = false; preparationCancellation = null; operation = next;
+        try {
+            completion = next.onComplete(result -> {
+                if (!current(version, target) || operation != next) return;
+                releaseOperation(); show(terminalMessage(result.snapshot));
+            });
+            if (cancelPending) next.cancel();
+            show("任务已入队；通过状态订阅和完成回调接收结果");
+        } catch (RuntimeException error) { fail(error); }
     }
-
-    private void release() {
-        // Close the device before releasing the operation result. No automatic replay.
-        try { if (printer != null) printer.close(); }
-        finally {
-            printer = null;
-            if (operation != null) { operation.close(); operation = null; }
+    void cancel() {
+        requireMain(); cancelPending = true;
+        if (preparationCancellation != null) preparationCancellation.set(true);
+        try { if (operation != null) operation.cancel(); show("已请求取消；已发送的数据无法撤回"); }
+        catch (RuntimeException error) { fail(error); }
+    }
+    void connectionState() {
+        requireMain();
+        try { show(printer == null ? "尚未连接" : stateMessage(printer.stateSnapshot())); }
+        catch (RuntimeException error) { fail(error); }
+    }
+    void disconnect() {
+        requireMain();
+        if (preparationCancellation != null) preparationCancellation.set(true);
+        preparationCancellation = null;
+        ++epoch; ready = false; submitting = false; cancelPending = false;
+        if (connection != null) { connection.close(); connection = null; }
+        if (state != null) { state.close(); state = null; }
+        releaseOperation();
+        MobilePrinter previous = printer; printer = null;
+        if (previous != null) {
+            releasing = true;
+            manager.release(previous, failure -> {
+                releasing = false;
+                show(failure == null ? "已关闭；不会自动重连或重放" : "关闭失败：" + failure.getMessage());
+            });
         }
     }
-
+    private void releaseOperation() {
+        if (completion != null) { completion.close(); completion = null; }
+        if (operation != null) { operation.close(); operation = null; }
+    }
+    private boolean current(long version, MobilePrinter target) {
+        return !closing.get() && epoch == version && printer == target;
+    }
+    private void fail(Throwable failure) {
+        disconnect();
+        show(failure instanceof PrinterException ? "SDK error=" + ((PrinterException)failure).code + "；" + failure.getMessage()
+            : failure instanceof SecurityException ? "蓝牙权限不可用；请授权后手动重试" : failure.getMessage());
+    }
+    private void show(String message) { if (!closing.get()) listener.changed(message); }
+    interface JobPreparation { PrintJob prepare(); }
+    interface JobSubmission { PrintOperation submit(PrintJob job); }
+    static PrintOperation prepareAndSubmit(AtomicBoolean cancelled, JobPreparation preparation, JobSubmission submission) {
+        checkCancellation(cancelled);
+        try (PrintJob job = preparation.prepare()) {
+            checkCancellation(cancelled);
+            return submission.submit(job);
+        }
+    }
+    private static void checkCancellation(AtomicBoolean cancelled) {
+        if (cancelled.get()) throw new CancellationException("Preparation cancelled");
+    }
+    static byte[] testImage(int width, int height) {
+        long count = (long)width * height;
+        if (width <= 0 || height <= 0 || count > Integer.MAX_VALUE) throw new IllegalArgumentException("Invalid image dimensions");
+        byte[] pixels = new byte[(int)count]; Arrays.fill(pixels, (byte)255);
+        for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
+            if ((x / 16 + y / 16) % 2 == 0) pixels[y * width + x] = 0;
+        return pixels;
+    }
+    static String terminalMessage(PrintOperation.Snapshot value) {
+        if (value.state == 4 && value.error == 0 && value.completion == 1)
+            return "DATA_SENT：" + value.bytesSent + " bytes；请检查实际出纸";
+        return "任务结束：state=" + value.state + " error=" + value.error + "；已发送=" + value.bytesSent + " bytes";
+    }
+    private static String stateMessage(DeviceStateSnapshot value) {
+        String[] connections = {"未连接", "连接中", "已连接", "断开中"};
+        String[] work = {"空闲", "排队", "准备", "发送"};
+        return "连接=" + connections[value.connectionState] + "；工作=" + work[value.workState]
+            + "；等待队列=" + value.queuedCount + "；硬件=未知";
+    }
     @Override public void close() {
-        if (!closing.compareAndSet(false, true)) return;
-        worker.execute(this::release);
-        worker.shutdown(); // Pending device cleanup stays on the worker, never the UI thread.
+        requireMain(); if (closing.get()) return;
+        disconnect(); closing.set(true); manager.close(); worker.shutdown();
+    }
+    private static void requireMain() {
+        if (Looper.myLooper() != Looper.getMainLooper()) throw new IllegalStateException("Call on the main thread");
     }
 }

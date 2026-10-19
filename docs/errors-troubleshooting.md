@@ -1,65 +1,38 @@
 # 错误码与排障
 
-[返回指南](README.md) · 适用 SDK `0.2.0-preview.4`
+[返回指南](README.md) · 适用发布候选 `0.3.0-preview.2`
 
-Android 同步失败通常抛出 `PrinterException`，使用其 `code`；无效 Java 参数也可能抛出
-`IllegalArgumentException`。Swift 使用 `PrinterSDKError.code`。已经入队的异步失败由
-Android `Snapshot.error` / Swift `OperationSnapshot.errorCode` 表示。
-错误描述用于阅读，业务判断使用稳定数值，不解析消息字符串。
+参数/能力/资源校验可以在接纳前失败；此时处理同步错误或异常。已有 operation 则观察
+COMPLETED（4）、FAILED（5）、CANCELLED（6）终态，读取 snapshot/diagnostic/status。
+`get_result==0` 或 result getter 返回只表示成功读回终态，仍须检查任务状态和错误码。
 
-| 错误码 | 含义 | 优先检查 |
-| --- | --- | --- |
-| `1000` | 内部错误 | 保存精确版本和可脱敏复现步骤；勿猜测重试 |
-| `1001` | 参数无效 | 图像长度、DPI、宽度、页高、份数、预算和超时 |
-| `1002` | 状态无效 | 蓝牙开关、授权、扫描占用、已关闭对象或失效会话 |
-| `1003` | SDK 未初始化 | 是否混用原生入口或不完整的 SDK 包 |
-| `1004` | 操作或特征不支持 | `FeatureSupport`、协议、BLE 特征、状态/切刀实现 |
-| `1005` | 已取消 | 读取终态与可能副作用；已发数据不能撤回 |
-| `1006` | ABI 不匹配 | 整包替换 Java/JNI/原生库或 Swift/framework，清理旧构建缓存 |
-| `1007` | 输出缓冲区不足 | 原生消费者按 C 头文件的缓冲区契约重新分配 |
-| `1008` | SDK 资源限制 | 图像和排队预算；释放已用完结果，旧便利接口及时轮询终态 |
-| `2000` | 传输未打开 | 是否先成功连接、是否已断开 |
-| `2001` | 传输超时 | 截止时间、距离、蓝牙状态、BLE credit / 特征配置 |
-| `2002` | 连接丢失 | 读取副作用信息，显式断开并由用户决定重连 |
-| `2003` | 传输 IO 错误 | 系统错误、固件参数、蓝牙环境；不要将它当成协议不支持的唯一证据 |
-| `2004` | 传输无进展 | 传输未接受任何新字节，停止本次任务并保留诊断 |
-| `3000` | 协议响应无效 | 协议与固件是否匹配、响应格式和长度 |
+| 错误码 | 含义 |
+| ---: | --- |
+| 0 | 接口调用成功；不是硬件完成证明。 |
+| 1000 | INTERNAL_ERROR |
+| 1001 | INVALID_ARGUMENT |
+| 1002 | INVALID_STATE，包括提前读取结果或访问已关闭包装对象。 |
+| 1003 | NOT_INITIALIZED |
+| 1004 | UNSUPPORTED_OPERATION；当前未验证的硬件查询在 IO 前返回此码。 |
+| 1005 | CANCELLED |
+| 1006 | ABI_MISMATCH；检查整套库与包装版本。 |
+| 1007 | BUFFER_TOO_SMALL |
+| 1008 | RESOURCE_LIMIT |
+| 2000 | TRANSPORT_NOT_OPEN |
+| 2001 | TRANSPORT_TIMEOUT |
+| 2002 | TRANSPORT_CONNECTION_LOST |
+| 2003 | TRANSPORT_IO_ERROR |
+| 2004 | TRANSPORT_NO_PROGRESS |
+| 3000 | PROTOCOL_INVALID_RESPONSE |
 
-未知错误码应保留原值和上下文，不要映射成“打印成功”。`retryable` 等原生诊断提示
-也不授权自动重发；预览版没有静默重连或任务重放策略。
+diagnostic 提供有界消息、domain、可选原生码及关联信息；原生码仅用于诊断，不作为跨平台
+业务判断依据。device.diagnostic 是最新记录，不是历史日志；连接异常和 operation 结果
+应优先使用各自携带的诊断，避免被另一次调用覆盖。
 
-## 常见现象
+1008 可能来自单图、作业、Raw、份数、未终态工作数量或源载荷预算，也可能来自内存分配失败。
+先检查输入、资源快照和本次诊断，缩减输入或未完成工作；结果读取不预留接纳容量。
+已终态任务自动退出接纳预算，不需要轮询或释放完成结果才能继续提交。不要根据该错误
+自动重试或重放打印。接纳失败没有 operation，也不会收到该任务的完成回调。
 
-| 现象 | 排查顺序 |
-| --- | --- |
-| 找不到设备 | 核对权限、手机蓝牙及系统定位要求；取消过窄的服务过滤；确认设备广播。空扫描结果可以是正常成功 |
-| 已发现但连接失败 | 确认用户选中的端点、SPP 配对或 BLE UUID/流控；发现不证明它是兼容打印机 |
-| `CONNECTED` 但不出纸 | 缓存连接状态不证明就绪；查看 operation 终态/错误、纸张与协议，人工观察设备 |
-| `DATA_SENT` 但输出异常 | 核对固件、DPI、可打印宽度、图像原点、纸张和 FORM；记录实物现象，避免重复发送 |
-| 取消后残留内容或重连首张异常 | 已接受字节可能仍在设备内；停止发送，记录现象并按固件操作规程人工处理 |
-| 大图失败或 App 内存峰值高 | 先限制解码尺寸和并行图像数量；区分 App 解码/预览与原生提交预算 |
-| Debug 成功、Release 失败 | 核对 AAR consumer R8 规则、完整 JNI 库与 CPU ABI；不要只复制 SDK Java 类 |
-| `mergeReleaseNativeLibs` 报 `libc++_shared.so` 重复 | 核对日志中两个 AAR 的实际来源和精确版本；见下方原生库合包说明 |
-| SwiftPM 下载或链接失败 | 核对 exact 版本、`Package.resolved`、下载 checksum、完整动态 framework 嵌入及对应架构 |
-
-失败后的安全流程是读取并保存快照、显式断开、核对实际纸面，再决定是否建立新会话和新任务。
-不要自动循环重发，不要发送无文档依据的 Raw 复位命令。M90 已知限制见[兼容性](compatibility.md)。
-
-公开提问前按[反馈模板](support-security.md#提交接入问题)整理最小复现，不附带客户打印内容、
-蓝牙地址、私有日志或签名信息。
-
-### Android 原生库合包冲突
-
-已发布的 `0.2.0-preview.3` AAR 携带 `libc++_shared.so`，其 C / JNI 库也依赖它。
-如果另一个打印机 SDK 同时携带该文件，Gradle 会在 `mergeReleaseNativeLibs` 阶段报告
-`2 files found with path 'lib/arm64-v8a/libc++_shared.so'`。Java 8 的过时选项警告
-不是这个构建失败的原因。
-
-静态运行库修复需要整包升级到包含该修复的新 SDK 版本；只更新示例或文档、重新下载
-同一个 `0.2.0-preview.3` 都不会改变已发布 AAR。核对 Maven 依赖、Flutter 插件的
-`android/libs` 及应用自带 AAR，移除重复的旧 SDK 引用，再重建应用。
-修复后的 SDK 不携带或依赖共享运行库；其他 SDK 所需的 `libc++_shared.so` 仍须保留。
-
-不要直接删除旧版 Printer SDK 的运行库，也不要全局排除全部同名 so。盲目 `pickFirst`
-只能选择其中一份文件，不能证明两个 SDK 与该运行库兼容。静态链接与符号隔离的要求见
-[Android NDK 中间件指南](https://developer.android.com/ndk/guides/middleware-vendors)。
+status 为可选结果；缺失表示没有有效硬件读回。掩码为零也不能解释为正常。连接中断后
+SDK 不会自动重放未完成任务，已发送字节可能产生副作用；取消不能撤回这些字节。

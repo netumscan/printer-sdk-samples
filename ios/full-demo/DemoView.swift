@@ -151,6 +151,7 @@ struct DemoView: View {
         VStack(alignment: .leading, spacing: 4) {
             Label(model.connectionStatus, systemImage: model.phase == .ready ? "checkmark.circle" : "printer")
                 .font(.subheadline.weight(.semibold)).accessibilityIdentifier("demo.connectionStatus")
+            Text(model.deviceActivity).font(.footnote).accessibilityIdentifier("demo.deviceActivity")
             Text(model.status).font(.footnote).accessibilityIdentifier("demo.status")
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 8)
@@ -197,11 +198,11 @@ struct DemoView: View {
             Picker("作业类型", selection: $model.documentKind) {
                 Text("CPCL 标签").tag(DemoDocumentKind.label)
                 Text("ESC/POS 小票").tag(DemoDocumentKind.receipt)
-            }.frame(minHeight: 48).disabled(!model.editable)
+            }.frame(minHeight: 48).disabled(!model.idle)
                 .accessibilityIdentifier("demo.documentKind").id("kind")
-            numberField("DPI", text: $model.dpi, target: "dpi").disabled(!model.editable)
+            numberField("DPI", text: $model.dpi, target: "dpi").disabled(!model.idle)
             numberField("设备最大宽度（dots）", text: $model.deviceWidth, target: "deviceWidth")
-                .disabled(!model.editable)
+                .disabled(!model.idle)
             DisclosureGroup("高级连接参数", isExpanded: $advanced) {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("M90 V1.2 令牌流控", isOn: $model.m90Flow).frame(minHeight: 48)
@@ -336,6 +337,11 @@ struct DemoView: View {
             Toggle("显示诊断详情", isOn: $showDetails).frame(minHeight: 48)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 .accessibilityIdentifier("demo.logDetails")
+            if showDetails {
+                Text(model.runtimeDescription).font(.caption).accessibilityIdentifier("demo.runtimeInfo")
+                Text(model.resourceDescription).font(.caption).accessibilityIdentifier("demo.resourceState")
+                Text(model.diagnosticDescription).font(.caption).accessibilityIdentifier("demo.deviceDiagnostic")
+            }
             Text(DemoLogDisplay.timeZoneDescription()).font(.caption).foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)

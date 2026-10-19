@@ -17,6 +17,41 @@ APPROVED_BASELINES = {
     "android": "8ad69087e4a965f7df4aa56f84b33dc6cfcf340ed3e8395f57155dfe449390a2",
     "apple": "62ccd5c542c02285429d8942b7eb69a68555180ddb3b9d335780e30009f2fd65",
 }
+DEVELOPMENT_BASELINES = {"0.3.0-preview.2-dev": {
+    "android": "07ff86b2327a0fc2ba155928f4847d8047eb1b61826bcdb6b7e223e563442fe6",
+    "apple": "7e2a51b45f07800a08a180161ad6bfff71b19bc2fd46dc70d0d124c74a44416c",
+}, "0.3.0-preview.1-dev": {
+    "android": "07ff86b2327a0fc2ba155928f4847d8047eb1b61826bcdb6b7e223e563442fe6",
+    "apple": "f695701df639bd0fb39cb1481ab5cce2f2f4631729ea1fd8697274b7b46687ea",
+}, "0.2.0-preview.5-dev": {
+    "android": "de4bcf3b76c140e65320136962a6eba609e450d7e604e11b71b31d5eeb0a8525",
+    "apple": "24046a0889ac83a9d96bac1220867005edbd2ce50684f972f30c691d8429fe42",
+}}
+DEVELOPMENT_IDENTITIES = {
+    "0.3.0-preview.2-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1}},
+    "0.2.0-preview.5-dev": {"native_sdk_version": "0.2.0", "abi": {"version": 2, "revision": 13}},
+    "0.3.0-preview.1-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1}},
+}
+CANDIDATE_BASELINES = {"0.3.0-preview.1": {
+    "android": "07ff86b2327a0fc2ba155928f4847d8047eb1b61826bcdb6b7e223e563442fe6",
+    "apple": "f695701df639bd0fb39cb1481ab5cce2f2f4631729ea1fd8697274b7b46687ea",
+}, "0.3.0-preview.2": {
+    "android": "07ff86b2327a0fc2ba155928f4847d8047eb1b61826bcdb6b7e223e563442fe6",
+    "apple": "7e2a51b45f07800a08a180161ad6bfff71b19bc2fd46dc70d0d124c74a44416c",
+}}
+CANDIDATE_IDENTITIES = {"0.3.0-preview.1": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1},
+}, "0.3.0-preview.2": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1},
+}}
+CANDIDATE_ANNOTATIONS = {"0.3.0-preview.1": {
+    "android": "6dad2100c2fc107c5dc00151547eaa62a8e78fb766ba5ec05d6264c8d6ee7082",
+    "apple": "491fcf6ab3288fd1ecf4f2c002608c7c7d16ebf5baf8c1903212b2766ee7e41c",
+}, "0.3.0-preview.2": {
+    "android": "52b10f1869e4be989fa4c6c42b7f13f7c825e271c5063695e7b83b5f35d30d1d",
+    "apple": "afd03452fa8d2aec34328dc559062b0dad501d2c9d47aba5a70848b06e2ff556",
+}}
+PUBLISHED_VERSIONS = {"0.2.0-preview." + str(n) for n in (1, 2, 3, 4)}
 DOCUMENTS = {"android": "docs/android-java-api.md", "apple": "docs/ios-swift-api.md"}
 
 
@@ -151,15 +186,26 @@ def validate_annotations(platform, baseline_sha256, entries, annotations):
 
 
 def validate_bundle(bundle):
-    exact_keys(bundle, {"schema", "sdk_version", "native_sdk_version", "abi", "platforms"})
+    exact_keys(bundle, {"schema", "sdk_version", "native_sdk_version", "abi", "platforms"}, {"contract_status"})
     if bundle["schema"] != 1 or not isinstance(bundle["sdk_version"], str) or not re.fullmatch(
             r"\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", bundle["sdk_version"]):
         raise ValueError("Invalid API reference schema or SDK version")
-    if bundle["native_sdk_version"] != "0.2.0" or bundle["abi"] != {"version": 2, "revision": 10}:
+    version = bundle["sdk_version"]
+    unpublished = version in DEVELOPMENT_BASELINES or version in CANDIDATE_BASELINES
+    status = "candidate" if version in CANDIDATE_BASELINES else "development"
+    if unpublished and bundle.get("contract_status") != status:
+        raise ValueError("Unpublished API reference must identify its " + status + " contract")
+    if not unpublished and "contract_status" in bundle:
+        raise ValueError("Published API reference cannot select a development contract")
+    if not unpublished and version not in PUBLISHED_VERSIONS:
+        raise ValueError("Unsupported SDK contract version: " + version)
+    identity = CANDIDATE_IDENTITIES.get(version, DEVELOPMENT_IDENTITIES.get(version, {
+        "native_sdk_version": "0.2.0", "abi": {"version": 2, "revision": 10}}))
+    if bundle["native_sdk_version"] != identity["native_sdk_version"] or bundle["abi"] != identity["abi"]:
         raise ValueError("API reference native SDK or C ABI differs")
     exact_keys(bundle["platforms"], {"android", "apple"})
     parsed = {}
-    for platform, expected in APPROVED_BASELINES.items():
+    for platform, expected in CANDIDATE_BASELINES.get(version, DEVELOPMENT_BASELINES.get(version, APPROVED_BASELINES)).items():
         value = bundle["platforms"][platform]
         exact_keys(value, {"baseline", "baseline_sha256", "annotations"})
         if not isinstance(value["baseline"], str):
@@ -169,6 +215,10 @@ def validate_bundle(bundle):
             raise ValueError("API baseline differs from reviewed SHA-256: " + platform)
         records, entries = parse_baseline(platform, value["baseline"])
         validate_annotations(platform, digest, entries, value["annotations"])
+        if version in CANDIDATE_ANNOTATIONS:
+            annotation_bytes = (json.dumps(value["annotations"], sort_keys=True, ensure_ascii=False, indent=2) + "\n").encode()
+            if sha256(annotation_bytes) != CANDIDATE_ANNOTATIONS[version][platform]:
+                raise ValueError("Candidate API annotations differ from reviewed SHA-256: " + platform)
         parsed[platform] = records
     return parsed
 
@@ -189,15 +239,21 @@ def table_cell(text):
 
 def header(bundle, platform, count):
     title = "Android Java" if platform == "android" else "iOS Swift"
+    status = bundle.get("contract_status")
+    identity = "发布候选版本" if status == "candidate" else "本地开发版本" if status == "development" else "适用分发版本"
     return ["# " + title + " API 参考", "",
-            "适用分发版本 **" + bundle["sdk_version"] + "**；原生 SDK **0.2.0**；C ABI **2/r10**。", "",
+            identity + " **" + bundle["sdk_version"] + "**；原生 SDK **" + bundle["native_sdk_version"] +
+            "**；C ABI **" + str(bundle["abi"]["version"]) + "/r" + str(bundle["abi"]["revision"]) + "**。", "",
             "本页逐项覆盖审定的编译器公共 API 基线，共 **" + str(count) + "** 个文档条目。",
             "声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。",
             "机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行",
             "`python3 tools/check-api-reference.py` 可检查覆盖范围、审定 SHA-256 和本页字节一致性。", "",
             "基线 SHA-256：`" + bundle["platforms"][platform]["baseline_sha256"] + "`", "",
             "运行约束与错误处理见 [API 与生命周期](api-lifecycle.md) 和 [错误码与排障](errors-troubleshooting.md)。",
-            "本页覆盖发布的公共接口；编译器合成接口也明确标注。硬件验收仍暂缓，`hardware_verified=false`。", ""]
+            ("本页是未发布的发布候选契约，不代表发布制品或公开历史证明。" if status == "candidate" else
+             "本页是未发布的开发契约，不代表发布制品或公开历史证明。" if status == "development" else
+             "本页覆盖发布的公共接口；编译器合成接口也明确标注。") +
+            "硬件验收仍暂缓，`hardware_verified=false`。", ""]
 
 
 def render_android(bundle, records):
@@ -318,7 +374,8 @@ def check(root):
             raise ValueError("API reference SDK version differs from Package.swift binary Release URL")
     parsed = validate_bundle(bundle)
     return {"api_reference_verified": True, "sdk_version": bundle["sdk_version"],
-            "baseline_sha256": dict(APPROVED_BASELINES),
+            "contract_status": bundle.get("contract_status", "historical"),
+            "baseline_sha256": dict(DEVELOPMENT_BASELINES.get(bundle["sdk_version"], APPROVED_BASELINES)),
             "android_types": len(parsed["android"]["type"]),
             "android_members": sum(len(item["members"]) for item in parsed["android"]["type"]),
             "swift_symbols": len(parsed["apple"]["symbol"]),

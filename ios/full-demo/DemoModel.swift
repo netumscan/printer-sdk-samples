@@ -11,7 +11,7 @@ struct DemoNextHint {
 /// Demo dependency only; discovery continues to belong to the platform SDK.
 protocol DemoScanner: AnyObject {
     func scan(seconds: TimeInterval, service: UUID?,
-              completion: @escaping (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void)
+              completion: @escaping @Sendable (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void)
     func stop()
 }
 extension BLEScanner: DemoScanner {}
@@ -23,6 +23,10 @@ final class DemoModel: ObservableObject {
     @Published var scanning = false
     @Published var phase: PrinterController.Phase = .offline
     @Published var status = "尚未执行操作"
+    @Published private(set) var deviceState: DeviceStateSnapshot?
+    @Published private(set) var resourceState: ResourceSnapshot?
+    @Published private(set) var deviceDiagnostic: ErrorDiagnostic?
+    @Published private(set) var runtimeInfo: SDKInfo?
     @Published var recoveryNotice: String?
     @Published var logs: [String] = []
     @Published var preview: CGImage?
@@ -63,7 +67,7 @@ final class DemoModel: ObservableObject {
     private var foregroundActive = true
     private var destroyed = false
     private let scanner: DemoScanner
-    private let makeSession: (UUID, BLEOptions, DemoConnectionConfiguration) throws -> DemoPrinterSession
+    private let makeSession: ((UUID, BLEOptions) throws -> DemoPrinterSession)?
     private let consoleLogging: Bool
     private let journalRoot: URL?
     private let consoleWriter = DispatchQueue(label: "PrinterDemo.console")
@@ -79,7 +83,6 @@ final class DemoModel: ObservableObject {
         }
     })
     private var generation: UInt64 = 0
-    private var connectedConfig: DemoConnectionConfiguration?
     private var heldController: PrinterController?
     private var controller: PrinterController {
         if let heldController { return heldController }
@@ -90,7 +93,7 @@ final class DemoModel: ObservableObject {
                 self.recoveryNotice = self.heldController?.recoveryNotice
                 self.append(message)
                 if phase == .offline {
-                    self.connectedConfig = nil; self.appliedMedia = nil; self.sendingMedia = nil; self.mediaRequest = nil
+                    self.appliedMedia = nil; self.sendingMedia = nil; self.mediaRequest = nil
                     if let request = self.pendingImport, self.foregroundActive {
                         self.importRequestID = request.id
                         self.status = "已断开；请选择 PNG/JPEG 图片"
@@ -109,15 +112,26 @@ final class DemoModel: ObservableObject {
                     if succeeded, self.phase == .ready || self.phase == .printing { self.appliedMedia = mode }
                 }
             }
+        }, stateChanged: { [weak self] snapshot in
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.destroyed, self.heldController?.deviceState == snapshot else { return }
+                self.deviceState = snapshot
+            }
+        }, detailsChanged: { [weak self] resources, diagnostic in
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.destroyed,
+                      self.heldController?.resourceState == resources,
+                      self.heldController?.diagnosticState == diagnostic else { return }
+                self.resourceState = resources; self.deviceDiagnostic = diagnostic
+            }
         })
         heldController = created
         return created
     }
 
     init(scanner: DemoScanner = BLEScanner(),
-         makeSession: @escaping (UUID, BLEOptions, DemoConnectionConfiguration) throws -> DemoPrinterSession = {
-             try SDKSession(identifier: $0, options: $1, config: $2)
-         }, imageStore: DemoImageStore = DemoImageStore(),
+         makeSession: ((UUID, BLEOptions) throws -> DemoPrinterSession)? = nil,
+         imageStore: DemoImageStore = DemoImageStore(),
          configurationStore: DemoConfigurationStore = DemoConfigurationStore(), journalRoot: URL? = nil,
          rendering: DispatchQueue = DispatchQueue(label: "PrinterDemo.preview"),
          consoleLogging: Bool = ProcessInfo.processInfo.arguments.contains("--psdk-console-log")) {
@@ -126,7 +140,9 @@ final class DemoModel: ObservableObject {
         self.rendering = rendering; self.consoleLogging = consoleLogging
         let store = imageStore
         rendering.async { store.cleanup() }
+        runtimeInfo = try? PrinterSDK.info()
         append("compatibility_record=" + compatibilityRecord().json())
+        append(runtimeDescription)
         if consoleLogging { append("诊断日志已开启；请在界面选择设备与打印参数") }
     }
 
@@ -137,13 +153,24 @@ final class DemoModel: ObservableObject {
     var importTitle: String { phase == .ready ? "断开并导入 PNG/JPEG" : "导入 PNG/JPEG" }
     var isCalibration: Bool { source == nil }
     var connectionStatus: String {
-        switch phase {
-        case .offline, .closed: return "未连接 · BLE"
-        case .connecting: return "正在连接 · BLE"
-        case .ready: return "已连接 · BLE"
-        case .printing: return "任务进行中 · BLE"
-        case .stopping: return "正在断开 · BLE"
-        }
+        DemoDeviceStateDisplay(snapshot: deviceState, phase: phase).connection
+    }
+    var deviceActivity: String { DemoDeviceStateDisplay(snapshot: deviceState, phase: phase).activity }
+    var resourceDescription: String {
+        guard let resourceState else { return "SDK 资源：未知" }
+        return "SDK 资源：\(resourceState.outstandingOperations)/\(resourceState.maxPendingOperations) 项，" +
+            "源载荷 \(resourceState.pendingPayloadBytes)/\(resourceState.maxPendingPayloadBytes) 字节（非进程内存）"
+    }
+    var diagnosticDescription: String {
+        guard let value = deviceDiagnostic, value.source != .none else { return "最近诊断：无" }
+        let native = value.nativeCode.map { "，原生码 \($0)" } ?? ""
+        return "最近诊断：\(value.errorCode) · \(value.domain)\(native) · \(value.message)" +
+            "（连接代次 \(value.connectionGeneration)）"
+    }
+    var runtimeDescription: String {
+        guard let info = runtimeInfo else { return "运行库身份：未知" }
+        return "运行库：\(info.nativeVersion) / \(info.distributionVersion.isEmpty ? "未知" : info.distributionVersion) / ABI \(info.abiVersion)/r\(info.abiRevision) / " +
+            "构建 \(info.buildID ?? "未知")"
     }
     var imageState: String {
         if previewing { return "正在准备图片" }
@@ -167,8 +194,8 @@ final class DemoModel: ObservableObject {
         do {
             if phase == .offline {
                 guard selected != nil else { return DemoNextHint(message: "请选择设备，点击定位", target: "device") }
-                _ = try connectionConfiguration(); _ = try bleOptions()
-                return DemoNextHint(message: "设备参数已填写，点击定位连接按钮", target: "connect")
+                _ = try bleOptions()
+                return DemoNextHint(message: "通信参数已填写，点击定位连接按钮", target: "connect")
             }
             _ = try configuration()
             if currentPreparedImage() == nil { return DemoNextHint(message: "请准备或更新图片，点击定位预览按钮", target: "preview") }
@@ -178,8 +205,9 @@ final class DemoModel: ObservableObject {
         } catch { return DemoNextHint(message: error.localizedDescription, target: nil) }
     }
     private func currentPreparedImage() -> DemoPreparedImage? {
-        guard phase == .ready, idle, let config = try? configuration(), let connectedConfig else { return nil }
-        return preparation.snapshot(matching: config, connection: connectedConfig)
+        guard phase == .ready, idle, let config = try? configuration(),
+              let prepared = preparation.snapshot, prepared.configuration == config else { return nil }
+        return prepared
     }
     var labelFields: [String] {
         [dpi, deviceWidth, width, xOffset, String(originStrategy.rawValue), originAdjustment,
@@ -270,7 +298,7 @@ final class DemoModel: ObservableObject {
         documentKind = .label; m90Flow = true; payload = String(M90DevelopmentPreset.maxWriteBytes)
         service = ""; characteristic = ""; mode = 0
         originStrategy = .centered; originAdjustment = "0"
-        selected = nil; devices = []; connectedConfig = nil
+        selected = nil; devices = []
         invalidatePreview()
         status = "M90 开发预设 r\(M90DevelopmentPreset.revision) 已应用；请手动选择设备并连接"
         append("开发预设=\(M90DevelopmentPreset.id) / revision=\(M90DevelopmentPreset.revision) / CPCL / 203 DPI / 864 dots；未扫描、连接或发送")
@@ -281,20 +309,21 @@ final class DemoModel: ObservableObject {
         scanning = true; status = "扫描 BLE 设备（10 秒）…"
         append("BLE 扫描开始；10 秒")
         scanner.scan(seconds: 10, service: nil) { [weak self] result in
-            guard let self, !self.destroyed, version == self.generation, self.scanning else { return }
-            self.scanning = false
-            switch result {
-            case .success(let devices):
-                self.devices = devices
-                if let selected = self.selected, !devices.contains(where: { $0.identifier == selected }) {
-                    self.selected = nil
-                }
-                self.append("BLE 扫描完成；候选数量=\(devices.count)")
-                self.status = devices.isEmpty ? "未发现设备；请检查蓝牙、权限与距离" : "请选择设备；发现结果不代表型号已验证"
-            case .failure(let error):
-                if error.code == 1005 { self.status = "扫描已停止；未连接" }
-                else { self.error(error) }
-            }
+            Task { @MainActor [weak self] in self?.completeScan(result, generation: version) }
+        }
+    }
+    private func completeScan(_ result: Result<[DiscoveredPrinter], PrinterSDKError>, generation version: UInt64) {
+        guard !destroyed, version == generation, scanning else { return }
+        scanning = false
+        switch result {
+        case .success(let devices):
+            self.devices = devices
+            if let selected, !devices.contains(where: { $0.identifier == selected }) { self.selected = nil }
+            append("BLE 扫描完成；候选数量=\(devices.count)")
+            status = devices.isEmpty ? "未发现设备；请检查蓝牙、权限与距离" : "请选择设备；发现结果不代表型号已验证"
+        case .failure(let error):
+            if error.code == 1005 { status = "扫描已停止；未连接" }
+            else { self.error(error) }
         }
     }
     func stopScan() {
@@ -310,22 +339,25 @@ final class DemoModel: ObservableObject {
                 throw DemoValidationError(message: "请先扫描并选择 BLE 设备", field: "device")
             }
             let options = try bleOptions()
-            let config = try connectionConfiguration()
             fieldErrors = [:]
-            connectedConfig = config; connectionSequence += 1
-            append("BLE / \(config.description) / payloadCap=\(options.maxWriteBytes) / withResponse=\(options.withResponse) / creditFlow=\(options.creditFlowControl != nil)")
-            let factory = makeSession
-            controller.connect { try factory(identifier, options, config) }
+            connectionSequence += 1
+            append("BLE / payloadCap=\(options.maxWriteBytes) / withResponse=\(options.withResponse) / creditFlow=\(options.creditFlowControl != nil)")
+            if let factory = makeSession { controller.connect { try factory(identifier, options) } }
+            else { controller.connect(identifier: identifier, options: options) }
         } catch { self.error(error) }
     }
     func applyMedia() {
         guard idle, phase == .ready, controller.phase == .ready, documentKind == .label else { return }
-        mediaRequest = (media, controller.connectionEpoch); sendingMedia = media
-        controller.mediaControl(media)
+        do {
+            let profile = try connectionConfiguration().profile()
+            mediaRequest = (media, controller.connectionEpoch); sendingMedia = media
+            controller.mediaControl(media, profile: profile)
+        } catch { self.error(error) }
     }
     func locateLabel() {
         guard idle, phase == .ready, controller.phase == .ready, documentKind == .label else { return }
-        controller.mediaControl(nil)
+        do { controller.mediaControl(nil, profile: try connectionConfiguration().profile()) }
+        catch { self.error(error) }
     }
     func makePreview() {
         guard idle else { return }
@@ -430,6 +462,7 @@ final class DemoModel: ObservableObject {
     }
     func printLabel() {
         guard let snapshot = currentPreparedImage() else { return }
+        if snapshot.configuration.kind == .receipt { appliedMedia = nil }
         controller.printPrepared(snapshot)
     }
     func sendRaw() {
@@ -448,6 +481,7 @@ final class DemoModel: ObservableObject {
                 }
                 return value
             }
+            appliedMedia = nil
             controller.sendRaw(Data(bytes), copies: UInt32(selectedCopies))
         } catch { self.error(error) }
     }
@@ -510,7 +544,7 @@ final class DemoModel: ObservableObject {
                     self.service = saved.service ?? ""; self.characteristic = saved.characteristic ?? ""
                     self.payload = String(saved.payload); self.m90Flow = saved.m90Flow
                     self.mode = saved.writeMode ?? 0; self.media = MediaMode(rawValue: UInt32(saved.media))!
-                    self.selected = nil; self.devices = []; self.connectedConfig = nil
+                    self.selected = nil; self.devices = []
                     self.invalidatePreview(); self.status = "配置已加载；请重新预览并手动选择设备"
                     self.append(self.status)
                 }
@@ -585,7 +619,8 @@ final class DemoModel: ObservableObject {
         destroyed = true; foregroundActive = false; cancelPendingImport()
         generation &+= 1; scanner.stop(); scanning = false
         preparation.invalidate(); preview = nil; previewing = false; localOperation = false
-        mediaRequest = nil; appliedMedia = nil; sendingMedia = nil; connectedConfig = nil
+        mediaRequest = nil; appliedMedia = nil; sendingMedia = nil
+        deviceState = nil; resourceState = nil; deviceDiagnostic = nil
         phase = .closed; status = "演示会话已关闭"
         heldController?.close(); heldController = nil
     }

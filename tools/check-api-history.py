@@ -64,6 +64,17 @@ HISTORICAL_ANDROID = {"baseline_sha256": "dbbab332f2d1280ef680de940b1ccad9848b65
                       "classes_sha256": "a38917a334569a217a3a3564038b50e18dfeb2af24e390522f3c0dc25a159ac9",
                       "types": 14, "members": 101}
 MAX_OBJECT_BYTES = 2 * 1024 * 1024
+CANDIDATE_CONTRACTS = {"0.3.0-preview.1": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1},
+    "historical_baseline_version": "0.2.0-preview.3",
+    "manifest_sha256": "a0dcb7f9f95af5ad36a0f1dc18ff656d3bdb4d8ba07ae4023d95dbd18e64c0a1",
+    "c_baseline_sha256": "b7e129d676796c178787b35c7d22bb00ee2be316ee6e390bd3f7a01e8f5c2cfd",
+}, "0.3.0-preview.2": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1},
+    "historical_baseline_version": "0.2.0-preview.3",
+    "manifest_sha256": "57e9edb1a65fe73c4e74dfd9dff2a1902b4e7f240b337be10fa744356a7c4694",
+    "c_baseline_sha256": "74a75132f39a83974d5f961a7f8ef2d209d0473e0a7850abf485f4270f2b7bc2",
+}}
 
 
 class NotVerified(RuntimeError):
@@ -279,7 +290,80 @@ def contract_baseline(version, snapshots):
     return baseline
 
 
+def verify_candidate_bundle(history, reference):
+    """Check current frozen declarations separately from the original releases.
+
+    No candidate is inserted into public Git proofs or published_releases. This
+    is declaration review, not an artifact, target execution or upload proof.
+    """
+    exact_keys(history, {"schema", "sdk_version", "native_sdk_version", "abi", "hardware_verified",
+                         "mobile_proofs", "c_abi", "published_releases", "historical_android",
+                         "contract_status", "published_contract_verified", "historical_baseline_version",
+                         "candidate_contract"})
+    version = history["sdk_version"]
+    policy = CANDIDATE_CONTRACTS[version]
+    require(type(history["schema"]) is int and history["schema"] == 2
+            and history["contract_status"] == "candidate" and history["published_contract_verified"] is False
+            and history["hardware_verified"] is False
+            and history["native_sdk_version"] == policy["native_sdk_version"] and history["abi"] == policy["abi"],
+            "Invalid candidate API history identity")
+    snapshots = verify_proofs(history["mobile_proofs"])
+    baseline = contract_baseline(policy["historical_baseline_version"], snapshots)
+    require(history["historical_baseline_version"] == baseline, "Candidate historical baseline differs")
+    old_c = verify_c_snapshot(history["c_abi"])
+    release_result = verify_release_history(history["published_releases"], history["historical_android"])
+    payload = history["candidate_contract"]
+    exact_keys(payload, {"manifest", "c_abi"})
+    manifest = payload["manifest"]
+    require(sha256(canonical(manifest)) == policy["manifest_sha256"], "Candidate contract manifest differs")
+    require(manifest["sdk_version"] == version and manifest["contract_status"] == "candidate"
+            and manifest["native_sdk_version"] == history["native_sdk_version"] and manifest["abi"] == history["abi"],
+            "Candidate frozen identity differs")
+    c_snapshot = payload["c_abi"]
+    exact_keys(c_snapshot, {"manifest", "declarations"})
+    c_manifest = c_snapshot["manifest"]
+    require(sha256(canonical(c_manifest)) == policy["c_baseline_sha256"], "Candidate C baseline differs")
+    exact_keys(c_snapshot["declarations"], {"printer_sdk.h"})
+    declaration = c_snapshot["declarations"]["printer_sdk.h"]
+    require(isinstance(declaration, str) and sha256(declaration.encode()) == c_manifest["header_token_sha256"],
+            "Candidate C declaration token checksum differs")
+    tokens = declaration.split("\n")
+    exports = [tokens[i + 3] for i in range(len(tokens) - 4)
+               if tokens[i] == "PSDK_API" and tokens[i + 2] == "PSDK_CALL"
+               and tokens[i + 3].startswith("psdk_") and tokens[i + 4] == "("]
+    structs = [tokens[i + 2] for i in range(len(tokens) - 3)
+               if tokens[i:i + 2] == ["typedef", "struct"] and tokens[i + 3] == "{"]
+    inits = [tokens[i + 2] + "_init" for i in range(len(tokens) - 3)
+             if tokens[i:i + 2] == ["PSDK_INLINE_INIT", "("] and tokens[i + 2].startswith("psdk_")
+             and tokens[i + 3] == ")"]
+    require(len(exports) == len(set(exports)) == 25 and sorted(exports) == c_manifest["exports"]
+            and len(structs) == len(set(structs)) == 25
+            and len(inits) == len(set(inits)) == 25 and sorted(inits) == c_manifest["inline_initializers"],
+            "Candidate C inventory differs")
+    require(isinstance(reference, dict) and reference.get("sdk_version") == version
+            and reference.get("contract_status") == "candidate"
+            and reference.get("native_sdk_version") == history["native_sdk_version"] and reference.get("abi") == history["abi"],
+            "Candidate API reference identity differs")
+    exact_keys(reference.get("platforms"), {"android", "apple"})
+    for platform, entry in manifest["mobile"].items():
+        record = reference["platforms"][platform]
+        require(isinstance(record, dict) and isinstance(record.get("baseline"), str)
+                and sha256(record["baseline"].encode()) == record.get("baseline_sha256") == entry["baseline_sha256"],
+                "Candidate mobile API baseline differs: " + platform)
+        annotations = (json.dumps(record.get("annotations"), sort_keys=True, ensure_ascii=False, indent=2) + "\n").encode()
+        require(sha256(annotations) == entry["annotations_sha256"], "Candidate API annotations differ: " + platform)
+    return {"public_mobile_api_history_verified": True, "sdk_version": version, "contract_status": "candidate",
+            "published_contract_verified": False, "candidate_contract_verified": True,
+            "contract_baseline_version": version, "historical_baseline_version": baseline,
+            "hardware_verified": False, "historical_versions": sorted(snapshots),
+            "c_declaration_snapshot_verified": True, "c_exports": len(exports), "c_structures": len(structs),
+            "c_binary_verified": False, "private_git_history_verified": False,
+            "historical_c_exports": old_c["c_exports"], **release_result}
+
+
 def verify_bundle(history, reference):
+    if isinstance(history, dict) and isinstance(history.get("sdk_version"), str) and history["sdk_version"] in CANDIDATE_CONTRACTS:
+        return verify_candidate_bundle(history, reference)
     fields = {"schema", "sdk_version", "native_sdk_version", "abi", "hardware_verified",
               "mobile_proofs", "c_abi", "published_releases", "historical_android"}
     version = history.get("sdk_version") if isinstance(history, dict) else None

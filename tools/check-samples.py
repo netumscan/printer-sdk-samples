@@ -9,6 +9,8 @@ import re
 import stat
 import sys
 import types
+sys.dont_write_bytecode = True
+from sdk_contract import abi_identity
 
 WRAPPER_JAR = "android/gradle/wrapper/gradle-wrapper.jar"
 WRAPPER_SHA256 = "81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f"
@@ -132,6 +134,7 @@ def check(root):
         if not files or canonical[origin] != {"target": target, "files_sha256": files}:
             raise ValueError("Full Demo provenance differs from exported sources: " + origin)
     lock = json.loads((root / "sdk-lock.json").read_text())
+    abi_version, abi_revision = abi_identity(lock)
     version = manifest["sdk_version"]
     if lock["version"] != version or lock["hardware_verified"] is not False:
         raise ValueError("SDK lock differs from sample version")
@@ -144,7 +147,7 @@ def check(root):
         identity = resource["identity"]
         sdk = lock.get(platform, {})
         if identity != {"sdk_distribution_version": version, "sdk_core_version": lock.get("native_sdk_version"),
-                        "sdk_abi_version": 2, "sdk_abi_revision": 10, "sdk_release_commit": sdk.get("revision"),
+                        "sdk_abi_version": abi_version, "sdk_abi_revision": abi_revision, "sdk_release_commit": sdk.get("revision"),
                         "sdk_artifact_sha256": sdk.get("aar_sha256" if platform == "android" else "xcframework_sha256"),
                         "demo_source_fingerprint": fingerprint,
                         "demo_build_version": version + "+samples." + fingerprint[:12]}:

@@ -10,8 +10,12 @@ import re
 import struct
 import subprocess
 import zipfile
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+from sdk_contract import abi_identity, jni_callbacks, jni_methods, packaging_checks
 
-VERSION = "0.2.0-preview.4"
+VERSION = "0.3.0-preview.2"
 SDK_LOCK = json.loads((Path(__file__).resolve().parents[2] / "sdk-lock.json").read_text())
 AAR_SHA256 = SDK_LOCK["android"]["aar_sha256"]
 ABIS = ("arm64-v8a", "armeabi-v7a", "x86_64")
@@ -146,18 +150,20 @@ def inspect(root, module, application_id):
                 methods.update(dex_methods(application.read(name)))
         if any(owner.startswith("Lcom/netum/printersdk/") for owner, _ in methods):
             raise SystemExit(f"{module}: legacy SDK namespace found in DEX")
-        for owner, names in {
-            "MobilePrinter": ("nCancelled", "nCreate", "nConnect", "nDisconnect", "nDestroy",
-                              "nConnectionState", "nFeature", "nSubmit", "nControl"),
-            "PrintOperation": ("nSnapshot", "nCancel", "nRelease"),
-        }.items():
+        for owner, names in jni_methods(SDK_LOCK).items():
             for name in names:
                 if not methods.get((f"Lcom/netumscan/printersdk/{owner};", name), {}).get("native"):
                     raise SystemExit(f"{module}: R8 removed JNI method {owner}.{name}")
-        for name, descriptor in {"open": "(JI)I", "write": "([BJI)I", "isOpen": "()Z", "close": "()V"}.items():
+        for name, descriptor in jni_callbacks(SDK_LOCK).items():
             method = methods.get(("Lcom/netumscan/printersdk/MobilePrinter$ChannelBridge;", name))
             if not method or method["descriptor"] != descriptor:
                 raise SystemExit(f"{module}: R8 changed JNI callback {name}")
+        if abi_identity(SDK_LOCK)[0] == 3:
+            for owner, descriptor in {"Diagnostic": "([JLjava/lang/String;Ljava/lang/String;)V",
+                                      "SdkInfo": "(IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+                                      "PrintOperation$Result": "([JLcom/netumscan/printersdk/Diagnostic;[J)V"}.items():
+                if methods.get(("Lcom/netumscan/printersdk/" + owner + ";", "<init>"), {}).get("descriptor") != descriptor:
+                    raise SystemExit(f"{module}: R8 changed JNI constructor {owner}")
     sdk_home = Path(os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT", ""))
     aapt = sdk_home / "build-tools/35.0.0/aapt2"
     if not aapt.is_file():
@@ -174,10 +180,7 @@ def inspect(root, module, application_id):
         "java_class_count": len(classes), "aar_sha256": digest(aar),
         "debug_apk_sha256": digest(debug_apk), "r8_apk_sha256": digest(apk),
         "mapping_sha256": digest(build / "outputs/mapping/release/mapping.txt"),
-        "checks": {"online_aar_matches_pin": True, "java8_bytecode": True, "debug_native_payload_matches": True,
-                   "r8_jni_12_methods": True, "r8_jni_4_callbacks": True,
-                   "three_abi_payload_matches": True, "sdk_license_notices_preserved": True,
-                   "application_id": True, "min_sdk_21": True},
+        "checks": {name: True for name in sorted(packaging_checks(SDK_LOCK))},
     }
 
 
@@ -186,6 +189,8 @@ def main():
     parser.add_argument("--android-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if VERSION.endswith("-dev"):
+        parser.error("Unpublished development contracts cannot be verified as online SDK samples")
     report = {"version": VERSION, "coordinate": "com.netumscan:printer-sdk-android:" + VERSION,
               "compatibility_identity_verified": True,
               "repository": "https://repo.maven.apache.org/maven2", "cpu_abis": list(ABIS),
