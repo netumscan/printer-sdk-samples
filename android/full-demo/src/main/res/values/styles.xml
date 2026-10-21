@@ -9,7 +9,7 @@
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">@color/action_accent</item>
         <item name="android:statusBarColor">@color/title_text</item>
-        <item name="android:windowBackground">#F6F7FA</item>
+        <item name="android:windowBackground">@color/action_surface</item>
         <item name="android:colorControlHighlight">#201955B8</item>
     </style>
     <style name="AppTheme" parent="AppThemeBase" />
@@ -29,6 +29,11 @@
         <item name="android:textColor">@color/action_accent</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textSize">16sp</item>
+    </style>
+    <style name="ProfileSummary" parent="FieldLabel">
+        <item name="android:textColor">@color/title_text</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+        <item name="android:layout_marginTop">4dp</item>
     </style>
     <style name="ErrorLabel" parent="FieldLabel">
         <item name="android:textColor">@color/error_text</item>
@@ -51,16 +56,16 @@
     <style name="AppTitleBase">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textSize">24sp</item>
+        <item name="android:textSize">20sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/title_text</item>
     </style>
     <style name="AppTitle" parent="AppTitleBase" />
     <style name="SectionBase" parent="FieldLabel">
-        <item name="android:textSize">19sp</item>
+        <item name="android:textSize">18sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/title_text</item>
-        <item name="android:layout_marginTop">24dp</item>
+        <item name="android:layout_marginTop">28dp</item>
     </style>
     <style name="Section" parent="SectionBase" />
     <style name="InsetPanel">
@@ -100,5 +105,8 @@
         <item name="android:gravity">start|center_vertical</item>
         <item name="android:layout_marginTop">8dp</item>
         <item name="android:textStyle">bold</item>
+        <item name="android:background">?android:attr/selectableItemBackground</item>
+        <item name="android:backgroundTint">@null</item>
+        <item name="android:paddingStart">0dp</item>
     </style>
 </resources>

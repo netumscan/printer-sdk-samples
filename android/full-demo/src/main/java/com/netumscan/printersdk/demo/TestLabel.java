@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: MIT
 package com.netumscan.printersdk.demo;
 
 import android.graphics.*;
 import java.util.concurrent.CancellationException;
-import com.netumscan.printersdk.demo.PrinterController.Cancellation;
 
 final class TestLabel {
+    static int rulerDots(LabelConfig config) { return config.printProfile().dotsFromMm(10); }
     static Bitmap bitmap(LabelConfig config) {
         Bitmap bitmap = Bitmap.createBitmap(config.labelWidthDots, config.height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
@@ -15,12 +16,12 @@ final class TestLabel {
         ink.setStyle(Paint.Style.FILL);
         float text = Math.max(10, Math.min(32, config.labelWidthDots / 18f));
         ink.setTextSize(text); ink.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
-        canvas.drawText(config.receipt ? "ESC/POS / RECEIPT" : "M90 / CPCL", 12, 16 + text, ink);
+        canvas.drawText(config.receipt ? "ESC/POS / RECEIPT" : "NETUM / CPCL", 12, 16 + text, ink);
         ink.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL)); ink.setTextSize(text * .8f);
         canvas.drawText("中文打印 · 对齐测试", 12, 22 + text * 2, ink);
         ink.setTextSize(text * .65f);
         canvas.drawText(config.labelWidthDots + " x " + config.height + " dots", 12, 28 + text * 3, ink);
-        float tenMm = config.dpi * 10f / 25.4f;
+        float tenMm = rulerDots(config);
         float y = Math.min(config.height - 24, 44 + text * 4);
         for (float x = 12; x + tenMm < config.labelWidthDots - 12; x += tenMm) {
             canvas.drawLine(x, y, x + tenMm, y, ink);
@@ -38,7 +39,7 @@ final class TestLabel {
         }
         return bitmap;
     }
-    static byte[] gray(LabelConfig config, Cancellation cancelled) {
+    static byte[] gray(LabelConfig config, ImageCancellation cancelled) {
         if (cancelled.getAsBoolean()) throw new CancellationException();
         Bitmap bitmap = bitmap(config);
         try {

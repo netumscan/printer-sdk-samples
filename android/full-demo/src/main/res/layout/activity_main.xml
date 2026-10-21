@@ -11,120 +11,11 @@
     </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:orientation="vertical" android:id="@+id/print_page" android:layout_weight="1">
         <ScrollView android:id="@+id/content_scroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-                <TextView style="@style/Section" android:text="@string/device_section" android:layout_marginTop="8dp" />
-                <TextView android:id="@+id/device_summary" style="@style/FieldLabel" android:text="@string/no_device" />
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:id="@+id/device_panel">
-                    <TextView style="@style/FieldLabel" android:text="@string/transport_label" android:labelFor="@id/transport" />
-                    <Spinner android:id="@+id/transport" style="@style/Selector" />
-                    <Button android:id="@+id/discover" style="@style/SecondaryButton" android:text="@string/paired_devices" />
-                    <Button android:id="@+id/settings" style="@style/TextButton" android:text="@string/bluetooth_settings" android:gravity="start|center_vertical" />
-                    <Button android:id="@+id/m90_preset" style="@style/SecondaryButton" android:text="@string/m90_preset" />
-                    <TextView style="@style/HelpText" android:text="@string/m90_preset_help" />
-                    <TextView style="@style/FieldLabel" android:text="@string/print_format_label" android:labelFor="@id/print_format" />
-                    <Spinner android:id="@+id/print_format" style="@style/Selector" />
-                    <TextView style="@style/FieldLabel" android:text="@string/dpi_label" android:labelFor="@id/dpi" />
-                    <EditText android:id="@+id/dpi" style="@style/Field" android:inputType="number" android:hint="@string/dpi_hint" />
-                    <TextView style="@style/FieldLabel" android:text="@string/width_label" android:labelFor="@id/width" />
-                    <EditText android:id="@+id/width" style="@style/Field" android:inputType="number" android:hint="@string/width_hint" />
-                    <Button android:id="@+id/transport_details_toggle" style="@style/DisclosureButton" android:text="@string/transport_details" />
-                    <LinearLayout android:id="@+id/transport_details" style="@style/InsetPanel" android:visibility="gone">
-                        <TextView style="@style/FieldLabel" android:text="@string/address_label" android:labelFor="@id/address" />
-                        <EditText android:id="@+id/address" style="@style/Field" android:inputType="textVisiblePassword" android:hint="@string/address_hint" />
-                        <LinearLayout android:id="@+id/ble_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                            <TextView style="@style/FieldLabel" android:text="@string/ble_profile_label" android:labelFor="@id/ble_profile" />
-                            <Spinner android:id="@+id/ble_profile" style="@style/Selector" />
-                            <LinearLayout android:id="@+id/ble_custom_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                                <TextView style="@style/FieldLabel" android:text="@string/service_label" android:labelFor="@id/service" />
-                                <EditText android:id="@+id/service" style="@style/Field" android:inputType="textVisiblePassword" android:hint="@string/uuid_hint" />
-                                <TextView style="@style/FieldLabel" android:text="@string/characteristic_label" android:labelFor="@id/characteristic" />
-                                <EditText android:id="@+id/characteristic" style="@style/Field" android:inputType="textVisiblePassword" android:hint="@string/uuid_hint" />
-                                <TextView style="@style/FieldLabel" android:text="@string/write_mode_label" android:labelFor="@id/write_mode" />
-                                <Spinner android:id="@+id/write_mode" style="@style/Selector" />
-                                <TextView android:id="@+id/write_mode_error" style="@style/ErrorLabel" android:visibility="gone" android:accessibilityLiveRegion="polite" />
-                            </LinearLayout>
-                            <TextView style="@style/FieldLabel" android:text="@string/mtu_label" android:labelFor="@id/mtu" />
-                            <EditText android:id="@+id/mtu" style="@style/Field" android:inputType="number" android:hint="@string/mtu_hint" />
-                            <TextView style="@style/FieldLabel" android:text="@string/payload_label" android:labelFor="@id/payload" />
-                            <EditText android:id="@+id/payload" style="@style/Field" android:inputType="number" android:hint="@string/payload_hint" />
-                            <TextView style="@style/HelpText" android:text="@string/ble_boundary" />
-                        </LinearLayout>
-                    </LinearLayout>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
-                        <Button android:id="@+id/connect" style="@style/SecondaryButton" android:text="@string/connect" android:layout_width="0dp" android:layout_weight="1" android:layout_marginEnd="8dp" />
-                        <Button android:id="@+id/disconnect" style="@style/QuietButton" android:text="@string/disconnect" android:enabled="false" android:layout_width="0dp" android:layout_weight="1" />
-                    </LinearLayout>
-                    <Button android:id="@+id/go_canvas" style="@style/TextButton" android:text="@string/go_canvas" android:visibility="gone" />
-                    <TextView style="@style/HelpText" android:text="@string/connect_help" />
-                </LinearLayout>
-                <TextView android:id="@+id/canvas_section_heading" style="@style/Section" android:text="@string/canvas_section" />
-                <TextView android:id="@+id/canvas_summary" style="@style/FieldLabel" android:text="@string/canvas_unset" android:accessibilityLiveRegion="polite" />
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:id="@+id/canvas_panel">
-                    <LinearLayout android:id="@+id/canvas_size_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                        <LinearLayout android:id="@+id/canvas_width_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                            <TextView style="@style/FieldLabel" android:text="@string/label_width_label" android:labelFor="@id/label_width" />
-                            <EditText android:id="@+id/label_width" style="@style/Field" android:inputType="number" android:hint="@string/label_width_hint" android:nextFocusForward="@id/height" />
-                        </LinearLayout>
-                        <LinearLayout android:id="@+id/canvas_height_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                            <TextView style="@style/FieldLabel" android:text="@string/height_label" android:labelFor="@id/height" />
-                            <EditText android:id="@+id/height" style="@style/Field" android:inputType="number" android:hint="@string/height_hint" android:nextFocusForward="@id/copies" />
-                        </LinearLayout>
-                    </LinearLayout>
-                    <LinearLayout android:id="@+id/canvas_job_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                        <LinearLayout android:id="@+id/canvas_copies_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                            <TextView style="@style/FieldLabel" android:text="@string/copies_label" android:labelFor="@id/copies" />
-                            <EditText android:id="@+id/copies" style="@style/Field" android:inputType="number" android:text="@string/copies_default" android:nextFocusForward="@id/x_offset" />
-                        </LinearLayout>
-                        <LinearLayout android:id="@+id/canvas_origin_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                            <TextView style="@style/FieldLabel" android:text="@string/x_offset_label" android:labelFor="@id/x_offset" />
-                            <EditText android:id="@+id/x_offset" style="@style/Field" android:inputType="number" android:hint="@string/x_offset_hint" android:nextFocusForward="@id/media" />
-                        </LinearLayout>
-                    </LinearLayout>
-                    <LinearLayout android:id="@+id/origin_policy_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                        <TextView style="@style/FieldLabel" android:text="@string/origin_mode_label" android:labelFor="@id/origin_mode" />
-                        <Spinner android:id="@+id/origin_mode" style="@style/Selector" android:nextFocusForward="@id/origin_adjustment" />
-                        <LinearLayout android:id="@+id/origin_adjustment_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                            <TextView style="@style/FieldLabel" android:text="@string/origin_adjustment_label" android:labelFor="@id/origin_adjustment" />
-                            <EditText android:id="@+id/origin_adjustment" style="@style/Field" android:inputType="numberSigned" android:text="@string/origin_adjustment_default" android:nextFocusForward="@id/media" />
-                        </LinearLayout>
-                    </LinearLayout>
-                    <TextView android:id="@+id/origin_help" style="@style/HelpText" android:text="@string/x_offset_help" />
-                    <TextView style="@style/FieldLabel" android:text="@string/trailing_blank_label" android:labelFor="@id/trailing_blank" />
-                    <EditText android:id="@+id/trailing_blank" style="@style/Field" android:inputType="number" android:text="@string/trailing_blank_default" android:nextFocusForward="@id/media" />
-                    <TextView style="@style/HelpText" android:text="@string/trailing_blank_help" />
-                    <LinearLayout android:id="@+id/media_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                            <TextView style="@style/FieldLabel" android:text="@string/media_section" android:labelFor="@id/media" android:layout_width="0dp" android:layout_weight="1" />
-                            <Button android:id="@+id/media_help_button" style="@style/TextButton" android:layout_width="wrap_content" android:minWidth="48dp" android:text="@string/help_button" android:contentDescription="@string/media_help_title" />
-                        </LinearLayout>
-                        <Spinner android:id="@+id/media" style="@style/Selector" android:nextFocusForward="@id/form" />
-                        <TextView style="@style/HelpText" android:text="@string/media_help_short" />
-                    </LinearLayout>
-                    <LinearLayout android:id="@+id/cpcl_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                            <TextView style="@style/FieldLabel" android:text="@string/form_label" android:labelFor="@id/form" android:layout_width="0dp" android:layout_weight="1" />
-                            <Button android:id="@+id/form_help_button" style="@style/TextButton" android:layout_width="wrap_content" android:minWidth="48dp" android:text="@string/help_button" android:contentDescription="@string/form_help_title" />
-                        </LinearLayout>
-                        <Spinner android:id="@+id/form" style="@style/Selector" android:nextFocusForward="@id/apply_media" />
-                        <TextView android:id="@+id/form_error" style="@style/ErrorLabel" android:visibility="gone" android:accessibilityLiveRegion="polite" />
-                        <TextView style="@style/HelpText" android:text="@string/form_help_short" />
-                    </LinearLayout>
-                    <LinearLayout android:id="@+id/media_apply_group" style="@style/InsetPanel" android:layout_marginTop="12dp">
-                        <TextView android:id="@+id/media_status" style="@style/FieldLabel" android:text="@string/media_not_sent" android:accessibilityLiveRegion="polite" />
-                        <Button android:id="@+id/apply_media" style="@style/SecondaryButton" android:text="@string/apply_media" android:enabled="false" />
-                    </LinearLayout>
-                    <LinearLayout android:id="@+id/label_motion_group" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="12dp">
-                        <Button android:id="@+id/locate_label" style="@style/QuietButton" android:text="@string/locate_label" android:enabled="false" />
-                    </LinearLayout>
-                </LinearLayout>
-                <TextView style="@style/Section" android:text="@string/image_section" />
-                <TextView android:id="@+id/image_summary" style="@style/StatusLabel" android:text="@string/builtin_summary" />
-                <TextView android:id="@+id/image_status" style="@style/FieldLabel" android:text="@string/image_unprepared" android:accessibilityLiveRegion="polite" />
-                <ImageView android:id="@+id/thumbnail" android:layout_width="match_parent" android:layout_height="180dp" android:layout_marginTop="12dp" android:adjustViewBounds="true" android:scaleType="fitCenter" android:background="@drawable/preview_background" android:contentDescription="@string/thumbnail_description" android:visibility="gone" />
-                <Button android:id="@+id/import_image" style="@style/SecondaryButton" android:text="@string/import_image" />
-                <Button android:id="@+id/builtin_image" style="@style/QuietButton" android:text="@string/builtin_image" />
-                <TextView style="@style/HelpText" android:text="@string/test_description" />
-                <TextView style="@style/HelpText" android:text="@string/send_help" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp" android:paddingBottom="24dp">
+                <include layout="@layout/section_device" />
+                <include layout="@layout/section_media" />
+                <include layout="@layout/section_image" />
+                <include layout="@layout/section_examples_diagnostics" />
             </LinearLayout>
         </ScrollView>
     </LinearLayout>
@@ -144,7 +35,6 @@
             <CheckBox android:id="@+id/log_details" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/log_details" android:checked="false" />
             <Button android:id="@+id/log_latest" style="@style/TextButton" android:layout_width="wrap_content" android:text="@string/log_latest" android:visibility="gone" />
         </LinearLayout>
-        <TextView style="@style/HelpText" android:text="@string/log_help" />
         <TextView android:id="@+id/log_time_zone" style="@style/HelpText" />
         <ScrollView android:id="@+id/log_scroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:layout_marginTop="8dp">
             <TextView android:id="@+id/log" style="@style/FieldLabel" android:fontFamily="monospace" android:textSize="12sp" android:textIsSelectable="true" android:text="@string/initial_log" android:layout_marginTop="0dp" android:paddingBottom="12dp" />

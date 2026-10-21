@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package com.netumscan.printersdk.demo;
 
 import java.util.Arrays;

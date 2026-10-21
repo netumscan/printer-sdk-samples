@@ -1,6 +1,6 @@
 <resources>
     <style name="AppTheme" parent="AppThemeBase">
-        <item name="android:statusBarColor">?android:attr/colorPrimaryDark</item>
+        <item name="android:statusBarColor">@color/action_surface</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

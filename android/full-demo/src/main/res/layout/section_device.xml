@@ -1,0 +1,52 @@
+<!-- activity_main 的根节点已用 noExcludeDescendants 禁止自动填充；lint 单独分析 include 时无法继承该设置。 -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" tools:ignore="Autofill">
+    <TextView style="@style/Section" android:text="@string/device_section" android:layout_marginTop="8dp" />
+    <TextView android:id="@+id/device_summary" style="@style/FieldLabel" android:text="@string/no_device" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:id="@+id/device_panel">
+        <TextView style="@style/FieldLabel" android:text="@string/transport_label" android:labelFor="@id/transport" />
+        <Spinner android:id="@+id/transport" style="@style/Selector" />
+        <Button android:id="@+id/discover" style="@style/SecondaryButton" android:text="@string/paired_devices" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="4dp">
+            <Button android:id="@+id/connect" style="@style/SecondaryButton" android:text="@string/connect" android:layout_width="0dp" android:layout_weight="1" android:layout_marginEnd="8dp" />
+            <Button android:id="@+id/disconnect" style="@style/QuietButton" android:text="@string/disconnect" android:enabled="false" android:layout_width="0dp" android:layout_weight="1" />
+        </LinearLayout>
+        <TextView style="@style/FieldLabel" android:text="@string/profile_label" />
+        <TextView style="@style/ProfileSummary" android:text="@string/profile_pending" android:id="@+id/profile_summary" android:accessibilityLiveRegion="polite" android:saveEnabled="false" />
+        <Button android:id="@+id/device_advanced_toggle" style="@style/DisclosureButton" android:text="@string/device_advanced_expand" />
+        <LinearLayout style="@style/InsetPanel" android:id="@+id/device_advanced" android:visibility="gone">
+            <!-- 旧 ID 的只读输出镜像；实际迁移草稿由 DemoPrintDraft 持有。 -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <Spinner android:id="@+id/print_format" style="@style/Selector" android:saveEnabled="false" />
+                <EditText android:id="@+id/dpi" style="@style/Field" android:inputType="number" android:hint="@string/dpi_hint" android:saveEnabled="false" />
+                <EditText android:id="@+id/width" style="@style/Field" android:inputType="number" android:hint="@string/width_hint" android:saveEnabled="false" />
+            </LinearLayout>
+            <Button android:id="@+id/settings" style="@style/TextButton" android:text="@string/bluetooth_settings" android:gravity="start|center_vertical" />
+            <Button android:id="@+id/transport_details_toggle" style="@style/DisclosureButton" android:text="@string/transport_details" />
+            <LinearLayout android:id="@+id/transport_details" style="@style/InsetPanel" android:visibility="gone">
+                <TextView style="@style/FieldLabel" android:text="@string/address_label" android:labelFor="@id/address" />
+                <EditText android:id="@+id/address" style="@style/Field" android:inputType="textVisiblePassword" android:hint="@string/address_hint" android:saveEnabled="false" />
+                <LinearLayout android:id="@+id/ble_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                    <Button android:id="@+id/m90_preset" style="@style/SecondaryButton" android:text="@string/m90_preset" />
+                    <TextView style="@style/FieldLabel" android:text="@string/ble_profile_label" android:labelFor="@id/ble_profile" />
+                    <Spinner android:id="@+id/ble_profile" style="@style/Selector" />
+                    <LinearLayout android:id="@+id/ble_custom_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                        <TextView style="@style/FieldLabel" android:text="@string/service_label" android:labelFor="@id/service" />
+                        <EditText android:id="@+id/service" style="@style/Field" android:inputType="textVisiblePassword" android:hint="@string/uuid_hint" />
+                        <TextView style="@style/FieldLabel" android:text="@string/characteristic_label" android:labelFor="@id/characteristic" />
+                        <EditText android:id="@+id/characteristic" style="@style/Field" android:inputType="textVisiblePassword" android:hint="@string/uuid_hint" />
+                        <TextView style="@style/FieldLabel" android:text="@string/write_mode_label" android:labelFor="@id/write_mode" />
+                        <Spinner android:id="@+id/write_mode" style="@style/Selector" />
+                        <TextView android:id="@+id/write_mode_error" style="@style/ErrorLabel" android:visibility="gone" android:accessibilityLiveRegion="polite" />
+                    </LinearLayout>
+                    <TextView style="@style/FieldLabel" android:text="@string/mtu_label" android:labelFor="@id/mtu" />
+                    <EditText android:id="@+id/mtu" style="@style/Field" android:inputType="number" android:hint="@string/mtu_hint" />
+                    <TextView style="@style/FieldLabel" android:text="@string/payload_label" android:labelFor="@id/payload" />
+                    <EditText android:id="@+id/payload" style="@style/Field" android:inputType="number" android:hint="@string/payload_hint" />
+                    <TextView style="@style/HelpText" android:text="@string/ble_boundary" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+        <Button android:id="@+id/apply_print_profile" style="@style/SecondaryButton" android:text="@string/apply_print_profile" android:enabled="false" />
+        <Button android:id="@+id/go_canvas" style="@style/TextButton" android:text="@string/go_canvas" android:visibility="gone" />
+    </LinearLayout>
+</merge>

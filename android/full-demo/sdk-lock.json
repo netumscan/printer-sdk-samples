@@ -1,0 +1,14 @@
+{
+  "android": {
+    "aar_sha256": "f53d20e50448e083cbd2681df0d29c93cd6d4f2ea1de14eba5e20a29b25dc6b9",
+    "coordinate": "com.netumscan:printer-sdk-android:0.3.0-preview.8",
+    "license": "https://github.com/netumscan/printer-sdk-android/blob/v0.3.0-preview.8/LICENSE",
+    "repository": "https://repo.maven.apache.org/maven2",
+    "revision": "11eb16ec638910259e976e0394f2055cfb70d05c"
+  },
+  "c_abi": "3/r2",
+  "hardware_verified": false,
+  "native_sdk_version": "0.3.0",
+  "schema": 1,
+  "version": "0.3.0-preview.8"
+}

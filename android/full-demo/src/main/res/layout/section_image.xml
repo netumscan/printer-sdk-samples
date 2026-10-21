@@ -1,0 +1,49 @@
+<!-- activity_main 的根节点已用 noExcludeDescendants 禁止自动填充；lint 单独分析 include 时无法继承该设置。 -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" tools:ignore="Autofill">
+    <TextView style="@style/Section" android:text="@string/image_section" />
+    <TextView android:id="@+id/image_summary" style="@style/StatusLabel" android:text="@string/builtin_summary" />
+    <TextView android:id="@+id/image_status" style="@style/FieldLabel" android:text="@string/image_unprepared" android:accessibilityLiveRegion="polite" />
+    <ImageView android:id="@+id/thumbnail" android:layout_width="match_parent" android:layout_height="180dp" android:layout_marginTop="12dp" android:adjustViewBounds="true" android:scaleType="fitCenter" android:background="@drawable/preview_background" android:contentDescription="@string/thumbnail_description" android:visibility="gone" />
+    <Button android:id="@+id/import_image" style="@style/SecondaryButton" android:text="@string/import_image" />
+    <Button android:id="@+id/builtin_image" style="@style/QuietButton" android:text="@string/builtin_image" />
+    <TextView style="@style/HelpText" android:text="@string/test_description" />
+    <TextView android:id="@+id/canvas_section_heading" style="@style/Section" android:text="@string/canvas_section" />
+    <TextView android:id="@+id/canvas_summary" style="@style/FieldLabel" android:text="@string/canvas_unset" android:accessibilityLiveRegion="polite" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:id="@+id/canvas_panel">
+        <LinearLayout android:id="@+id/canvas_size_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <LinearLayout android:id="@+id/canvas_width_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView style="@style/FieldLabel" android:text="@string/label_width_label" android:labelFor="@id/label_width" />
+                <EditText android:id="@+id/label_width" style="@style/Field" android:inputType="number" android:hint="@string/label_width_hint" android:nextFocusForward="@id/height" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/canvas_height_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView style="@style/FieldLabel" android:text="@string/height_label" android:labelFor="@id/height" />
+                <EditText android:id="@+id/height" style="@style/Field" android:inputType="number" android:hint="@string/height_hint" android:nextFocusForward="@id/copies" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:id="@+id/canvas_job_row">
+            <LinearLayout android:id="@+id/canvas_copies_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView style="@style/FieldLabel" android:text="@string/copies_label" android:labelFor="@id/copies" />
+                <EditText android:id="@+id/copies" style="@style/Field" android:inputType="number" android:text="@string/copies_default" android:nextFocusForward="@id/x_offset" />
+            </LinearLayout>
+        </LinearLayout>
+        <Button android:id="@+id/print_advanced_toggle" style="@style/DisclosureButton" android:text="@string/print_advanced_expand" />
+        <LinearLayout style="@style/InsetPanel" android:id="@+id/print_advanced" android:visibility="gone">
+            <LinearLayout android:id="@+id/canvas_origin_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView style="@style/FieldLabel" android:text="@string/x_offset_label" android:labelFor="@id/x_offset" />
+                <EditText android:id="@+id/x_offset" style="@style/Field" android:inputType="number" android:hint="@string/x_offset_hint" android:nextFocusForward="@id/media" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/origin_policy_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <Spinner android:id="@+id/origin_mode" style="@style/Selector" android:visibility="gone" android:saveEnabled="false" />
+                <LinearLayout android:id="@+id/origin_adjustment_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                    <TextView style="@style/FieldLabel" android:text="@string/origin_adjustment_label" android:labelFor="@id/origin_adjustment" />
+                    <EditText android:id="@+id/origin_adjustment" style="@style/Field" android:inputType="numberSigned" android:text="@string/origin_adjustment_default" android:nextFocusForward="@id/media" />
+                </LinearLayout>
+            </LinearLayout>
+            <TextView android:id="@+id/origin_help" style="@style/HelpText" android:text="@string/x_offset_help" />
+            <TextView style="@style/FieldLabel" android:text="@string/trailing_blank_label" android:labelFor="@id/trailing_blank" />
+            <EditText android:id="@+id/trailing_blank" style="@style/Field" android:inputType="number" android:text="@string/trailing_blank_default" android:nextFocusForward="@id/media" />
+            <TextView style="@style/HelpText" android:text="@string/trailing_blank_help" />
+        </LinearLayout>
+    </LinearLayout>
+    <TextView style="@style/HelpText" android:text="@string/send_help" />
+</merge>

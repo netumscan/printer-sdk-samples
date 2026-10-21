@@ -1,1341 +1,854 @@
+// SPDX-License-Identifier: MIT
 package com.netumscan.printersdk.demo;
 
-import android.Manifest;
 import android.app.*;
 import android.bluetooth.BluetoothAdapter;
 import android.content.*;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.Rect;
+import android.net.Uri;
 import android.os.*;
 import android.provider.Settings;
+import android.text.*;
 import android.view.*;
 import android.widget.*;
 import com.netumscan.printersdk.*;
-import java.io.*;
-import android.text.*;
-import java.util.concurrent.atomic.AtomicLong;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.*;
 
+/**
+ * 完整 Demo 的界面入口：绑定控件、读取参数、处理权限和系统文件选择器。
+ * SDK 操作统一交给 DemoModel，图片准备交给 DemoImages；Activity 不直接执行打印机 IO。
+ */
 public final class MainActivity extends Activity {
-    private static final int PERMISSIONS = 10, EXPORT = 11, IMPORT = 12;
-    private static final String EDIT_DRAFT = "demo-edit-draft";
-    private static final String SCANNING_MESSAGE = "正在扫描 BLE，最多 10 秒；可随时停止";
-    private final Handler main = new Handler(Looper.getMainLooper());
-    private static final ExecutorService images = Executors.newSingleThreadExecutor(task -> {
-        Thread thread = new Thread(task, "PrinterDemo.images"); thread.setDaemon(true); return thread;
-    });
-    private final ArrayDeque<String> lines = new ArrayDeque<>();
-    private final Map<Integer, Integer> selectedChoices = new HashMap<>();
-    private final int[] fieldIds = {R.id.address, R.id.service, R.id.characteristic, R.id.mtu,
-        R.id.payload, R.id.dpi, R.id.width, R.id.label_width, R.id.x_offset, R.id.origin_adjustment, R.id.height, R.id.copies, R.id.trailing_blank};
-    private final int[] draftFieldIds = {R.id.service, R.id.characteristic, R.id.mtu, R.id.payload,
-        R.id.dpi, R.id.width, R.id.label_width, R.id.x_offset, R.id.origin_adjustment, R.id.height, R.id.copies, R.id.trailing_blank};
-    private final int[] draftChoiceIds = {R.id.transport, R.id.ble_profile, R.id.form,
-        R.id.print_format, R.id.media, R.id.write_mode, R.id.origin_mode};
-    private PrinterController controller;
-    private final PrinterManager printerManager = new PrinterManager();
-    private DemoDiscovery discovery;
-    interface DiscoveryFactory { DemoDiscovery create(); }
-    private DiscoveryFactory discoveryFactory = () -> DemoDiscovery.create(this);
-    private long discoveryGeneration;
-    private AlertDialog devicePicker;
-    interface ConnectionFactory {
-        PrinterController.Session create(String address, boolean useBle, BleOptions options);
-    }
-    private ConnectionFactory sessionFactory = (address, useBle, options) -> new SdkSession(printerManager, useBle ?
-        printerManager.ble(getApplicationContext(), address, options) :
-        printerManager.spp(getApplicationContext(), address));
-    private Runnable permissionAction;
-    private int permissionRequest = PERMISSIONS, nextPermissionRequest = PERMISSIONS;
-    private String exportText;
-    private DemoBuildIdentity buildIdentity = DemoBuildIdentity.unknown();
-    private boolean scanning, previewing, utilityBusy, applyingFields, diskWarningShown, showingLogs;
-    private boolean showingRaw, syncingCopies;
-    private boolean pendingImportAfterDisconnect, imagePickerOpen, followingLogs = true, renderingLogs;
-    private long logRenderGeneration, logInteractionGeneration;
-    private final ArrayList<String> renderedLogEntries = new ArrayList<>();
-    private int[] renderedLogStarts = new int[0];
-    private LogAnchor pendingLogAnchor;
-    private ViewTreeObserver logPositionObserver;
-    private ViewTreeObserver.OnPreDrawListener logPositionListener;
-    private static final class LogAnchor {
-        final String entry;
-        final int offset;
-        LogAnchor(String entry, int offset) { this.entry = entry; this.offset = offset; }
-    }
-    private int hintTarget;
-    private Runnable unregisterLogBack;
+    private static final int PERMISSION = 10, IMPORT = 11, EXPORT = 12;
+    private static final int[] FIELDS = {R.id.address, R.id.service, R.id.characteristic, R.id.mtu,
+        R.id.payload, R.id.label_width, R.id.height, R.id.copies,
+        R.id.x_offset, R.id.origin_adjustment, R.id.trailing_blank};
+    private static final int[] CHOICES = {R.id.transport, R.id.ble_profile, R.id.write_mode,
+        R.id.form, R.id.media, R.id.pixel_example};
+    private DemoOwner owner;
+    private DemoModel model;
+    private final Runnable listener = this::changed;
+    private boolean started, applying, syncingCopies, showingLogs, showingRaw;
+    // 只有用户本次明确发起的发现/预览完成后才显示弹窗，普通重绘不会重复打开。
+    private boolean requestedDiscovery, requestedPreview;
+    private DemoLogView logView;
+    private DemoPrintRequestsView printRequestsView;
+    private DemoDeviceView deviceView;
+    private DemoSections sections;
+    private DemoResult<?> discoveryBefore;
+    private long previewBefore;
+    private Runnable afterPermission, unregisterBack;
+    private AlertDialog devicePicker, previewDialog, utilityDialog;
+    private ImageView previewImage;
     private PopupMenu configMenu;
-    private final AtomicLong preparationGeneration = new AtomicLong();
-    private volatile boolean started;
-    private File sourceFile, sourceDirectory;
-    private PreparedImage prepared;
-    private PreparedImage thumbnailSnapshot;
-    private long thumbnailGeneration = -1;
-    private Bitmap thumbnailBitmap;
-    private String imageOperation = "", selectedDeviceName;
-    private boolean hadPreparedImage;
-    private int pendingMedia = -1, sentMedia = -1;
-    private DemoJournal journal;
-    private SettingsStore settings;
-    private static DemoJournal processJournal;
-    private static final AtomicLong connectionCounter = new AtomicLong();
-    private static synchronized DemoJournal journalForProcess(File directory) {
-        if (processJournal == null) processJournal = new DemoJournal(directory);
-        return processJournal;
-    }
-    private boolean offlineIdle() { return controller != null && controller.phase() == PrinterController.Phase.OFFLINE && idle(); }
-    private boolean idle() {
-        PrinterController.Phase phase = controller.phase();
-        return !scanning && !previewing && !utilityBusy && !pendingImportAfterDisconnect && !imagePickerOpen &&
-            (phase == PrinterController.Phase.OFFLINE || phase == PrinterController.Phase.READY);
-    }
-    private void invalidatePrepared() {
-        if (applyingFields) return;
-        preparationGeneration.incrementAndGet(); prepared = null; previewing = false;
-        imageOperation = ""; clearThumbnail();
-        if (controller != null) updateButtons(controller.phase());
-    }
-    private String text(int id) { return ((EditText)findViewById(id)).getText().toString().trim(); }
-    private int choice(int id) { return ((Spinner)findViewById(id)).getSelectedItemPosition(); }
-    private boolean receipt() { return choice(R.id.print_format) == 1; }
-    private boolean ble() { return choice(R.id.transport) == 1; }
-    private boolean centeredOrigin() { return !receipt() && choice(R.id.origin_mode) == OriginPlacement.CENTERED; }
-    private void spinner(int id, String... labels) {
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, labels);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        ((Spinner)findViewById(id)).setAdapter(adapter);
-    }
-    private void watchChoice(int id, Runnable changed) {
-        selectedChoices.put(id, choice(id));
-        ((Spinner)findViewById(id)).setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onNothingSelected(AdapterView<?> parent) { }
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long rowId) {
-                int current = choice(id);
-                if (Objects.equals(selectedChoices.get(id), current)) return;
-                selectedChoices.put(id, current); changed.run();
-            }
-        });
-    }
-    private void captureChoices() {
-        for (int id : draftChoiceIds)
-            selectedChoices.put(id, choice(id));
-    }
+    private int hintTarget;
+    private PrinterProfile displayedProfile;
+    private DemoPrintDraft printDraft = new DemoPrintDraft();
+
     @Override public void onCreate(Bundle saved) {
-        super.onCreate(saved); setContentView(R.layout.activity_main);
+        super.onCreate(saved);
+        setContentView(R.layout.activity_main);
+        Object retained = getLastNonConfigurationInstance();
+        // 配置重建复用同一个 Owner/Manager；新进程只恢复表单，不恢复连接或旧请求。
+        owner = retained instanceof DemoOwner ? (DemoOwner)retained : new DemoOwner(new PrinterManager(getApplicationContext()), this);
+        model = owner.model;
+        applyWindowInsets();
+        initializeFields(saved, retained instanceof DemoOwner);
+        logView = new DemoLogView(this, owner.lines);
+        printRequestsView = new DemoPrintRequestsView(this, model);
+        deviceView = new DemoDeviceView(this);
+        sections = new DemoSections(this, saved, this::render);
+        bindInputChanges();
+        bindConnectionActions();
+        bindPrintActions();
+        bindDiagnostics();
+        bindUtilities();
+        bindNavigation();
+        if (saved != null) showPage(saved.getBoolean("logs"), saved.getBoolean("raw"));
+        render();
+    }
+
+    private void applyWindowInsets() {
         View root = findViewById(R.id.root);
-        disableSavedState(root);
-        status("");
-        findViewById(R.id.canvas_panel).addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) ->
-            updateCanvasLayout());
         if (Build.VERSION.SDK_INT >= 30) {
             getWindow().setDecorFitsSystemWindows(false);
             root.setOnApplyWindowInsetsListener((view, insets) -> {
-                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() |
-                    WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
                 view.setPadding(bars.left, bars.top, bars.right, bars.bottom); return insets;
             });
         }
+    }
+
+    private void initializeFields(Bundle saved, boolean retained) {
+        // 批量初始化期间抑制输入联动，避免程序赋值被当作用户编辑。
+        applying = true;
+        spinner(R.id.transport, "Bluetooth SPP（需配对）", "Bluetooth BLE");
+        spinner(R.id.ble_profile, "M90 V1.2 令牌流控", "通用 BLE（自定义 UUID）");
+        spinner(R.id.write_mode, "请选择 BLE 写入方式", "Write With Response", "Write Without Response");
         spinner(R.id.print_format, "CPCL 标签整图", "ESC/POS 小票整图（无切纸）");
-        spinner(R.id.transport, "Bluetooth SPP（优先联调）", "Bluetooth BLE");
+        spinner(R.id.form, "请选择", "发送 FORM", "不发送 FORM");
         spinner(R.id.media, "间隙纸", "黑标纸", "连续纸");
         spinner(R.id.origin_mode, "手动填写横向起点", "自动居中（按整字节宽度）");
-        spinner(R.id.form, "请选择", "发送 FORM", "不发送 FORM");
-        spinner(R.id.write_mode, "请选择 BLE 写入方式", "Write With Response", "Write Without Response");
-        spinner(R.id.ble_profile, "M90 V1.2 令牌流控", "通用 BLE（无应用层流控）");
-        for (int id : fieldIds) ((EditText)findViewById(id)).setText(id == R.id.copies ? "1" :
-            id == R.id.x_offset || id == R.id.origin_adjustment || id == R.id.trailing_blank ? "0" : id == R.id.mtu ? "517" : id == R.id.payload ? "512" : "");
-        BleOptions initialPreset = M90DevelopmentPreset.bleOptions();
-        ((EditText)findViewById(R.id.service)).setText(initialPreset.service.toString());
-        ((EditText)findViewById(R.id.characteristic)).setText(initialPreset.writeCharacteristic.toString());
-        ((Spinner)findViewById(R.id.write_mode)).setSelection(2);
-        // A new launch never loads saved configuration or a device. Only page drafts are restored below.
-        sourceDirectory = new File(getNoBackupFilesDir(), "demo-images");
-        settings = new SettingsStore(getNoBackupFilesDir());
-        journal = journalForProcess(new File(getNoBackupFilesDir(), "demo-journal"));
-        images.execute(() -> {
-            if (!sourceDirectory.isDirectory() && !sourceDirectory.mkdirs()) return;
-            File[] abandoned = sourceDirectory.listFiles();
-            if (abandoned != null) for (File file : abandoned) if (file.isFile() && file.getName().startsWith("source-")) file.delete();
-        });
-        watchChoice(R.id.transport, () -> { transportChanged(); invalidatePrepared(); });
-        watchChoice(R.id.ble_profile, () -> {
-            if (applyingFields) return;
-            if (choice(R.id.ble_profile) == 0) {
-                BleOptions preset = M90DevelopmentPreset.bleOptions();
-                ((EditText)findViewById(R.id.service)).setText(preset.service.toString());
-                ((EditText)findViewById(R.id.characteristic)).setText(preset.writeCharacteristic.toString());
-                ((Spinner)findViewById(R.id.write_mode)).setSelection(2);
-            }
-            invalidatePrepared();
-            if (controller != null) updateButtons(controller.phase());
-        });
-        controller = new PrinterController(new PrinterController.Listener() {
-            public void changed(PrinterController.Phase phase, String message) {
-                main.post(() -> {
-                    if (isDestroyed()) return;
-                    if (phase == PrinterController.Phase.READY && message.startsWith("DATA_SENT") && pendingMedia > 0)
-                        sentMedia = pendingMedia;
-                    if (phase != PrinterController.Phase.PRINTING) pendingMedia = -1;
-                    if (phase == PrinterController.Phase.OFFLINE || phase == PrinterController.Phase.CLOSED) sentMedia = -1;
-                    status(message.equals("已连接；请设置画布与纸张，并预览后打印") ? "连接成功" : message);
-                    log(message); updateButtons(controller.phase());
-                    if (pendingImportAfterDisconnect && controller.phase() == PrinterController.Phase.OFFLINE) {
-                        pendingImportAfterDisconnect = false;
-                        if (started && !isFinishing()) openImagePicker();
-                        updateButtons(controller.phase());
-                    }
-                });
-            }
-            public void deviceStateChanged(DeviceStateSnapshot snapshot) {
-                main.post(() -> { if (!isDestroyed()) updateConnectionStatus(controller.phase()); });
-            }
-            public void deviceDetailsChanged(ResourceSnapshot resources, Diagnostic diagnostic) {
-                main.post(() -> { if (!isDestroyed()) updateConnectionStatus(controller.phase()); });
-            }
-            public void log(String message) { main.post(() -> { if (!isDestroyed()) MainActivity.this.log(message); }); }
-        }, printerManager::close);
-        findViewById(R.id.discover).setOnClickListener(v -> {
-            if (!started) return;
-            if (scanning) stopDiscovery(true);
-            else if (offlineIdle()) permissions(this::discover, ble());
-        });
-        findViewById(R.id.settings).setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
-        findViewById(R.id.connect).setOnClickListener(v -> connect());
-        findViewById(R.id.m90_preset).setOnClickListener(v -> applyM90Preset());
-        findViewById(R.id.disconnect).setOnClickListener(v -> {
-            pendingImportAfterDisconnect = false;
-            if (previewing) { preparationGeneration.incrementAndGet(); previewing = false; imageOperation = ""; }
-            controller.disconnect(); updateButtons(controller.phase());
-        });
-        findViewById(R.id.cancel).setOnClickListener(v -> {
-            if (previewing) { preparationGeneration.incrementAndGet(); previewing = false; imageOperation = ""; updateButtons(controller.phase()); status("图片准备已取消；未提交"); }
-            else controller.cancel();
-        });
-        findViewById(R.id.preview).setOnClickListener(v -> preview());
-        findViewById(R.id.print).setOnClickListener(v -> print());
-        findViewById(R.id.send_raw).setOnClickListener(v -> sendRaw());
-        EditText rawHex = findViewById(R.id.raw_hex);
-        String rawLimitError = "Raw 输入最多 65536 个字符；此次输入未应用";
-        boolean[] rawEditRejected = {false};
-        rawHex.setFilters(new InputFilter[]{(source, start, end, destination, from, to) -> {
-            rawEditRejected[0] = false;
-            if (destination.length() - (to - from) + (end - start) <= RawCommand.MAX_CHARACTERS) return null;
-            rawEditRejected[0] = true;
-            rawHex.setError(rawLimitError);
-            // TextView.setText filters against an empty destination; preserve the existing command too.
-            if (destination.length() == 0 && rawHex.length() != 0) return rawHex.getText().toString();
-            return destination.subSequence(from, to); // Reject the entire edit; never silently truncate a command.
-        }});
-        rawHex.addTextChangedListener(new TextWatcher() {
-            private String previous = "";
-            public void beforeTextChanged(CharSequence value, int start, int count, int after) { previous = value.toString(); }
-            public void onTextChanged(CharSequence value, int start, int before, int count) {
-                // TextView resets its error flag after filtering, even for an unchanged replacement.
-                if (rawEditRejected[0]) { rawEditRejected[0] = false; rawHex.setError(rawLimitError); }
-                else if (!previous.contentEquals(value)) rawHex.setError(null);
-            }
-            public void afterTextChanged(Editable value) { }
-        });
-        ((EditText)findViewById(R.id.raw_copies)).addTextChangedListener(new TextWatcher() {
-            public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
-            public void onTextChanged(CharSequence value, int start, int before, int count) {
-                if (syncingCopies) return;
-                ((EditText)findViewById(R.id.raw_copies)).setError(null);
-                ((EditText)findViewById(R.id.copies)).setText(value.toString());
-            }
-            public void afterTextChanged(Editable value) { }
-        });
-        findViewById(R.id.go_canvas).setOnClickListener(v -> scrollToControl(R.id.canvas_section_heading, false));
-        findViewById(R.id.print_hint).setOnClickListener(v -> {
-            if (started && hintTarget != 0 && (idle() || (scanning && hintTarget == R.id.discover)))
-                scrollToControl(hintTarget, true);
-        });
-        findViewById(R.id.form_help_button).setOnClickListener(v -> showHelp(R.string.form_help_title, R.string.form_help));
-        findViewById(R.id.media_help_button).setOnClickListener(v -> showHelp(R.string.media_help_title, R.string.media_help));
-        findViewById(R.id.apply_media).setOnClickListener(v -> {
-            try { pendingMedia = choice(R.id.media) + 1; controller.mediaControl(pendingMedia, config()); }
-            catch (RuntimeException error) { pendingMedia = -1; error(error); }
-        });
-        findViewById(R.id.locate_label).setOnClickListener(v -> {
-            try { pendingMedia = 0; controller.mediaControl(0, config()); }
-            catch (RuntimeException error) { error(error); }
-        });
-        findViewById(R.id.export).setOnClickListener(v -> export());
-        findViewById(R.id.clear_log).setOnClickListener(v -> clearLogs());
-        findViewById(R.id.import_image).setOnClickListener(v -> chooseImage());
-        findViewById(R.id.builtin_image).setOnClickListener(v -> {
-            if (!offlineIdle() || sourceFile == null) return;
-            File old = sourceFile; sourceFile = null; invalidatePrepared();
-            if (old != null) images.execute(() -> old.delete());
-            status("已选择内置测试图；请更新预览");
-        });
-        findViewById(R.id.more_button).setOnClickListener(view -> showConfigMenu());
-        bindPanel(R.id.transport_details_toggle, R.id.transport_details, "高级连接参数");
-        findViewById(R.id.logs_button).setOnClickListener(view -> showLogs(true));
-        findViewById(R.id.logs_back).setOnClickListener(view -> { if (showingRaw) showRaw(false); else showLogs(false); });
-        ((CheckBox)findViewById(R.id.log_details)).setOnCheckedChangeListener((button, checked) -> renderLogs());
-        // Programmatic tail/anchor positioning is immediate; gesture scrolling remains unchanged.
-        ((ScrollView)findViewById(R.id.log_scroll)).setSmoothScrollingEnabled(false);
-        findViewById(R.id.log_latest).setOnClickListener(view -> {
-            ++logInteractionGeneration; pendingLogAnchor = null; followingLogs = true;
-            scrollLogs(true, 0);
-            updateLogLatest();
-        });
-        findViewById(R.id.log_scroll).setOnTouchListener((view, event) -> {
-            // Observe interaction only; the stock ScrollView keeps click, scrolling and accessibility handling.
-            ++logInteractionGeneration; pendingLogAnchor = null;
-            return false;
-        });
-        findViewById(R.id.log_scroll).getViewTreeObserver().addOnScrollChangedListener(() -> {
-            if (!renderingLogs) followingLogs = logsAtBottom();
-            updateLogLatest();
-        });
-        for (int id : new int[]{R.id.dpi, R.id.width, R.id.label_width, R.id.height, R.id.copies, R.id.x_offset, R.id.trailing_blank,
-                R.id.origin_adjustment, R.id.mtu, R.id.payload, R.id.service, R.id.characteristic})
-            ((EditText)findViewById(id)).addTextChangedListener(new TextWatcher() {
-                public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
-                public void onTextChanged(CharSequence value, int start, int before, int count) {
-                    if (applyingFields) return;
-                    ((EditText)findViewById(id)).setError(null); invalidatePrepared();
+        spinner(R.id.pixel_example, getResources().getStringArray(R.array.pixel_examples));
+        BleOptions preset = M90DevelopmentPreset.bleOptions();
+        for (int id : FIELDS) edit(id).setText(id == R.id.copies ? "1" : id == R.id.x_offset ||
+            id == R.id.origin_adjustment || id == R.id.trailing_blank ? "0" : id == R.id.mtu ? "517" : id == R.id.payload ? "512" : "");
+        edit(R.id.service).setText(preset.service.toString()); edit(R.id.characteristic).setText(preset.writeCharacteristic.toString());
+        select(R.id.write_mode, 2);
+        mirrorPrintDraft();
+        if (saved != null) restoreDraft(saved.getBundle("inputs"), retained);
+        if (retained && model.state().selectedID != null)
+            edit(R.id.address).setText(model.state().selectedID);
+        applying = false;
+    }
+
+    private void bindInputChanges() {
+        for (int id : FIELDS) edit(id).addTextChangedListener(new TextWatcher() {
+            public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
+            public void onTextChanged(CharSequence text, int start, int before, int count) {
+                if (applying) return;
+                edit(id).setError(null);
+                if (id == R.id.copies && !syncingCopies) {
+                    syncingCopies = true; edit(R.id.raw_copies).setText(text); syncingCopies = false;
                 }
-                public void afterTextChanged(Editable value) { }
-            });
-        for (int id : new int[]{R.id.form, R.id.print_format, R.id.media, R.id.write_mode, R.id.origin_mode})
-            watchChoice(id, () -> {
-                if (applyingFields) return;
-                if (id == R.id.form) findViewById(R.id.form_error).setVisibility(View.GONE);
-                if (id == R.id.write_mode) findViewById(R.id.write_mode_error).setVisibility(View.GONE);
-                invalidatePrepared();
-            });
-        ((EditText)findViewById(R.id.address)).addTextChangedListener(new TextWatcher() {
-            public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
-            public void onTextChanged(CharSequence value, int start, int before, int count) {
-                selectedDeviceName = null; ((EditText)findViewById(R.id.address)).setError(null);
-                if (applyingFields) return;
-                if (controller != null) updateButtons(controller.phase());
+                if (owner.images.state().busy) owner.images.cancel();
+                render();
             }
             public void afterTextChanged(Editable value) { }
         });
-        boolean restoredDraft = restoreEditDraft(saved);
-        buildIdentity = readBuildIdentity();
-        log("compatibility_record=" + compatibilityRecord().json());
-        log(PrinterController.sdkInfoText(MobilePrinter.sdkInfo()));
-        transportChanged(); updateButtons(PrinterController.Phase.OFFLINE);
-        if (restoredDraft) {
-            status("已保留填写参数；请重新选择设备并更新预览");
-            log("页面重建，已恢复编辑参数；未连接或发送");
+        for (int id : CHOICES) {
+            Spinner field = findViewById(id);
+            field.setTag(field.getSelectedItemPosition());
+            field.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long rowId) {
+                    if (Objects.equals(field.getTag(), position)) return;
+                    field.setTag(position);
+                    if (!applying) {
+                        if (owner.images.state().busy) owner.images.cancel();
+                        if (id == R.id.transport || id == R.id.ble_profile) { model.clearCandidates(); requestedDiscovery = false; }
+                        render();
+                    }
+                }
+                public void onNothingSelected(AdapterView<?> parent) { }
+            });
         }
     }
-    @Override protected void onSaveInstanceState(Bundle saved) {
-        // Keep incomplete input too, without saving identity, images, sessions or tasks.
-        Bundle draft = new Bundle(); draft.putInt("version", 3);
-        for (int id : draftFieldIds)
-            draft.putString(getResources().getResourceEntryName(id), ((EditText)findViewById(id)).getText().toString());
-        for (int id : draftChoiceIds)
-            draft.putInt(getResources().getResourceEntryName(id), choice(id));
-        saved.putBundle(EDIT_DRAFT, draft);
-        super.onSaveInstanceState(saved);
+
+    private void bindConnectionActions() {
+        // 连接仅校验地址与传输参数，不要求先填写打印尺寸或导入图片。
+        findViewById(R.id.connect).setOnClickListener(view -> withInput(() -> {
+            ConnectionOptions options = connectionOptions();
+            permissions(() -> { owner.notice = null; owner.connectionNumber++; model.connect(options, selectedMedia()); },
+                ble() ? DemoPermissions.Operation.BLE_CONNECT : DemoPermissions.Operation.SPP_CONNECT);
+        }));
+        findViewById(R.id.disconnect).setOnClickListener(view -> {
+            owner.abandonImageFlow(); requestedPreview = false;
+            owner.images.cancel(); owner.notice = null; model.disconnect();
+        });
+        findViewById(R.id.discover).setOnClickListener(view -> {
+            if (model.state().discovering) { model.stopDiscovery(); return; }
+            permissions(() -> {
+                owner.notice = null; requestedDiscovery = true;
+                discoveryBefore = model.state().discoveryResult; model.discover(ble());
+            }, ble() ? DemoPermissions.Operation.BLE_DISCOVERY : DemoPermissions.Operation.SPP_DISCOVERY);
+        });
+        findViewById(R.id.settings).setOnClickListener(view -> startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
+        findViewById(R.id.m90_preset).setOnClickListener(view -> applyPreset());
+        findViewById(R.id.apply_print_profile).setOnClickListener(view -> showProfileEditor());
+        findViewById(R.id.retry_initialize).setOnClickListener(view -> model.retryInitialize());
     }
-    private boolean restoreEditDraft(Bundle saved) {
-        Bundle draft = saved == null ? null : saved.getBundle(EDIT_DRAFT);
-        if (draft == null || draft.getInt("version") < 1 || draft.getInt("version") > 3) return false;
-        applyingFields = true;
-        try {
-            for (int id : draftFieldIds) {
-                String value = draft.getString(getResources().getResourceEntryName(id));
-                if (value != null) ((EditText)findViewById(id)).setText(value);
-            }
-            for (int id : draftChoiceIds) {
-                Spinner selector = findViewById(id);
-                int value = draft.getInt(getResources().getResourceEntryName(id), -1);
-                if (value >= 0 && value < selector.getCount()) selector.setSelection(value);
-            }
-            captureChoices();
-        } finally { applyingFields = false; }
-        return true;
+
+    private void bindPrintActions() {
+        findViewById(R.id.preview).setOnClickListener(view -> withInput(() -> {
+            if (!idle()) return;
+            requestedPreview = true; previewBefore = owner.images.state().previewRevision;
+            owner.notice = null; owner.images.preview(readConfig());
+        }));
+        findViewById(R.id.print).setOnClickListener(view -> withInput(() -> {
+            // 只提交图片来源与打印参数；文件解码和任务构建在 SDK 后台准备回调中执行。
+            LabelConfig config = readConfig();
+            owner.notice = null;
+            DemoPixelSamples.Example example = pixelExample();
+            if (example == null) model.print(owner.images.source(), config);
+            else model.printSample(example, config);
+        }));
+        findViewById(R.id.print_fifo).setOnClickListener(view -> withInput(() -> {
+            owner.notice = null; model.printBatch(owner.images.source(), readConfig(), pixelExample());
+        }));
+        findViewById(R.id.cancel).setOnClickListener(view -> {
+            requestedPreview = false;
+            // 图片准备与 SDK 请求属于不同生命周期，各自走所属对象的取消入口。
+            if (owner.images.state().busy) owner.images.cancel(); else model.cancel();
+        });
+        findViewById(R.id.import_image).setOnClickListener(view -> withInput(this::chooseImage));
+        findViewById(R.id.builtin_image).setOnClickListener(view -> withInput(() -> {
+            if (offlineIdle()) { owner.notice = null; owner.images.useBuiltin(); }
+        }));
+        findViewById(R.id.apply_media).setOnClickListener(view -> withInput(() -> {
+            requireCpcl(); owner.notice = null;
+            model.setMedia(selectedMedia());
+        }));
+        findViewById(R.id.locate_label).setOnClickListener(view -> withInput(() -> {
+            requireCpcl(); owner.notice = null; model.feed();
+        }));
     }
-    private static void disableSavedState(View view) {
-        view.setSaveEnabled(false); view.setSaveFromParentEnabled(false);
-        if (view instanceof ViewGroup) {
-            ViewGroup group = (ViewGroup)view;
-            for (int index = 0; index < group.getChildCount(); index++) disableSavedState(group.getChildAt(index));
+
+    private void bindDiagnostics() {
+        findViewById(R.id.query_status).setOnClickListener(view -> { owner.notice = null; model.queryStatus(receipt()); });
+        findViewById(R.id.capabilities).setOnClickListener(view -> { owner.notice = null; model.capabilities(); });
+        findViewById(R.id.send_raw).setOnClickListener(view -> withInput(() -> {
+            RawCommand command = RawCommand.parse(edit(R.id.raw_hex).getText().toString(), number(R.id.copies));
+            owner.notice = null; model.sendRaw(command.copyBytes(), command.copies);
+        }));
+        bindRaw();
+    }
+
+    private void bindUtilities() {
+        findViewById(R.id.more_button).setOnClickListener(view -> showMenu());
+        findViewById(R.id.export).setOnClickListener(view -> exportLogs());
+        findViewById(R.id.clear_log).setOnClickListener(view -> clearLogs());
+        findViewById(R.id.form_help_button).setOnClickListener(view -> help(R.string.form_help_title, R.string.form_help));
+        findViewById(R.id.media_help_button).setOnClickListener(view -> help(R.string.media_help_title, R.string.media_help));
+    }
+
+    private void bindNavigation() {
+        findViewById(R.id.transport_details_toggle).setOnClickListener(view -> {
+            View panel = findViewById(R.id.transport_details); boolean expand = panel.getVisibility() != View.VISIBLE;
+            panel.setVisibility(expand ? View.VISIBLE : View.GONE);
+            ((Button)view).setText(expand ? R.string.transport_details_collapse : R.string.transport_details);
+        });
+        findViewById(R.id.go_canvas).setOnClickListener(view -> scrollTo(R.id.canvas_section_heading));
+        findViewById(R.id.print_hint).setOnClickListener(view -> { if (hintTarget != 0) scrollTo(hintTarget); });
+        findViewById(R.id.logs_button).setOnClickListener(view -> showPage(true, false));
+        findViewById(R.id.logs_back).setOnClickListener(view -> showPage(false, false));
+        findViewById(R.id.canvas_panel).addOnLayoutChangeListener((view, left, top, right, bottom, a, b, c, d) -> updateCanvasLayout());
+    }
+    private EditText edit(int id) { return findViewById(id); }
+    private String text(int id) { return edit(id).getText().toString().trim(); }
+    private int choice(int id) { return ((Spinner)findViewById(id)).getSelectedItemPosition(); }
+    private void select(int id, int position) {
+        Spinner field = findViewById(id);
+        if (applying) field.setTag(position);
+        field.setSelection(position);
+    }
+    private boolean ble() { return choice(R.id.transport) == 1; }
+    private boolean receipt() {
+        PrinterProfile bound = model.printProfile();
+        return bound == null ? printDraft.receipt() : bound.protocol == PrinterProfile.Protocol.ESC_POS;
+    }
+    private MediaMode selectedMedia() {
+        return choice(R.id.media) == 0 ? MediaMode.GAP : choice(R.id.media) == 1 ? MediaMode.BLACK_MARK : MediaMode.CONTINUOUS;
+    }
+    private boolean centered() {
+        PrinterProfile profile = model.printProfile();
+        return profile != null && profile.protocol == PrinterProfile.Protocol.CPCL &&
+            profile.labelAlignment == PrinterProfile.LabelAlignment.CENTERED;
+    }
+    private DemoPixelSamples.Example pixelExample() {
+        int position = choice(R.id.pixel_example);
+        return position == 0 ? null : DemoPixelSamples.Example.values()[position - 1];
+    }
+    private int number(int id) {
+        try { return Integer.parseInt(text(id)); }
+        catch (NumberFormatException failure) { throw new LabelConfig.ValidationError(getResources().getResourceEntryName(id), "请填写有效整数"); }
+    }
+    private void spinner(int id, String... entries) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, entries);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        ((Spinner)findViewById(id)).setAdapter(adapter);
+    }
+    /** 固化本次打印参数；SDK 负责起点计算，App 不提交已解析的居中绝对起点。 */
+    private LabelConfig readConfig() {
+        PrinterProfile bound = model.printProfile();
+        if (bound == null) bound = printDraft.previewProfile();
+        boolean label = bound.protocol == PrinterProfile.Protocol.CPCL;
+        boolean manual = label && !centered() &&
+            (model.printProfile() != null || printDraft.originMode() == OriginPlacement.MANUAL);
+        return new LabelConfig(bound, number(R.id.label_width), number(R.id.height), number(R.id.copies),
+            choice(R.id.form), manual ? number(R.id.x_offset) : 0,
+            label && model.printProfile() != null ? number(R.id.origin_adjustment) : 0, number(R.id.trailing_blank));
+    }
+    private BleOptions bleOptions() {
+        int mtu = number(R.id.mtu), payload = number(R.id.payload);
+        if (choice(R.id.ble_profile) == 0) return LTM90Profile.bleOptions(mtu, payload);
+        if (choice(R.id.write_mode) == 0) throw new IllegalArgumentException("请选择 BLE 写入方式");
+        return new BleOptions(parseUuid(text(R.id.service)), parseUuid(text(R.id.characteristic)),
+            choice(R.id.write_mode) == 1, mtu, payload);
+    }
+    static UUID parseUuid(String input) {
+        String value = input.trim();
+        if (value.length() != 36 || !value.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))
+            throw new IllegalArgumentException("BLE 需要完整的 36 位服务 / 写特征 UUID");
+        return UUID.fromString(value);
+    }
+    /** SPP 与 BLE 共用连接入口，BLE 的 UUID、MTU 和写入方式由当前表单明确提供。 */
+    private ConnectionOptions connectionOptions() {
+        String address = text(R.id.address).toUpperCase(Locale.ROOT);
+        if (!BluetoothAdapter.checkBluetoothAddress(address)) throw new LabelConfig.ValidationError("address", "请选择已配对设备或填写有效蓝牙地址");
+        DiscoveredDevice selected = null;
+        for (DiscoveredDevice candidate : model.state().candidates)
+            if (candidate.address.equalsIgnoreCase(address) && candidate.address.equals(model.state().selectedID)) selected = candidate;
+        if (ble() && choice(R.id.ble_profile) == 0 && !owner.m90BleExplicit &&
+            PrinterProfiles.resolveBleOptions(selected == null ? null : selected.name, null) == null)
+            throw new LabelConfig.ValidationError("service", "SDK 未匹配 BLE 通道；请在高级设置中选择通用 BLE 并填写参数，或显式应用 M90 BLE 通信预设");
+        ConnectionOptions options = ble()
+            ? selected == null ? ConnectionOptions.ble(address, bleOptions()) : ConnectionOptions.ble(selected, bleOptions())
+            : selected == null ? ConnectionOptions.spp(address) : ConnectionOptions.spp(selected);
+        return options;
+    }
+    /** 连接默认 Profile 只在无设备请求时显式更新，主表显示绑定值。 */
+    private void showProfileEditor() {
+        if (!idle() || !model.state().canWork()) return;
+        PrinterProfile draft = null;
+        try { draft = printDraft.editorProfile(); }
+        catch (IllegalArgumentException ignored) { /* 旧草稿不完整时由用户在对话框重新填写。 */ }
+        showUtilityDialog(deviceView.profileEditor(model.printProfile(), draft, profile -> {
+            // 只有成功采用的配置才由 render 回填；失败不覆盖旧设备配置。
+            model.configureProfile(profile, selectedMedia());
+        }));
+    }
+    private void requireCpcl() { if (receipt()) throw new IllegalArgumentException("请先选择 CPCL；ESC/POS 不使用此介质命令"); }
+    /** 同时检查前台、SDK 请求、图片准备和文件操作，避免互相覆盖正在使用的输入。 */
+    private boolean idle() {
+        return started && model.state().canEditDocument() && !owner.images.state().busy && !owner.utilityBusy &&
+            !owner.importAfterDisconnect && !owner.pickerOpen;
+    }
+    private boolean offlineIdle() { return idle() && model.state().phase == DemoUiState.Phase.OFFLINE; }
+    /** 接收状态变化并完成此前的显式操作；文件结果暂存在 Owner，避免重建期间丢失。 */
+    private void changed() {
+        if (!started || isDestroyed()) return;
+        if (owner.takeLogsCleared()) logView.clear();
+        owner.recordResults(); render();
+        if (owner.pendingSettings != null) {
+            DemoSettings settings = owner.pendingSettings; owner.pendingSettings = null;
+            applySettings(settings); message("配置已加载，请重新选择设备");
+        }
+        if (owner.pendingLegacy != null) {
+            Map<String, ?> values = owner.pendingLegacy; owner.pendingLegacy = null;
+            confirmLegacy(values);
+        }
+        acceptImport();
+        acceptExport();
+        openExportPicker();
+        // 必须等断开清理完成后才进入文件选择器，不能用按钮点击或本地标志推断已断开。
+        if (owner.importAfterDisconnect && model.state().canConnect()) {
+            owner.importAfterDisconnect = false; openImagePicker();
+        }
+        DemoResult<List<DiscoveredDevice>> found = model.state().discoveryResult;
+        if (requestedDiscovery && found != null && found != discoveryBefore && !model.state().discovering) {
+            requestedDiscovery = false;
+            if (found.raw.outcome == ManagerResult.Outcome.SUCCESS && model.state().canConnect()) showDevices();
+        }
+        DemoImages.State image = owner.images.state();
+        if (requestedPreview && !image.busy) {
+            requestedPreview = false;
+            if (image.preview != null && image.previewRevision > previewBefore) showPreview(image.preview);
         }
     }
-    private void transportChanged() {
+    /** 按当前状态更新控件和提示；渲染本身不提交 SDK 请求，也不触发自动打印。 */
+    private void render() {
+        if (owner == null) return;
+        DemoUiState state = model.state(); DemoImages.State image = owner.images.state();
+        PrinterProfile profile = model.printProfile();
+        if (profile != null && displayedProfile != profile) {
+            displayedProfile = profile;
+            boolean previous = applying;
+            applying = true;
+            try {
+                adoptPrintProfile(profile);
+            } finally { applying = previous; }
+        }
+        mirrorPrintDraft();
+        boolean idle = idle(), editDevice = offlineIdle();
+        boolean pending = owner.utilityBusy || owner.pickerOpen || owner.importAfterDisconnect;
+        sections.render();
+        ((TextView)findViewById(R.id.connection_status)).setText(getString(R.string.connection_summary,
+            state.phase == DemoUiState.Phase.READY ? getString(R.string.connected) :
+            state.phase == DemoUiState.Phase.OFFLINE ? getString(R.string.offline) : DemoFormatter.status(state), ble() ? "BLE" : "SPP"));
+        String notice = image.busy ? image.operation : image.error != null ? image.error : owner.notice;
+        if (notice == null && (state.inputError != null || state.cancelling || state.discovering ||
+            state.phase == DemoUiState.Phase.CLOSED)) notice = DemoFormatter.status(state);
+        ((TextView)findViewById(R.id.status)).setText(notice);
+        findViewById(R.id.status).setVisibility(showingLogs || notice == null ? View.GONE : View.VISIBLE);
+        ((TextView)findViewById(R.id.identity)).setText(DemoFormatter.identity(state.identityResult));
+        ((TextView)findViewById(R.id.last_result)).setText(DemoFormatter.result(state.latestResult));
+        ((TextView)findViewById(R.id.connection_result)).setText(DemoFormatter.connection(state));
+        for (int id : FIELDS) findViewById(id).setEnabled(editDevice);
+        for (int id : new int[]{R.id.label_width, R.id.height, R.id.copies, R.id.trailing_blank, R.id.raw_hex, R.id.raw_copies})
+            findViewById(id).setEnabled(idle);
+        for (int id : new int[]{R.id.transport, R.id.ble_profile, R.id.write_mode, R.id.m90_preset}) findViewById(id).setEnabled(editDevice);
+        // 旧设置中的设备参数只保留为手动草稿；当前连接只能通过配置对话框更正。
+        for (int id : new int[]{R.id.print_format, R.id.dpi, R.id.width}) findViewById(id).setEnabled(false);
+        findViewById(R.id.media).setEnabled(idle);
+        findViewById(R.id.apply_print_profile).setEnabled(idle && state.canWork());
+        findViewById(R.id.apply_print_profile).setVisibility(state.connected &&
+            (profile == null || sections.expanded(R.id.device_advanced)) ? View.VISIBLE : View.GONE);
+        ((Button)findViewById(R.id.apply_print_profile)).setText(profile == null ? "补充打印配置" : "更正打印配置…");
+        findViewById(R.id.retry_initialize).setEnabled(idle && state.canWork() && profile != null);
+        findViewById(R.id.retry_initialize).setVisibility(state.connected && profile != null &&
+            !model.configured() && state.canWork() ? View.VISIBLE : View.GONE);
+        findViewById(R.id.form).setEnabled(idle && !receipt());
+        findViewById(R.id.x_offset).setEnabled(idle && !receipt() && !centered() &&
+            (profile != null || printDraft.originMode() == OriginPlacement.MANUAL));
+        findViewById(R.id.origin_mode).setEnabled(false);
+        findViewById(R.id.origin_adjustment).setEnabled(idle && !receipt() &&
+            (profile != null || printDraft.originMode() == OriginPlacement.CENTERED));
         findViewById(R.id.ble_fields).setVisibility(ble() ? View.VISIBLE : View.GONE);
         findViewById(R.id.ble_custom_fields).setVisibility(ble() && choice(R.id.ble_profile) == 1 ? View.VISIBLE : View.GONE);
-        updateDiscoveryButton();
-    }
-    private void bindPanel(int toggleId, int panelId, String label) {
-        Button toggle = findViewById(toggleId);
-        toggle.setOnClickListener(view -> setPanel(toggleId, panelId, label,
-            findViewById(panelId).getVisibility() != View.VISIBLE));
-        setPanel(toggleId, panelId, label, false);
-    }
-    private void setPanel(int toggleId, int panelId, String label, boolean expanded) {
-        findViewById(panelId).setVisibility(expanded ? View.VISIBLE : View.GONE);
-        Button toggle = findViewById(toggleId);
-        toggle.setText((expanded ? "收起" : "展开") + label);
-        toggle.setContentDescription(label + (expanded ? "，已展开" : "，已收起"));
-    }
-    private void showConfigMenu() {
-        if (!started) return;
-        dismissConfigMenu();
-        PopupMenu menu = new PopupMenu(this, findViewById(R.id.more_button));
-        menu.getMenuInflater().inflate(R.menu.config_actions, menu.getMenu());
-        menu.setOnMenuItemClickListener(item -> {
-            if (!started || !item.isEnabled()) return true;
-            if (item.getItemId() == R.id.raw_diagnostics) { showRaw(true); return true; }
-            if (item.getItemId() == R.id.sdk_diagnostics) {
-                new AlertDialog.Builder(this).setTitle("SDK 与设备诊断")
-                    .setMessage(PrinterController.sdkInfoText(MobilePrinter.sdkInfo()) + "\n\n" +
-                        PrinterController.resourceStatusText(controller.resourceSnapshot()) + "\n" +
-                        PrinterController.diagnosticText(controller.diagnostic()) + "\n\n硬件状态未知；当前协议未提供已验证的状态读回。")
-                    .setPositiveButton("关闭", null).show();
-                return true;
-            }
-            if (!offlineIdle()) return true;
-            int action;
-            if (item.getItemId() == R.id.save_config) action = 0;
-            else if (item.getItemId() == R.id.load_config) action = 1;
-            else if (item.getItemId() == R.id.clear_config) action = 2;
-            else if (item.getItemId() == R.id.load_legacy) action = 3;
-            else return false;
-            settingsAction(action); return true;
-        });
-        menu.setOnDismissListener(closed -> { if (configMenu == closed) configMenu = null; });
-        configMenu = menu; updateConfigMenu(); menu.show();
-    }
-    private void updateConfigMenu() {
-        if (configMenu == null) return;
-        boolean enabled = started && offlineIdle();
-        Menu menu = configMenu.getMenu();
-        for (int index = 0; index < menu.size(); index++) {
-            MenuItem item = menu.getItem(index);
-            item.setEnabled(item.getItemId() == R.id.raw_diagnostics || item.getItemId() == R.id.sdk_diagnostics ? started : enabled);
-        }
-    }
-    private void dismissConfigMenu() {
-        PopupMenu menu = configMenu; configMenu = null;
-        if (menu != null) menu.dismiss();
-    }
-    private void showLogs(boolean visible) {
-        showPages(visible, false);
-    }
-    private void showRaw(boolean visible) { showPages(false, visible); }
-    private void showPages(boolean logs, boolean raw) {
-        if (showingLogs == logs && showingRaw == raw) return;
-        dismissConfigMenu();
-        showingLogs = logs; showingRaw = raw;
-        View focused = getCurrentFocus();
-        if (focused != null) {
-            android.view.inputmethod.InputMethodManager keyboard =
-                (android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
-            if (keyboard != null) keyboard.hideSoftInputFromWindow(focused.getWindowToken(), 0);
-            focused.clearFocus();
-        }
-        findViewById(R.id.print_page).setVisibility(logs || raw ? View.GONE : View.VISIBLE);
-        findViewById(R.id.logs_page).setVisibility(logs ? View.VISIBLE : View.GONE);
-        findViewById(R.id.raw_page).setVisibility(raw ? View.VISIBLE : View.GONE);
-        findViewById(R.id.print_actions).setVisibility(logs || raw ? View.GONE : View.VISIBLE);
-        findViewById(R.id.logs_button).setVisibility(logs ? View.GONE : View.VISIBLE);
-        findViewById(R.id.logs_back).setVisibility(logs || raw ? View.VISIBLE : View.GONE);
-        ((TextView)findViewById(R.id.app_title)).setText(logs ? R.string.logs_title : raw ? R.string.raw_title : R.string.screen_title);
-        findViewById(R.id.status).setVisibility(logs || ((TextView)findViewById(R.id.status)).getText().length() == 0 ? View.GONE : View.VISIBLE);
-        if (logs) renderLogs(); else cancelLogPositioning();
-        if (unregisterLogBack != null) { unregisterLogBack.run(); unregisterLogBack = null; }
-        if ((logs || raw) && Build.VERSION.SDK_INT >= 33)
-            unregisterLogBack = LogBackNavigation.register(this, () -> showPages(false, false));
-        updateButtons(controller.phase());
-        findViewById(logs || raw ? R.id.logs_back : R.id.logs_button).sendAccessibilityEvent(
-            android.view.accessibility.AccessibilityEvent.TYPE_VIEW_FOCUSED);
-    }
-    @Override public void onBackPressed() {
-        if (showingLogs || showingRaw) showPages(false, false);
-        else super.onBackPressed();
-    }
-    // Isolate the API 33 callback so older Android versions use Activity's Back path.
-    @android.annotation.TargetApi(33)
-    private static final class LogBackNavigation {
-        static Runnable register(Activity activity, Runnable returnToPrint) {
-            android.window.OnBackInvokedDispatcher dispatcher = activity.getOnBackInvokedDispatcher();
-            android.window.OnBackInvokedCallback callback = returnToPrint::run;
-            dispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
-            return () -> dispatcher.unregisterOnBackInvokedCallback(callback);
-        }
-    }
-    private void clearThumbnail() {
-        ImageView image = findViewById(R.id.thumbnail);
-        image.setImageDrawable(null); image.setVisibility(View.GONE);
-        if (thumbnailBitmap != null) { thumbnailBitmap.recycle(); thumbnailBitmap = null; }
-        thumbnailSnapshot = null;
-        thumbnailGeneration = -1;
-    }
-    private void updateThumbnail(PreparedImage snapshot) {
-        long version = preparationGeneration.get();
-        if (thumbnailSnapshot == snapshot && (thumbnailBitmap != null || thumbnailGeneration == version)) return;
-        thumbnailSnapshot = snapshot; thumbnailGeneration = version;
-        images.execute(() -> {
-            try {
-                Bitmap bitmap = ImageImport.thumbnail(snapshot, () -> preparationGeneration.get() != version);
-                main.post(() -> {
-                    if (isDestroyed() || !started || preparationGeneration.get() != version || prepared != snapshot) {
-                        bitmap.recycle();
-                        if (thumbnailSnapshot == snapshot && thumbnailGeneration == version) thumbnailSnapshot = null;
-                        return;
-                    }
-                    ImageView image = findViewById(R.id.thumbnail); image.setImageDrawable(null);
-                    if (thumbnailBitmap != null) thumbnailBitmap.recycle();
-                    thumbnailBitmap = bitmap; image.setImageBitmap(bitmap); image.setVisibility(View.VISIBLE);
-                    image.setContentDescription("当前图片预览，画布 " + snapshot.config.labelWidthDots + " × " + snapshot.config.height + " 点");
-                });
-            } catch (RuntimeException failure) {
-                main.post(() -> {
-                    if (thumbnailSnapshot == snapshot && thumbnailGeneration == version) thumbnailSnapshot = null;
-                });
-            }
-        });
-    }
-    private void applyM90Preset() {
-        if (!started || !offlineIdle()) return;
-        applyingFields = true;
-        try {
-            ((Spinner)findViewById(R.id.print_format)).setSelection(0);
-            ((EditText)findViewById(R.id.dpi)).setText(String.format(Locale.ROOT, "%d", M90DevelopmentPreset.DPI));
-            ((EditText)findViewById(R.id.width)).setText(String.format(Locale.ROOT, "%d", M90DevelopmentPreset.WIDTH_DOTS));
-            if (ble()) {
-                BleOptions preset = M90DevelopmentPreset.bleOptions();
-                ((Spinner)findViewById(R.id.ble_profile)).setSelection(0);
-                ((Spinner)findViewById(R.id.write_mode)).setSelection(2);
-                ((EditText)findViewById(R.id.mtu)).setText(String.format(Locale.ROOT, "%d", preset.requestedMtu));
-                ((EditText)findViewById(R.id.payload)).setText(String.format(Locale.ROOT, "%d", preset.maxWriteBytes));
-                ((EditText)findViewById(R.id.service)).setText(preset.service.toString());
-                ((EditText)findViewById(R.id.characteristic)).setText(preset.writeCharacteristic.toString());
-            }
-            ((Spinner)findViewById(R.id.origin_mode)).setSelection(OriginPlacement.CENTERED);
-            ((EditText)findViewById(R.id.origin_adjustment)).setText("0");
-            ((EditText)findViewById(R.id.address)).setText("");
-            selectedDeviceName = null; clearFieldErrors(); captureChoices();
-        } finally { applyingFields = false; }
-        invalidatePrepared();
-        status("M90 开发预设 r" + M90DevelopmentPreset.REVISION + " 已应用；画布与纸张参数保留，请重新选择设备");
-        log("开发预设=" + M90DevelopmentPreset.ID + " revision=" + M90DevelopmentPreset.REVISION +
-            " / CPCL / 203 DPI / 864 dots；未连接或发送");
-    }
-    private void updateOriginPresentation() {
-        boolean automatic = centeredOrigin();
-        findViewById(R.id.origin_policy_fields).setVisibility(receipt() ? View.GONE : View.VISIBLE);
-        findViewById(R.id.origin_adjustment_field).setVisibility(automatic ? View.VISIBLE : View.GONE);
-        ((TextView)findViewById(R.id.origin_help)).setText(automatic ? R.string.origin_centered_help : R.string.x_offset_help);
-        if (!automatic) return;
-        String origin = "";
-        try {
-            origin = Integer.toString(OriginPlacement.resolve(number(R.id.width, "打印机最大宽度"),
-                number(R.id.label_width, "画布宽度"), OriginPlacement.CENTERED, 0,
-                number(R.id.origin_adjustment, "居中校准偏移")));
-        } catch (LabelConfig.ValidationError invalid) { /* Incomplete input stays visible without changing validation state. */ }
-        EditText field = findViewById(R.id.x_offset);
-        if (!field.getText().toString().equals(origin)) {
-            boolean previous = applyingFields; applyingFields = true;
-            try { field.setText(origin); } finally { applyingFields = previous; }
-        }
-    }
-    private void updatePresentation(PrinterController.Phase phase) {
-        updateOriginPresentation();
-        updateConnectionStatus(phase);
-        boolean selected = BluetoothAdapter.checkBluetoothAddress(text(R.id.address).toUpperCase(Locale.ROOT));
-        ((TextView)findViewById(R.id.device_summary)).setText(selected ?
-            selectedDeviceName == null ? "已填写设备地址" : "已选择：" + selectedDeviceName : "尚未选择设备");
-        String form = choice(R.id.form) == 1 ? "发送" : choice(R.id.form) == 2 ? "不发送" : "未选择";
-        ((TextView)findViewById(R.id.canvas_summary)).setText((receipt() ? "小票" : "标签") + " · " +
-            fieldSummary(R.id.label_width) + " × " + fieldSummary(R.id.height) + " dots · " + fieldSummary(R.id.dpi) + " DPI\n" +
-            fieldSummary(R.id.copies) + " 份 · 留白=" + fieldSummary(R.id.trailing_blank) + " dots" +
-            (receipt() ? "" : " · X=" + fieldSummary(R.id.x_offset) + " · FORM=" + form));
-        EditText rawCopies = findViewById(R.id.raw_copies);
-        String copiesText = ((EditText)findViewById(R.id.copies)).getText().toString();
-        if (!copiesText.contentEquals(rawCopies.getText())) {
-            syncingCopies = true;
-            try { rawCopies.setText(copiesText); } finally { syncingCopies = false; }
-        }
         findViewById(R.id.cpcl_fields).setVisibility(receipt() ? View.GONE : View.VISIBLE);
         findViewById(R.id.media_fields).setVisibility(receipt() ? View.GONE : View.VISIBLE);
+        findViewById(R.id.origin_policy_fields).setVisibility(receipt() ? View.GONE : View.VISIBLE);
+        findViewById(R.id.origin_adjustment_field).setVisibility(!receipt() &&
+            (profile != null || printDraft.originMode() == OriginPlacement.CENTERED) ? View.VISIBLE : View.GONE);
+        ((TextView)findViewById(R.id.origin_help)).setText(centered() ? R.string.origin_centered_help : R.string.x_offset_help);
+        if (centered()) {
+            String origin = "";
+            try { origin = Integer.toString(profile.labelOriginXDots(number(R.id.label_width), number(R.id.origin_adjustment))); }
+            catch (IllegalArgumentException ignored) { }
+            if (!origin.equals(text(R.id.x_offset))) {
+                boolean previous = applying; applying = true; edit(R.id.x_offset).setText(origin); applying = previous;
+            }
+        }
+        // 本轮渲染只读取并校验一次打印表单，按钮、摘要和预览状态共用同一不可变参数。
+        LabelConfig config;
+        int invalidTarget = R.id.label_width;
+        try { config = readConfig(); } catch (IllegalArgumentException invalid) {
+            config = null;
+            if (invalid instanceof LabelConfig.ValidationError) {
+                int target = getResources().getIdentifier(((LabelConfig.ValidationError)invalid).field, "id", getPackageName());
+                if (target != 0) invalidTarget = target;
+            }
+        }
+        boolean valid = config != null;
+        DemoPixelSamples.Example example = pixelExample();
+        if (valid && example != null) {
+            try { DemoPixelSamples.validate(example, config); }
+            catch (IllegalArgumentException invalid) { valid = false; }
+        }
+        boolean mediaReady = profile != null && (receipt() || model.configured() && state.mediaRequest != null &&
+            state.mediaRequest.mode == selectedMedia());
+        boolean printReady = started && state.canSubmitPrint() && mediaReady && !image.busy && !pending;
+        boolean current = valid && image.prepared != null && image.prepared.matches(config);
+        findViewById(R.id.connect).setEnabled(editDevice);
+        findViewById(R.id.discover).setEnabled(started && state.canDiscover() && !image.busy && !pending);
+        ((Button)findViewById(R.id.discover)).setText(state.discovering ? R.string.stop_discovery : ble() ? R.string.scan_ble : R.string.paired_devices);
+        findViewById(R.id.settings).setEnabled(started && !pending);
+        findViewById(R.id.disconnect).setEnabled(started && (state.canDisconnect() || image.busy));
+        findViewById(R.id.preview).setEnabled(idle && example == null);
+        findViewById(R.id.print).setEnabled(printReady && valid);
+        ((Button)findViewById(R.id.print)).setText(example == null ? R.string.print_test : R.string.print_pixel_example);
+        findViewById(R.id.pixel_example).setEnabled(idle || printReady);
+        findViewById(R.id.print_fifo).setEnabled(printReady && valid && state.canSubmitPrints(3));
+        printRequestsView.render(state);
+        findViewById(R.id.import_image).setEnabled(idle);
+        ((Button)findViewById(R.id.import_image)).setText(state.phase == DemoUiState.Phase.READY ? R.string.disconnect_import_image : R.string.import_image);
+        findViewById(R.id.builtin_image).setEnabled(editDevice && image.imported);
+        boolean cancel = state.canCancel() || image.busy;
+        findViewById(R.id.cancel).setEnabled(started && cancel);
+        ((Button)findViewById(R.id.cancel)).setText(!image.busy && state.pendingPrintCount() != 0 ? R.string.cancel_earliest_print : R.string.cancel);
+        findViewById(R.id.cancel).setVisibility(cancel ? View.VISIBLE : View.GONE);
+        findViewById(R.id.action_bar).setVisibility((showingLogs || showingRaw) && !cancel ? View.GONE : View.VISIBLE);
+        for (int id : new int[]{R.id.send_raw, R.id.query_status, R.id.capabilities}) findViewById(id).setEnabled(idle && state.canWork());
+        findViewById(R.id.apply_media).setEnabled(idle && state.canWork() && profile != null && !receipt());
         findViewById(R.id.apply_media).setVisibility(receipt() ? View.GONE : View.VISIBLE);
-        findViewById(R.id.locate_label).setVisibility(receipt() ? View.GONE : View.VISIBLE);
-        findViewById(R.id.media_status).setVisibility(receipt() ? View.GONE : View.VISIBLE);
-        findViewById(R.id.media_apply_group).setVisibility(receipt() ? View.GONE : View.VISIBLE);
+        findViewById(R.id.locate_label).setEnabled(idle && state.canWork() && profile != null && !receipt());
         findViewById(R.id.label_motion_group).setVisibility(receipt() ? View.GONE : View.VISIBLE);
-        updateCanvasLayout();
-        transportChanged();
-        String source = sourceFile == null ? receipt() ? "内置小票示例" : "内置校准图" : "已导入 PNG/JPEG";
-        ((Button)findViewById(R.id.builtin_image)).setText(sourceFile == null ? getString(R.string.builtin_image_current, source) :
-            receipt() ? "切回内置小票示例" : "切回内置校准图");
-        ((Button)findViewById(R.id.import_image)).setText(phase == PrinterController.Phase.READY ? R.string.disconnect_import_image : R.string.import_image);
-        String dimensions = prepared == null ? "等待准备" : prepared.config.labelWidthDots + " × " + prepared.config.height + " dots";
-        ((TextView)findViewById(R.id.image_summary)).setText("来源：" + source + "\n画布：" + dimensions);
-        boolean valid = currentImage();
-        String imageState = previewing ? imageOperation : valid ?
-            phase == PrinterController.Phase.READY ? "图片已准备，可打印" :
-            phase == PrinterController.Phase.OFFLINE ? "图片已准备，待连接" : "图片已准备，等待当前操作结束" :
-            hadPreparedImage ? "需要重新预览" : "尚未准备图片";
-        ((TextView)findViewById(R.id.image_status)).setText(imageState);
-        if (valid && !previewing) updateThumbnail(prepared);
-        updateActionHint(phase, valid, selected);
-        ((TextView)findViewById(R.id.media_status)).setText(pendingMedia > 0 ? R.string.media_sending :
-            sentMedia == choice(R.id.media) + 1 ? R.string.media_sent : R.string.media_not_sent);
-    }
-    private void updateConnectionStatus(PrinterController.Phase phase) {
-        TextView view = findViewById(R.id.connection_status);
-        String text = PrinterController.deviceStatusText(controller.deviceState(), phase) + " · " + (ble() ? "BLE" : "SPP") +
-            "\n" + PrinterController.resourceStatusText(controller.resourceSnapshot());
-        if (!text.contentEquals(view.getText())) view.setText(text);
+        for (int id : new int[]{R.id.export, R.id.clear_log}) findViewById(id).setEnabled(idle);
+        findViewById(R.id.go_canvas).setVisibility(state.canWork() ? View.VISIBLE : View.GONE);
+        deviceView.render(state, text(R.id.address));
+        ((TextView)findViewById(R.id.canvas_summary)).setText(valid ?
+            config.labelWidthDots + " × " + config.height + " dots · " + config.copies + " 份" +
+                (config.receipt ? "" : " · X" + config.xOffsetDots) :
+            state.connected && profile == null ? "请补充打印配置" :
+            profile == null ? "连接后设置尺寸" : "请填写尺寸并选择 FORM");
+        ((TextView)findViewById(R.id.image_summary)).setText(image.imported ? "已导入 PNG/JPEG" : receipt() ? "内置小票示例" : "内置校准图");
+        ((TextView)findViewById(R.id.image_status)).setText(image.busy ? image.operation : current ? "预览已更新" : image.prepared == null ? "尚未预览" : "预览需更新");
+        ImageView thumbnail = findViewById(R.id.thumbnail);
+        if (example != null) ((TextView)findViewById(R.id.image_status)).setText(getString(R.string.pixel_example_selected,
+            ((Spinner)findViewById(R.id.pixel_example)).getSelectedItem()));
+        thumbnail.setImageBitmap(current && example == null ? image.thumbnail : null);
+        thumbnail.setVisibility(!current || image.thumbnail == null || example != null ? View.GONE : View.VISIBLE);
+        ((TextView)findViewById(R.id.raw_hint)).setText(state.canWork() ? "发送前请确认命令与份数" : "请先连接设备");
+        String media = receipt() ? "小票无需介质初始化" : "介质设置：未发送";
+        if (!receipt() && state.phase == DemoUiState.Phase.READY && state.mediaRequest != null && state.mediaRequest.result != null) {
+            MediaMode selected = choice(R.id.media) == 0 ? MediaMode.GAP : choice(R.id.media) == 1 ? MediaMode.BLACK_MARK : MediaMode.CONTINUOUS;
+            String name = state.mediaRequest.mode == MediaMode.GAP ? "间隙纸" : state.mediaRequest.mode == MediaMode.BLACK_MARK ? "黑标纸" : "连续纸";
+            media = (selected == state.mediaRequest.mode ? "" : "当前选择尚未发送；上次：") +
+                name + " · " + DemoFormatter.summary(state.mediaRequest.result);
+        }
+        ((TextView)findViewById(R.id.media_status)).setText(media);
+        hintTarget = state.pendingPrintCount() != 0 ? R.id.print_requests_section : !state.canWork() ?
+            state.connected ? R.id.media_status : R.id.discover :
+            profile == null ? R.id.apply_print_profile : !valid ? invalidTarget : !mediaReady ? R.id.apply_media : R.id.print;
+        ((TextView)findViewById(R.id.print_hint)).setText(image.busy ? image.operation : state.pendingPrintCount() >= 8 ? getString(R.string.print_requests_full) :
+            state.pendingPrintCount() != 0 ? getString(R.string.print_requests_pending, state.pendingPrintCount()) :
+            !state.canWork() ? state.connected ? "设备处理中…" : "请选择并连接设备" :
+            profile == null ? "请补充打印配置" :
+            !valid ? "请设置尺寸与纸张参数" : !mediaReady ? "请发送当前介质设置" : "可以打印");
+        updateCanvasLayout(); updateMenu(); if (showingLogs) logView.render(started, owner.journal.degraded());
     }
     private void updateCanvasLayout() {
         View panel = findViewById(R.id.canvas_panel);
-        int width = Math.round(panel.getWidth() / getResources().getDisplayMetrics().density);
-        CanvasLayout.apply(findViewById(R.id.root), width, getResources().getConfiguration().fontScale, receipt());
-        findViewById(R.id.copies).setNextFocusForwardId(receipt() ? R.id.trailing_blank :
-            centeredOrigin() ? R.id.origin_mode : R.id.x_offset);
-        findViewById(R.id.x_offset).setNextFocusForwardId(R.id.origin_mode);
-        findViewById(R.id.origin_mode).setNextFocusForwardId(centeredOrigin() ? R.id.origin_adjustment : R.id.trailing_blank);
-        findViewById(R.id.origin_adjustment).setNextFocusForwardId(R.id.trailing_blank);
-        findViewById(R.id.trailing_blank).setNextFocusForwardId(receipt() ? R.id.import_image : R.id.media);
+        if (panel == null || panel.getWidth() == 0) return;
+        int widthDp = Math.round(panel.getWidth() / getResources().getDisplayMetrics().density);
+        CanvasLayout.apply(findViewById(R.id.root), widthDp, getResources().getConfiguration().fontScale, receipt());
     }
-    private void updateActionHint(PrinterController.Phase phase, boolean valid, boolean selected) {
-        hintTarget = 0;
-        String hint;
-        if (pendingImportAfterDisconnect) hint = "正在断开以导入图片 · 请稍候";
-        else if (imagePickerOpen) hint = "正在选择图片 · 取消后保留原图";
-        else if (previewing) hint = imageOperation + " · 完成前不能发送";
-        else if (scanning) { hint = "正在扫描设备 · 点击定位停止按钮"; hintTarget = R.id.discover; }
-        else if (utilityBusy) hint = "正在处理本机数据 · 请稍候";
-        else if (phase == PrinterController.Phase.CONNECTING || phase == PrinterController.Phase.STOPPING) hint = "连接状态切换中 · 请稍候";
-        else if (phase == PrinterController.Phase.PRINTING) hint = "任务进行中 · 已发送的数据无法撤回";
-        else if (phase == PrinterController.Phase.CLOSED) hint = "会话已关闭";
-        else {
-            try {
-                if (phase == PrinterController.Phase.OFFLINE) {
-                    if (!selected) { hint = "请选择设备 · 点击定位"; hintTarget = R.id.discover; }
-                    else {
-                        if (ble()) bleOptions();
-                        hint = "连接参数已填写 · 点击定位连接按钮"; hintTarget = R.id.connect;
-                    }
-                } else {
-                    readConfig();
-                    if (!valid) {
-                        hint = hadPreparedImage ? "参数已修改 · 点击定位，更新预览" : "请准备图片 · 点击定位预览按钮";
-                        hintTarget = R.id.preview;
-                    } else { hint = "图片已准备 · 点击定位打印按钮"; hintTarget = R.id.print; }
-                }
-            } catch (LabelConfig.ValidationError error) {
-                hint = error.getMessage() + " · 点击定位"; hintTarget = fieldId(error.field);
-            }
-        }
-        TextView target = findViewById(R.id.print_hint); target.setText(hint);
-        boolean navigable = hintTarget != 0 && (idle() || (scanning && hintTarget == R.id.discover));
-        target.setClickable(navigable); target.setFocusable(navigable);
+    /** 用户选择候选后直接回填地址；选择不连接，也不自动判定设备型号兼容性。 */
+    private void showDevices() {
+        List<DiscoveredDevice> devices = model.state().candidates;
+        if (devices.isEmpty()) { message(ble() ? "未发现 BLE 设备，请确认打印机电源、蓝牙及扫描权限" : "没有已配对设备，请先打开系统蓝牙设置完成配对"); return; }
+        String[] labels = new String[devices.size()];
+        for (int i = 0; i < devices.size(); i++) labels[i] = (devices.get(i).name == null ? "未命名设备" : devices.get(i).name) + "\n" + devices.get(i).address;
+        devicePicker = new AlertDialog.Builder(this).setTitle("选择设备").setItems(labels, (dialog, index) -> {
+            if (!started || !model.state().canConnect()) return;
+            DiscoveredDevice selected = devices.get(index);
+            if (model.selectCandidate(selected.address)) edit(R.id.address).setText(selected.address);
+            message("已选择，请连接"); owner.log("已选择候选设备；未连接");
+        }).setNegativeButton("取消", null).create();
+        devicePicker.setOnDismissListener(dialog -> devicePicker = null); devicePicker.show();
     }
-    private void showHelp(int title, int message) {
-        if (!started) return;
-        new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("知道了", null).show();
-    }
-    private String fieldSummary(int id) {
-        String value = text(id);
-        return value.isEmpty() ? "未填写" : value;
-    }
-    private void status(String message) {
-        TextView view = findViewById(R.id.status); view.setText(message);
-        view.setVisibility(showingLogs || message.isEmpty() ? View.GONE : View.VISIBLE);
-    }
-    private void log(String message) {
-        journal.append(message, connectionCounter.get(), entry -> main.post(() -> {
-            if (isDestroyed()) return;
-            lines.addLast(entry); while (lines.size() > 160) lines.removeFirst();
-            renderLogs();
-            if (journal.degraded() && !diskWarningShown) {
-                diskWarningShown = true; Toast.makeText(this, "日志磁盘不可用；本次使用有界内存记录", Toast.LENGTH_LONG).show();
-            }
-        }));
-    }
-    private void renderLogs() {
-        ScrollView scroll = findViewById(R.id.log_scroll);
-        TextView text = findViewById(R.id.log);
-        boolean follow = followingLogs;
-        LogAnchor anchor = follow ? null : captureLogAnchor();
-        int previousY = scroll.getScrollY();
-        long generation = ++logRenderGeneration, interaction = logInteractionGeneration;
-        cancelLogPositioning();
-        pendingLogAnchor = anchor;
-        boolean details = ((CheckBox)findViewById(R.id.log_details)).isChecked();
-        ArrayList<String> display = new ArrayList<>();
-        TimeZone zone = TimeZone.getDefault();
-        for (String entry : lines) display.add(details ? entry : LogDisplay.compact(entry, zone));
-        renderedLogEntries.clear(); renderedLogEntries.addAll(lines);
-        renderedLogStarts = new int[display.size()];
-        int start = 0;
-        for (int index = 0; index < display.size(); index++) {
-            renderedLogStarts[index] = start; start += display.get(index).length() + 1;
-        }
-        text.setText(TextUtils.join("\n", display));
-        updateLogTimeZone();
-        updateLogLatest();
-        // Hidden pages keep their anchor until shown; visible pages position after the new text is measured.
-        if (!started || !text.isShown()) return;
-        logPositionObserver = text.getViewTreeObserver();
-        logPositionListener = () -> {
-            cancelLogPositioning();
-            if (!isDestroyed() && generation == logRenderGeneration) {
-                pendingLogAnchor = null;
-                if (interaction == logInteractionGeneration) {
-                    scrollLogs(follow, anchor == null ? previousY : logAnchorY(anchor));
-                    followingLogs = follow || logsAtBottom();
-                }
-                updateLogLatest();
-            }
-            return true;
-        };
-        logPositionObserver.addOnPreDrawListener(logPositionListener);
-    }
-    private void cancelLogPositioning() {
-        if (logPositionObserver != null && logPositionObserver.isAlive() && logPositionListener != null)
-            logPositionObserver.removeOnPreDrawListener(logPositionListener);
-        logPositionObserver = null; logPositionListener = null;
-    }
-    private LogAnchor captureLogAnchor() {
-        if (pendingLogAnchor != null) return pendingLogAnchor;
-        TextView text = findViewById(R.id.log);
-        Layout layout = text.getLayout();
-        if (layout == null || renderedLogEntries.isEmpty()) return pendingLogAnchor;
-        ScrollView scroll = findViewById(R.id.log_scroll);
-        int top = Math.max(0, scroll.getScrollY() - text.getTop() - text.getTotalPaddingTop());
-        int line = layout.getLineForVertical(top), offset = layout.getLineStart(line);
-        int index = Arrays.binarySearch(renderedLogStarts, offset);
-        if (index < 0) index = -index - 2;
-        index = Math.max(0, Math.min(index, renderedLogEntries.size() - 1));
-        int recordLine = layout.getLineForOffset(renderedLogStarts[index]);
-        return new LogAnchor(renderedLogEntries.get(index), Math.max(0, top - layout.getLineTop(recordLine)));
-    }
-    private int logAnchorY(LogAnchor anchor) {
-        TextView text = findViewById(R.id.log);
-        Layout layout = text.getLayout();
-        int index = renderedLogEntries.indexOf(anchor.entry);
-        // An evicted anchor falls back to the oldest retained record.
-        if (layout == null || index < 0) return 0;
-        int top = layout.getLineTop(layout.getLineForOffset(renderedLogStarts[index]));
-        int end = index + 1 < renderedLogStarts.length ?
-            layout.getLineTop(layout.getLineForOffset(renderedLogStarts[index + 1])) : layout.getHeight();
-        return text.getTop() + text.getTotalPaddingTop() + top + Math.min(anchor.offset, Math.max(0, end - top - 1));
-    }
-    private void scrollLogs(boolean tail, int y) {
-        ScrollView scroll = findViewById(R.id.log_scroll);
-        renderingLogs = true;
-        try {
-            int bottom = scroll.getChildCount() == 0 ? 0 : scroll.getChildAt(0).getBottom() + scroll.getPaddingBottom();
-            // Scroll only: fullScroll also changes focus and can pull a selectable TextView back to its start.
-            scroll.scrollTo(0, tail ? Math.max(0, bottom - scroll.getHeight()) : y);
-        }
-        finally { renderingLogs = false; }
-    }
-    private boolean logsAtBottom() {
-        ScrollView scroll = findViewById(R.id.log_scroll);
-        return scroll.getChildCount() == 0 || scroll.getChildAt(0).getHeight() <=
-            scroll.getHeight() + scroll.getScrollY() + Math.round(24 * getResources().getDisplayMetrics().density);
-    }
-    private void updateLogLatest() {
-        findViewById(R.id.log_latest).setVisibility(!followingLogs && !lines.isEmpty() ? View.VISIBLE : View.GONE);
-    }
-    private void updateLogTimeZone() {
-        TimeZone zone = TimeZone.getDefault();
-        int offset = zone.getOffset(System.currentTimeMillis()) / 60000;
-        String formattedOffset = String.format(Locale.ROOT, "%s%02d:%02d", offset < 0 ? "-" : "+",
-            Math.abs(offset) / 60, Math.abs(offset) % 60);
-        ((TextView)findViewById(R.id.log_time_zone)).setText(getString(R.string.log_time_zone, zone.getID() + "（UTC" +
-            formattedOffset + "）"));
-    }
-    private void error(RuntimeException error) {
-        String message = error instanceof PrinterException ? "SDK 错误码 " + ((PrinterException)error).code + "；" +
-            PrinterException.description(((PrinterException)error).code) :
-            error instanceof SecurityException ? "蓝牙或文件访问权限不可用；请在系统应用设置中检查授权" :
-            error instanceof IllegalArgumentException ? error.getMessage() : "操作失败；请检查输入后重试";
-        status(message == null ? "操作失败" : message); log("错误：" + message);
-        if (error instanceof LabelConfig.ValidationError) {
-            showFieldError(((LabelConfig.ValidationError)error).field, message); return;
-        }
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-    }
-    private int fieldId(String name) {
-        switch (name) {
-            case "dpi": return R.id.dpi;
-            case "width": return R.id.width;
-            case "label_width": return R.id.label_width;
-            case "height": return R.id.height;
-            case "copies": return R.id.copies;
-            case "trailing_blank": return R.id.trailing_blank;
-            case "x_offset": return R.id.x_offset;
-            case "origin_adjustment": return R.id.origin_adjustment;
-            case "origin_mode": return R.id.origin_mode;
-            case "address": return R.id.address;
-            case "service": return R.id.service;
-            case "characteristic": return R.id.characteristic;
-            case "mtu": return R.id.mtu;
-            case "payload": return R.id.payload;
-            case "form": return R.id.form;
-            case "write_mode": return R.id.write_mode;
-            default: return 0;
-        }
-    }
-    private void locateField(String name) { int id = fieldId(name); if (id != 0) scrollToControl(id, true); }
-    private void scrollToControl(int id, boolean focus) {
-        showLogs(false);
-        boolean deviceField = id == R.id.address || id == R.id.service || id == R.id.characteristic ||
-            id == R.id.mtu || id == R.id.payload || id == R.id.write_mode;
-        if (deviceField)
-            setPanel(R.id.transport_details_toggle, R.id.transport_details, "高级连接参数", true);
-        View field = findViewById(id);
-        main.post(() -> {
-            if (isDestroyed() || !started) return;
-            if (focus && (field instanceof EditText || field instanceof Spinner)) field.requestFocus();
-            field.requestRectangleOnScreen(new Rect(0, 0, field.getWidth(), field.getHeight()), true);
+    /** 完整预览位图仅用于显示；关闭预览不影响图片源和打印。 */
+    private void showPreview(Bitmap bitmap) {
+        previewImage = new ImageView(this); previewImage.setImageBitmap(bitmap); previewImage.setAdjustViewBounds(true);
+        previewImage.setContentDescription("按当前打印参数生成的完整图片预览；尚未发送");
+        ScrollView scroll = new ScrollView(this); scroll.addView(previewImage);
+        previewDialog = new AlertDialog.Builder(this).setTitle("图片预览").setView(scroll).setPositiveButton("关闭", null).create();
+        previewDialog.setOnDismissListener(dialog -> {
+            if (previewImage != null) previewImage.setImageDrawable(null);
+            previewImage = null; previewDialog = null; owner.images.clearPreview();
         });
+        previewDialog.show();
     }
-    private void showFieldError(String name, String message) {
-        int id = fieldId(name); if (id == 0) return;
-        View field = findViewById(id);
-        if (field instanceof EditText) ((EditText)field).setError(message);
-        else {
-            TextView detail = findViewById(id == R.id.form ? R.id.form_error : R.id.write_mode_error);
-            detail.setText(message); detail.setVisibility(View.VISIBLE);
-            field.setFocusableInTouchMode(true);
-        }
-        locateField(name);
-    }
-    private void clearFieldErrors() {
-        for (int id : fieldIds) ((EditText)findViewById(id)).setError(null);
-        findViewById(R.id.form_error).setVisibility(View.GONE);
-        findViewById(R.id.write_mode_error).setVisibility(View.GONE);
-    }
-    private int number(int id, String name) {
-        try { return Integer.parseInt(text(id)); }
-        catch (NumberFormatException error) {
-            throw new LabelConfig.ValidationError(getResources().getResourceEntryName(id), "请填写" + name + "（整数）");
-        }
-    }
-    private LabelConfig config() {
-        clearFieldErrors();
-        return readConfig();
-    }
-    private LabelConfig readConfig() {
-        int dpi = number(R.id.dpi, "DPI"), width = number(R.id.width, "打印机最大宽度");
-        int canvas = number(R.id.label_width, "本次标签可打印宽度");
-        int x = receipt() ? 0 : OriginPlacement.resolve(width, canvas, choice(R.id.origin_mode),
-            centeredOrigin() ? 0 : number(R.id.x_offset, "横向起点"),
-            centeredOrigin() ? number(R.id.origin_adjustment, "居中校准偏移") : 0);
-        return new LabelConfig(dpi, width, canvas, number(R.id.height, "标签高度"),
-            number(R.id.copies, "份数"), choice(R.id.form), x, receipt(), number(R.id.trailing_blank, "结束留白"));
-    }
-    private boolean currentImage() {
-        if (prepared == null) return false;
-        try { return prepared.matches(readConfig()); }
-        catch (IllegalArgumentException invalid) { return false; }
-    }
-    private UUID uuid(int id, String name) {
-        String value = text(id);
-        if (!value.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))
-            throw new LabelConfig.ValidationError(getResources().getResourceEntryName(id), "请填写完整的" + name);
-        return UUID.fromString(value);
-    }
-    private BleOptions bleOptions() {
-        int mtu = number(R.id.mtu, "MTU"), payload = number(R.id.payload, "每包有效字节数");
-        if (mtu < 23 || mtu > 517) throw new LabelConfig.ValidationError("mtu", "MTU 须为 23–517");
-        if (payload < 1 || payload > 512) throw new LabelConfig.ValidationError("payload", "每包有效字节数须为 1–512");
-        if (choice(R.id.ble_profile) == 0) return M90Profile.bleOptions(mtu, payload);
-        if (choice(R.id.write_mode) == 0) throw new LabelConfig.ValidationError("write_mode", "请选择 BLE 写入方式");
-        return new BleOptions(uuid(R.id.service, "服务 UUID"), uuid(R.id.characteristic, "写入特征 UUID"),
-            choice(R.id.write_mode) == 1, mtu, payload);
-    }
-    private void connect() {
-        if (!started || !offlineIdle()) return;
-        try {
-            clearFieldErrors();
-            String address = text(R.id.address).toUpperCase(Locale.ROOT);
-            if (!BluetoothAdapter.checkBluetoothAddress(address)) throw new LabelConfig.ValidationError("address", "请选择设备或填写有效蓝牙地址");
-            if (ble()) bleOptions();
-            permissions(() -> {
-                if (!started || !offlineIdle()) return;
-                try {
-                    String selected = text(R.id.address).toUpperCase(Locale.ROOT);
-                    if (!BluetoothAdapter.checkBluetoothAddress(selected))
-                        throw new LabelConfig.ValidationError("address", "请选择设备或填写有效蓝牙地址");
-                    boolean useBle = ble(); BleOptions options = useBle ? bleOptions() : null;
-                    pendingMedia = -1; sentMedia = -1; connectionCounter.incrementAndGet();
-                    log((useBle ? "BLE" : "SPP") + " / 仅建立通信连接；打印参数逐次提交");
-                    if (options != null) log("BLE creditFlow=" + (options.creditFlowControl != null) +
-                        " / requestedMtu=" + options.requestedMtu + " / payloadCap=" + options.maxWriteBytes);
-                    controller.connect(() -> sessionFactory.create(selected, useBle, options));
-                } catch (RuntimeException failure) { error(failure); }
-            }, false);
-        } catch (RuntimeException failure) { error(failure); }
-    }
-    private void print() {
-        if (!started || !idle() || controller.phase() != PrinterController.Phase.READY) return;
-        try {
-            LabelConfig label = config(); PreparedImage snapshot = prepared;
-            if (snapshot == null || !snapshot.matches(label))
-                throw new IllegalArgumentException("请先更新当前图片预览");
-            if (label.receipt) sentMedia = -1;
-            controller.print(cancelled -> {
-                if (cancelled.getAsBoolean()) throw new CancellationException();
-                return snapshot.copyPixels();
-            }, label);
-        } catch (RuntimeException failure) { error(failure); }
-    }
-    private void preview() {
-        try { if (idle()) prepare(config(), true, null); }
-        catch (RuntimeException failure) { error(failure); }
-    }
-    private void sendRaw() {
-        if (!started || !idle() || controller.phase() != PrinterController.Phase.READY) return;
-        EditText raw = findViewById(R.id.raw_hex), copies = findViewById(R.id.raw_copies);
-        try {
-            int count;
-            try { count = Integer.parseInt(text(R.id.copies)); }
-            catch (NumberFormatException failure) { copies.setError("Raw 份数须为 1–20 的整数"); return; }
-            if (count < 1 || count > 20) { copies.setError("Raw 每次限 1–20 份"); return; }
-            RawCommand command = RawCommand.parse(raw.getText().toString(), count);
-            raw.setError(null); copies.setError(null);
-            sentMedia = -1;
-            controller.sendRaw(command.copyBytes(), command.copies);
-        } catch (IllegalArgumentException failure) {
-            raw.setError(failure.getMessage()); status(failure.getMessage());
-        } catch (RuntimeException failure) { error(failure); }
-    }
-    private void showPreview(PreparedImage snapshot) {
-        long version = preparationGeneration.get(); previewing = true; imageOperation = "正在生成预览…"; updateButtons(controller.phase());
-        images.execute(() -> {
-            try {
-                Bitmap bitmap = ImageImport.preview(snapshot, () -> preparationGeneration.get() != version);
-                main.post(() -> {
-                    if (isDestroyed() || !started || preparationGeneration.get() != version || prepared != snapshot) { bitmap.recycle(); return; }
-                    previewing = false; imageOperation = ""; updateButtons(controller.phase());
-                    if (showingLogs || showingRaw) { bitmap.recycle(); return; }
-                    ImageView image = new ImageView(this); image.setImageBitmap(bitmap); image.setAdjustViewBounds(true);
-                    image.setContentDescription("当前图片预览，与发送内容一致");
-                    ScrollView scroll = new ScrollView(this); scroll.addView(image);
-                    AlertDialog dialog = new AlertDialog.Builder(this).setTitle("当前画布预览（未发送）")
-                        .setView(scroll).setPositiveButton("关闭", null).create();
-                    dialog.setOnDismissListener(d -> { image.setImageDrawable(null); bitmap.recycle(); }); dialog.show();
-                });
-            } catch (RuntimeException failure) {
-                main.post(() -> {
-                    if (!isDestroyed() && preparationGeneration.get() == version) {
-                        previewing = false; imageOperation = ""; updateButtons(controller.phase());
-                        status("预览显示失败；请关闭其他应用后重试");
-                    }
-                });
-            }
-        });
-    }
-    private void prepare(LabelConfig label, boolean show, Runnable after) {
-        captureChoices();
-        long version = preparationGeneration.incrementAndGet(); File source = sourceFile;
-        PreparedImage cached = prepared; previewing = true; imageOperation = "正在准备图片…"; updateButtons(controller.phase());
-        status(imageOperation);
-        images.execute(() -> {
-            try {
-                PreparedImage snapshot = cached != null && cached.matches(label) ? cached :
-                    source == null ? new PreparedImage(label, TestLabel.gray(label, () -> preparationGeneration.get() != version)) :
-                    ImageImport.prepare(source, label, () -> preparationGeneration.get() != version);
-                main.post(() -> {
-                    if (isDestroyed() || !started || preparationGeneration.get() != version) return;
-                    if (prepared != snapshot) clearThumbnail();
-                    prepared = snapshot; hadPreparedImage = true; previewing = false; imageOperation = ""; updateButtons(controller.phase());
-                    status("当前图片已准备；预览与发送内容一致，尚未发送"); log("图片画布：" + label.description());
-                    if (show && !showingLogs && !showingRaw) showPreview(snapshot); if (after != null) after.run();
-                });
-            } catch (IOException | RuntimeException failure) {
-                main.post(() -> {
-                    if (isDestroyed() || preparationGeneration.get() != version) return;
-                    previewing = false; imageOperation = ""; updateButtons(controller.phase()); status("图片准备失败或已取消；未提交，请检查画布参数后重试"); log("图片准备失败或已取消；未提交");
-                });
-            }
-        });
-    }
+    /** 导入只选择图片源，无需打印尺寸；已连接时先断开，导入后不会自动重连或打印。 */
     private void chooseImage() {
-        if (!started || !idle()) return;
-        try { config(); } catch (RuntimeException failure) { error(failure); return; }
-        if (controller.phase() == PrinterController.Phase.READY) {
-            pendingImportAfterDisconnect = true;
-            controller.disconnect(); updateButtons(controller.phase());
-        } else if (offlineIdle()) openImagePicker();
+        if (!idle()) return;
+        owner.notice = null;
+        owner.importAfterDisconnect = true;
+        model.disconnect();
     }
+    /** 只在前台且离线时打开一次系统选择器，PNG/JPEG 实际解码与限额检查由图片模块执行。 */
     private void openImagePicker() {
-        if (!started || !offlineIdle()) return;
+        if (!started || !model.state().canConnect() || owner.pickerOpen) return;
+        if (!owner.beginImagePicker()) return;
+        render();
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
             .putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/png", "image/jpeg"});
-        imagePickerOpen = true; updateButtons(controller.phase());
         try { startActivityForResult(intent, IMPORT); }
-        catch (RuntimeException failure) { imagePickerOpen = false; updateButtons(controller.phase()); error(failure); }
+        catch (RuntimeException failure) { owner.acceptImageResult(null); message("系统图片选择器不可用；请安装或启用文件应用"); }
     }
-    private void importImage(android.net.Uri uri) {
+    /** 只明确指定 BLE 通信参数；打印配置始终由 SDK 在连接时匹配。 */
+    private void applyPreset() {
         if (!offlineIdle()) return;
-        final LabelConfig label;
-        try { label = config(); } catch (RuntimeException failure) { error(failure); return; }
-        captureChoices();
-        long version = preparationGeneration.incrementAndGet(); previewing = true; imageOperation = "正在导入图片…"; updateButtons(controller.phase());
-        status(imageOperation);
-        images.execute(() -> {
-            File candidate = null;
-            try {
-                candidate = File.createTempFile("source-", ".image", sourceDirectory);
-                try (InputStream input = getContentResolver().openInputStream(uri)) {
-                    if (input == null) throw new IOException("No image");
-                    ImageImport.copy(input, candidate, () -> preparationGeneration.get() != version);
-                }
-                PreparedImage snapshot = ImageImport.prepare(candidate, label, () -> preparationGeneration.get() != version);
-                File accepted = candidate; candidate = null;
-                main.post(() -> {
-                    if (isDestroyed() || !started || preparationGeneration.get() != version) { images.execute(() -> accepted.delete()); return; }
-                    File old = sourceFile; sourceFile = accepted; clearThumbnail();
-                    prepared = snapshot; hadPreparedImage = true; previewing = false; imageOperation = "";
-                    if (old != null) images.execute(() -> old.delete()); updateButtons(controller.phase());
-                    status("PNG/JPEG 已导入；等比居中白底，尚未发送"); log("导入图片画布=" + label.labelWidthDots + "×" + label.height);
-                    if (!showingLogs && !showingRaw) showPreview(snapshot);
-                });
-            } catch (IOException | RuntimeException failure) {
-                main.post(() -> {
-                    if (isDestroyed() || preparationGeneration.get() != version) return;
-                    previewing = false; imageOperation = ""; updateButtons(controller.phase()); status("图片导入失败或取消；保留上一有效图片，请确认文件为有效 PNG/JPEG 且未超限"); log("图片导入失败或取消；未提交");
-                });
-            } finally { if (candidate != null) candidate.delete(); }
-        });
+        applying = true; owner.m90BleExplicit = true;
+        select(R.id.ble_profile, 0); select(R.id.write_mode, 2);
+        setNumber(R.id.mtu, M90DevelopmentPreset.REQUESTED_MTU);
+        setNumber(R.id.payload, M90DevelopmentPreset.MAX_WRITE_BYTES);
+        applying = false;
+        message("已应用 M90 BLE 通信参数");
+        owner.log("显式应用 M90 BLE 通信预设；未连接或发送");
     }
-    private void updateButtons(PrinterController.Phase phase) {
-        boolean offline = phase == PrinterController.Phase.OFFLINE;
-        boolean editDevice = offline && idle();
-        for (int id : fieldIds) findViewById(id).setEnabled(editDevice);
-        for (int id : new int[]{R.id.dpi, R.id.width, R.id.label_width, R.id.height, R.id.copies, R.id.trailing_blank, R.id.raw_hex, R.id.raw_copies})
-            findViewById(id).setEnabled(idle());
-        findViewById(R.id.send_raw).setEnabled(phase == PrinterController.Phase.READY && idle());
-        ((TextView)findViewById(R.id.raw_hint)).setText(phase == PrinterController.Phase.READY && idle() ?
-            "已连接；发送前请确认命令与份数，无需画布或 FORM" : phase == PrinterController.Phase.OFFLINE ?
-            "请返回打印页，选择设备并手动连接" : "当前操作进行中；完成后才能发送 Raw");
-        for (int id : new int[]{R.id.transport, R.id.write_mode, R.id.ble_profile, R.id.connect, R.id.discover})
-            findViewById(id).setEnabled(editDevice);
-        findViewById(R.id.print_format).setEnabled(idle());
-        findViewById(R.id.discover).setEnabled(offline && (scanning || editDevice));
-        updateDiscoveryButton();
-        for (int id : new int[]{R.id.service, R.id.characteristic, R.id.write_mode})
-            findViewById(id).setEnabled(editDevice && choice(R.id.ble_profile) != 0);
-        findViewById(R.id.settings).setEnabled(!pendingImportAfterDisconnect && !imagePickerOpen);
-        findViewById(R.id.disconnect).setEnabled(phase == PrinterController.Phase.CONNECTING ||
-            phase == PrinterController.Phase.READY || phase == PrinterController.Phase.PRINTING || previewing);
-        findViewById(R.id.print).setEnabled(phase == PrinterController.Phase.READY);
-        findViewById(R.id.media).setEnabled(editDevice || (phase == PrinterController.Phase.READY && controller.supportsMedia() && idle()));
-        findViewById(R.id.apply_media).setEnabled(phase == PrinterController.Phase.READY && controller.supportsMedia() && idle());
-        findViewById(R.id.locate_label).setEnabled(phase == PrinterController.Phase.READY && controller.supportsLabelPositioning() && idle());
-        findViewById(R.id.form).setEnabled(idle() && !receipt());
-        findViewById(R.id.x_offset).setEnabled(idle() && !receipt() && !centeredOrigin());
-        findViewById(R.id.origin_mode).setEnabled(idle() && !receipt());
-        findViewById(R.id.origin_adjustment).setEnabled(idle() && centeredOrigin());
-        findViewById(R.id.m90_preset).setEnabled(editDevice);
-        boolean canCancel = phase == PrinterController.Phase.PRINTING || previewing;
-        findViewById(R.id.action_bar).setVisibility((showingLogs || showingRaw) && !canCancel ? View.GONE : View.VISIBLE);
-        findViewById(R.id.cancel).setEnabled(canCancel);
-        findViewById(R.id.cancel).setVisibility(canCancel ? View.VISIBLE : View.GONE);
-        findViewById(R.id.preview).setEnabled(idle());
-        findViewById(R.id.go_canvas).setVisibility(phase == PrinterController.Phase.READY ? View.VISIBLE : View.GONE);
-        findViewById(R.id.go_canvas).setEnabled(idle());
-        findViewById(R.id.import_image).setEnabled(idle());
-        findViewById(R.id.builtin_image).setEnabled(offlineIdle() && sourceFile != null);
-        updateConfigMenu();
-        findViewById(R.id.export).setEnabled(idle()); findViewById(R.id.clear_log).setEnabled(idle());
-        findViewById(R.id.print).setEnabled(phase == PrinterController.Phase.READY && idle() && currentImage());
-        updatePresentation(phase);
+    // 设备参数表单沿用可解析的 ASCII 整数，独立于面向用户的本地化说明文字。
+    @android.annotation.SuppressLint("SetTextI18n")
+    private void setNumber(int id, int value) {
+        edit(id).setText(Integer.toString(value));
     }
-    private void permissions(Runnable action, boolean scan) {
-        if (!started || isFinishing() || isDestroyed() || permissionAction != null) return;
+    /** 按本次 SDK 操作申请权限，SPP 取消发现与 BLE 扫描都包含 SCAN。 */
+    private void permissions(Runnable action, DemoPermissions.Operation operation) {
+        if (!started || afterPermission != null) return;
         if (Build.VERSION.SDK_INT < 23) { action.run(); return; }
-        ArrayList<String> missing = new ArrayList<>();
-        String[] required = Build.VERSION.SDK_INT >= 31 ? new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN} :
-            scan ? new String[]{Manifest.permission.ACCESS_FINE_LOCATION} : new String[0];
+        String[] required = DemoPermissions.required(Build.VERSION.SDK_INT, operation);
+        List<String> missing = new ArrayList<>();
         for (String permission : required) if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) missing.add(permission);
         if (missing.isEmpty()) { action.run(); return; }
-        permissionAction = action; permissionRequest = nextPermissionRequest;
-        nextPermissionRequest = nextPermissionRequest == 65535 ? PERMISSIONS : nextPermissionRequest + 1;
-        requestPermissions(missing.toArray(new String[0]), permissionRequest);
+        afterPermission = action; requestPermissions(missing.toArray(new String[0]), PERMISSION);
     }
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) {
         super.onRequestPermissionsResult(request, permissions, grants);
-        if (request != permissionRequest) return;
-        Runnable action = permissionAction; permissionAction = null;
-        if (action == null || !started || isFinishing() || isDestroyed()) return;
+        if (request != PERMISSION) return;
+        Runnable action = afterPermission; afterPermission = null;
+        if (!started || action == null) return;
         boolean granted = grants.length != 0;
-        for (int grant : grants) granted &= grant == PackageManager.PERMISSION_GRANTED;
-        if (granted) action.run();
-        else error(new IllegalArgumentException("蓝牙权限未授予；可在系统应用设置中授权后重试"));
+        for (int value : grants) granted &= value == PackageManager.PERMISSION_GRANTED;
+        if (granted) action.run(); else message("蓝牙权限未授予；可在系统设置中授权后重试");
     }
-    private void discover() {
-        if (!started || !offlineIdle()) return;
-        stopDiscovery(false);
-        long generation = discoveryGeneration;
-        try {
-            DemoDiscovery source = discoveryFactory.create(); discovery = source;
-            if (!ble()) { showDevices(source.bondedDevices(), generation); return; }
-            scanning = true; updateButtons(controller.phase()); status(SCANNING_MESSAGE);
-            source.scanBle((devices, code) -> {
-                if (!activeDiscovery(generation) || discovery != source || !scanning) return;
-                scanning = false;
-                updateButtons(controller.phase());
-                if (code == 1005) { scanStopped(); return; }
-                if (code != 0) { error(new PrinterException(code)); return; }
-                status("扫描完成，发现 " + devices.size() + " 台设备"); showDevices(devices, generation);
-            });
-        } catch (RuntimeException failure) { scanning = false; updateButtons(controller.phase()); error(failure); }
-    }
-    private boolean activeDiscovery(long generation) {
-        return generation == discoveryGeneration && started && !isDestroyed() && !isFinishing() &&
-            controller.phase() == PrinterController.Phase.OFFLINE;
-    }
-    private void updateDiscoveryButton() {
-        ((Button)findViewById(R.id.discover)).setText(scanning ? R.string.stop_discovery :
-            ble() ? R.string.scan_ble : R.string.paired_devices);
-    }
-    private void scanStopped() { status("扫描已停止；未连接"); log("扫描已停止；未连接"); }
-    private void stopDiscovery(boolean explicit) {
-        ++discoveryGeneration;
-        boolean wasScanning = scanning; scanning = false;
-        if (devicePicker != null) { devicePicker.dismiss(); devicePicker = null; }
-        DemoDiscovery stopped = discovery; discovery = null;
-        if (stopped != null) stopped.stop();
-        if (controller != null) updateButtons(controller.phase());
-        if (wasScanning && (explicit || (!started &&
-            SCANNING_MESSAGE.contentEquals(((TextView)findViewById(R.id.status)).getText())))) scanStopped();
-    }
-    private void showDevices(List<DemoDiscovery.Device> devices, long generation) {
-        if (!activeDiscovery(generation)) return;
-        boolean selectionPresent = false;
-        String selectedAddress = text(R.id.address);
-        for (DemoDiscovery.Device device : devices)
-            if (device.address.equalsIgnoreCase(selectedAddress)) selectionPresent = true;
-        if (!selectionPresent && !selectedAddress.isEmpty()) {
-            ((EditText)findViewById(R.id.address)).setText(""); selectedDeviceName = null;
-            updateButtons(controller.phase());
-        }
-        if (devices.isEmpty()) {
-            status("未找到设备，请检查蓝牙、打印机电源与配对状态后重新选择");
-            log("未找到设备；Android 11 及以下 BLE 扫描还需开启定位服务"); return;
-        }
-        String[] labels = new String[devices.size()];
-        for (int i = 0; i < devices.size(); i++) {
-            DemoDiscovery.Device device = devices.get(i);
-            labels[i] = (device.name == null ? "未命名设备" : device.name) + "\n" + device.address;
-        }
-        AlertDialog picker = new AlertDialog.Builder(this).setTitle("选择设备（不自动判定型号）")
-            .setItems(labels, (dialog, index) -> {
-                if (!activeDiscovery(generation) || scanning || devicePicker != dialog) return;
-                DemoDiscovery.Device selected = devices.get(index);
-                ((EditText)findViewById(R.id.address)).setText(selected.address);
-                selectedDeviceName = selected.name == null ? "未命名设备" : selected.name;
-                updateButtons(controller.phase());
-                status("已选择设备，请确认打印参数");
-                log("已选择设备；地址不写入导出日志");
-
-            }).setNegativeButton("取消", null).create();
-        devicePicker = picker;
-        picker.setOnDismissListener(dialog -> { if (devicePicker == picker) devicePicker = null; });
-        picker.show();
-    }
-    private void export() {
-        if (!idle()) return;
-        utilityBusy = true; updateButtons(controller.phase());
-        CompatibilityRecord compatibility = compatibilityRecord();
-        images.execute(() -> {
-            try {
-                String snapshot = compatibility.exporting(journal.snapshot().get());
-                main.post(() -> {
-                    if (isDestroyed()) return;
-                    if (!started) { exportText = null; utilityFinished("已离开页面；未打开日志保存选择器"); return; }
-                    utilityBusy = false; updateButtons(controller.phase()); exportText = snapshot;
-                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain")
-                        .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE, "printer-demo-log.txt");
-                    startActivityForResult(intent, EXPORT);
-                });
-            } catch (InterruptedException | ExecutionException failure) { main.post(() -> utilityFinished("日志快照失败")); }
-        });
-    }
-    private CompatibilityRecord compatibilityRecord() {
-        return new CompatibilityRecord(buildIdentity, Build.VERSION.RELEASE, ble() ? "bluetooth_ble" : "bluetooth_spp");
-    }
-    private DemoBuildIdentity readBuildIdentity() {
-        try (InputStream input = getAssets().open(DemoBuildIdentity.RESOURCE)) {
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream(); byte[] chunk = new byte[1024]; int count;
-            while ((count = input.read(chunk)) != -1) {
-                if (bytes.size() + count > 16384) return DemoBuildIdentity.unknown();
-                bytes.write(chunk, 0, count);
+    /** Raw 与主页面共用份数；超长编辑整次拒绝，避免截断后意外发送另一条命令。 */
+    private void bindRaw() {
+        EditText raw = edit(R.id.raw_hex);
+        raw.setFilters(new InputFilter[]{(source, start, end, destination, from, to) -> {
+            if (destination.length() - (to - from) + end - start <= RawCommand.MAX_CHARACTERS) return null;
+            raw.post(() -> raw.setError("Raw 输入最多 65536 个字符；此次输入未应用"));
+            return destination.length() == 0 && raw.length() != 0 ? raw.getText().toString() : destination.subSequence(from, to);
+        }});
+        edit(R.id.raw_copies).setText(text(R.id.copies));
+        edit(R.id.raw_copies).addTextChangedListener(new TextWatcher() {
+            public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
+            public void onTextChanged(CharSequence text, int start, int before, int count) {
+                if (syncingCopies) return;
+                syncingCopies = true; edit(R.id.copies).setText(text); syncingCopies = false;
             }
-            org.json.JSONObject document = new org.json.JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
-            if (!DemoBuildIdentity.supportsSchema(document.opt("schema_version"))) return DemoBuildIdentity.unknown();
-            org.json.JSONObject identity = document.getJSONObject("identity");
-            Map<String, Object> values = new LinkedHashMap<>();
-            for (Iterator<String> keys = identity.keys(); keys.hasNext();) { String key = keys.next(); values.put(key, identity.get(key)); }
-            return new DemoBuildIdentity(values);
-        } catch (IOException | org.json.JSONException error) { return DemoBuildIdentity.unknown(); }
-    }
-    private void clearLogs() {
-        if (!idle()) return;
-        utilityBusy = true; updateButtons(controller.phase());
-        images.execute(() -> {
-            try { journal.clear().get(); main.post(() -> {
-                if (isDestroyed()) return;
-                ++logInteractionGeneration; pendingLogAnchor = null; followingLogs = true;
-                lines.clear(); renderLogs(); updateLogLatest();
-                utilityFinished(journal.degraded() ? "内存日志已清除；磁盘清除失败" : "日志已清除");
-            }); } catch (InterruptedException | ExecutionException failure) { main.post(() -> utilityFinished("日志清除失败")); }
+            public void afterTextChanged(Editable text) { }
         });
     }
-    private void utilityFinished(String message) {
-        if (isDestroyed()) return;
-        utilityBusy = false; updateButtons(controller.phase()); status(message);
+    private void showMenu() {
+        configMenu = new PopupMenu(this, findViewById(R.id.more_button));
+        configMenu.getMenuInflater().inflate(R.menu.config_actions, configMenu.getMenu());
+        configMenu.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.raw_diagnostics) showPage(false, true);
+            else if (id == R.id.sdk_diagnostics) showUtilityDialog(new AlertDialog.Builder(this).setTitle("SDK 信息")
+                .setMessage(DemoFormatter.identity(model.state().identityResult) + "\n硬件状态未知；请检查实际出纸和设备指示")
+                .setPositiveButton("关闭", null).create());
+            else if (offlineIdle()) settingsAction(id);
+            return true;
+        });
+        configMenu.setOnDismissListener(menu -> configMenu = null); updateMenu(); configMenu.show();
     }
-    @Override protected void onActivityResult(int request, int result, Intent data) {
-        super.onActivityResult(request, result, data);
-        if (request == IMPORT) {
-            imagePickerOpen = false;
-            if (result == RESULT_OK && data != null && data.getData() != null) importImage(data.getData());
-            else { status("已取消导入；保留上一有效图片，未发送"); updateButtons(controller.phase()); }
-            return;
+    private void updateMenu() {
+        if (configMenu == null) return;
+        Menu menu = configMenu.getMenu();
+        for (int i = 0; i < menu.size(); i++) {
+            MenuItem item = menu.getItem(i);
+            item.setEnabled(item.getItemId() == R.id.raw_diagnostics || item.getItemId() == R.id.sdk_diagnostics ? started : offlineIdle());
         }
-        if (request != EXPORT || result != RESULT_OK || data == null || data.getData() == null || exportText == null) { exportText = null; return; }
-        String snapshot = exportText; exportText = null; android.net.Uri destination = data.getData();
-        images.execute(() -> {
-            try (OutputStream output = getContentResolver().openOutputStream(destination, "wt")) {
-                if (output == null) throw new IOException("No output stream"); output.write(snapshot.getBytes(StandardCharsets.UTF_8));
-                main.post(() -> { if (!isDestroyed()) log("日志已导出"); });
-            } catch (IOException | SecurityException failure) { main.post(() -> { if (!isDestroyed()) utilityFinished("日志导出失败"); }); }
-        });
     }
+    /** 只收集允许保存的打印/传输选项，配置不包含设备地址、Raw 内容、图片或文件 URI。 */
     private DemoSettings readSettings() {
-        LabelConfig label = config(); if (ble()) bleOptions();
-        Map<String, Object> values = new LinkedHashMap<>(); values.put("version", 3);
-        for (int id : new int[]{R.id.dpi, R.id.width, R.id.label_width, R.id.height, R.id.copies, R.id.trailing_blank})
-            values.put(getResources().getResourceEntryName(id), number(id, getResources().getResourceEntryName(id)));
-        values.put("x_offset", label.xOffsetDots);
-        values.put("origin_mode", receipt() ? OriginPlacement.MANUAL : choice(R.id.origin_mode));
-        values.put("origin_adjustment", centeredOrigin() ? number(R.id.origin_adjustment, "居中校准偏移") : 0);
-        values.put("form", receipt() ? null : choice(R.id.form)); values.put("print_format", choice(R.id.print_format));
-        values.put("media", choice(R.id.media)); values.put("transport", choice(R.id.transport));
-        boolean generic = ble() && choice(R.id.ble_profile) == 1;
-        values.put("ble_profile", ble() ? choice(R.id.ble_profile) : null);
-        values.put("write_mode", generic ? choice(R.id.write_mode) : null);
-        values.put("mtu", ble() ? number(R.id.mtu, "MTU") : null); values.put("payload", ble() ? number(R.id.payload, "payload") : null);
-        values.put("service", generic ? text(R.id.service) : null); values.put("characteristic", generic ? text(R.id.characteristic) : null);
+        if (ble()) bleOptions();
+        Map<String,Object> values = new LinkedHashMap<>(); values.put("version", 3);
+        PrinterProfile draft = printDraft.previewProfile();
+        values.put("dpi", draft.dpi); values.put("width", draft.maxPrintWidthDots);
+        for (int id : new int[]{R.id.label_width,R.id.height,R.id.copies,R.id.trailing_blank})
+            values.put(getResources().getResourceEntryName(id), number(id));
+        // 保存用户草稿，而非断开后用于离线预览的临时通用配置；此处不采用或恢复设备 Profile。
+        int mode = receipt() ? OriginPlacement.MANUAL : model.printProfile() == null ? printDraft.originMode()
+            : centered() ? OriginPlacement.CENTERED : OriginPlacement.MANUAL;
+        int calibration = receipt() ? 0 : number(R.id.origin_adjustment);
+        int origin = receipt() ? 0 : mode == OriginPlacement.CENTERED
+            ? OriginPlacement.resolve(draft.maxPrintWidthDots, number(R.id.label_width), mode, 0, calibration)
+            : number(R.id.x_offset);
+        values.put("x_offset",origin); values.put("origin_mode",mode);
+        values.put("origin_adjustment",calibration); values.put("form",receipt()?null:choice(R.id.form));
+        values.put("print_format",receipt()?1:0); values.put("media",choice(R.id.media)); values.put("transport",choice(R.id.transport));
+        boolean generic=ble() && choice(R.id.ble_profile)==1;
+        values.put("ble_profile",ble()?choice(R.id.ble_profile):null); values.put("write_mode",generic?choice(R.id.write_mode):null);
+        values.put("mtu",ble()?number(R.id.mtu):null); values.put("payload",ble()?number(R.id.payload):null);
+        values.put("service",generic?text(R.id.service):null); values.put("characteristic",generic?text(R.id.characteristic):null);
         return new DemoSettings(values);
     }
-    private void applySettings(DemoSettings loaded) {
-        applyingFields = true;
-        try {
-            for (int id : fieldIds) {
-                Object value = loaded.values.get(getResources().getResourceEntryName(id));
-                ((EditText)findViewById(id)).setText(value == null ? "" : value.toString());
-            }
-            for (int id : new int[]{R.id.transport, R.id.form, R.id.write_mode, R.id.ble_profile, R.id.print_format, R.id.media, R.id.origin_mode}) {
-                Object value = loaded.values.get(getResources().getResourceEntryName(id));
-                ((Spinner)findViewById(id)).setSelection(value == null ? 0 : ((Number)value).intValue());
-            }
-            selectedDeviceName = null; prepared = null; preparationGeneration.incrementAndGet();
-            clearThumbnail(); clearFieldErrors();
-            captureChoices();
-        } finally { applyingFields = false; }
-        transportChanged();
+    private void applySettings(DemoSettings settings) {
+        applying=true;
+        printDraft = printDraft.settings(settings);
+        owner.m90BleExplicit = ((Number)settings.values.get("transport")).intValue() == 1 &&
+            ((Number)settings.values.get("ble_profile")).intValue() == 0;
+        for(int id:FIELDS) {
+            Object value=settings.values.get(getResources().getResourceEntryName(id)); edit(id).setText(value==null?"":value.toString());
+        }
+        for(int id:CHOICES) { Object value=settings.values.get(getResources().getResourceEntryName(id)); select(id,value==null?0:((Number)value).intValue()); }
+        mirrorPrintDraft(); applying=false; owner.images.invalidate(); model.clearCandidates(); render();
     }
+    /** 保存/加载/清除均由用户显式发起；加载结果经 Owner 交给当前仍有效的 Activity。 */
     private void settingsAction(int action) {
-        if (!offlineIdle()) return;
-        if (action == 3) { loadLegacy(); return; }
-        final DemoSettings snapshot;
-        try { snapshot = action == 0 ? readSettings() : null; }
-        catch (RuntimeException failure) { error(failure); return; }
-        utilityBusy = true; updateButtons(controller.phase());
-        images.execute(() -> {
-            try {
-                DemoSettings loaded = null;
-                if (action == 0) settings.save(snapshot);
-                else if (action == 1) loaded = settings.load();
-                else if (action == 2) settings.clear();
-                DemoSettings accepted = loaded;
-                main.post(() -> {
-                    if (isDestroyed()) return;
-                    if (!started) { utilityFinished("参数操作已停止；当前参数未改变"); return; }
-                    if (accepted != null) applySettings(accepted);
-                    utilityFinished(action == 0 ? "参数已手动保存（不含设备地址）" : action == 2 ? "已清除保存的参数" :
-                        "参数已加载；请选择设备并更新预览，未连接或发送");
-                    log(action == 0 ? "参数已保存" : action == 2 ? "保存参数已清除" : "参数已手动加载；无设备 IO");
-                });
-            } catch (IOException | RuntimeException failure) {
-                main.post(() -> utilityFinished("参数操作失败；未改变当前参数"));
+        withInput(() -> {
+            if (action == R.id.save_config) owner.saveSettings(readSettings());
+            else if (action == R.id.clear_config) owner.clearSettings();
+            else if (action == R.id.load_config) owner.loadSettings();
+            else if (action == R.id.load_legacy) owner.loadLegacySettings(getLocalClassName());
+        });
+    }
+    private void confirmLegacy(Map<String, ?> values) {
+        if(values.containsKey("media")) {
+            withInput(() -> { applySettings(DemoSettings.legacy(values)); message("旧参数已加载，请手动保存；未连接或发送"); });
+        } else showUtilityDialog(new AlertDialog.Builder(this).setTitle("旧配置未保存介质；请选择")
+            .setItems(new String[]{"间隙纸","黑标纸","连续纸"},(dialog,index) -> withInput(() -> {
+                applySettings(DemoSettings.legacy(values,index)); message("旧参数已加载，请手动保存；未连接或发送");
+            })).setNegativeButton("取消",null).create());
+    }
+    /** 文件任务及其结果由保留的 Owner 管理，Activity 只消费选择器意图。 */
+    private void exportLogs() {
+        if (idle()) owner.prepareLogExport();
+    }
+    private void clearLogs() {
+        if (idle()) owner.clearLogs();
+    }
+    private void openExportPicker() {
+        if (!idle() || !owner.takeExportPickerRequest()) return;
+        try {
+            startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain")
+                .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE, "printer-demo-log.txt"), EXPORT);
+        } catch (RuntimeException failure) {
+            owner.acceptLogExport(null); message("系统保存选择器不可用");
+        }
+    }
+    private void showPage(boolean logs,boolean raw) {
+        if (showingLogs && !logs) logView.onHide();
+        else if (logs && !showingLogs) logView.onShow();
+        showingLogs=logs; showingRaw=raw;
+        if(configMenu!=null) configMenu.dismiss();
+        View focused=getCurrentFocus();
+        if(focused!=null) { android.view.inputmethod.InputMethodManager keyboard=(android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+            if(keyboard!=null) keyboard.hideSoftInputFromWindow(focused.getWindowToken(),0); focused.clearFocus(); }
+        findViewById(R.id.print_page).setVisibility(logs||raw?View.GONE:View.VISIBLE);
+        findViewById(R.id.logs_page).setVisibility(logs?View.VISIBLE:View.GONE); findViewById(R.id.raw_page).setVisibility(raw?View.VISIBLE:View.GONE);
+        findViewById(R.id.print_actions).setVisibility(logs||raw?View.GONE:View.VISIBLE); findViewById(R.id.logs_back).setVisibility(logs||raw?View.VISIBLE:View.GONE);
+        findViewById(R.id.logs_button).setVisibility(logs?View.GONE:View.VISIBLE);
+        ((TextView)findViewById(R.id.app_title)).setText(logs?R.string.logs_title:raw?R.string.raw_title:R.string.screen_title);
+        if(unregisterBack!=null) { unregisterBack.run(); unregisterBack=null; }
+        if((logs||raw) && Build.VERSION.SDK_INT>=33) unregisterBack=BackNavigation.register(this,() -> showPage(false,false));
+        render();
+    }
+    @Override public void onBackPressed() { if(showingLogs||showingRaw) showPage(false,false); else super.onBackPressed(); }
+    @android.annotation.TargetApi(33) private static final class BackNavigation {
+        static Runnable register(Activity activity,Runnable back) {
+            android.window.OnBackInvokedDispatcher dispatcher=activity.getOnBackInvokedDispatcher();
+            android.window.OnBackInvokedCallback callback=back::run;
+            dispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,callback);
+            return () -> dispatcher.unregisterOnBackInvokedCallback(callback);
+        }
+    }
+    private void scrollTo(int id) {
+        showPage(false,false);
+        boolean channel = id == R.id.address || id == R.id.service || id == R.id.characteristic ||
+            id == R.id.ble_profile || id == R.id.write_mode || id == R.id.mtu || id == R.id.payload;
+        int destination = (id == R.id.service || id == R.id.characteristic) && choice(R.id.ble_profile) == 0 ? R.id.ble_profile : id;
+        View target=findViewById(destination);
+        sections.reveal(target);
+        if(channel) findViewById(R.id.transport_details).setVisibility(View.VISIBLE);
+        // 用 ScrollView 的实际坐标定位；不依赖当前输入框焦点或 OEM 的请求矩形行为。
+        target.post(() -> {
+            ScrollView scroll = findViewById(R.id.content_scroll);
+            android.graphics.Rect rect = new android.graphics.Rect(); target.getDrawingRect(rect);
+            scroll.offsetDescendantRectToMyCoords(target, rect);
+            scroll.smoothScrollTo(0, Math.max(0, rect.top - Math.round(12 * getResources().getDisplayMetrics().density)));
+        });
+    }
+    private void showUtilityDialog(AlertDialog dialog) {
+        if(utilityDialog!=null) utilityDialog.dismiss();
+        utilityDialog=dialog; dialog.setOnDismissListener(value -> utilityDialog=null); dialog.show();
+    }
+    private void help(int title,int body) { showUtilityDialog(new AlertDialog.Builder(this).setTitle(title).setMessage(body).setPositiveButton("关闭",null).create()); }
+    private void message(String text) { owner.notice=text; render(); }
+    private void withInput(Runnable action) {
+        try { action.run(); }
+        catch(IllegalArgumentException failure) {
+            if(failure instanceof LabelConfig.ValidationError) {
+                int id=getResources().getIdentifier(((LabelConfig.ValidationError)failure).field,"id",getPackageName());
+                if(id!=0 && findViewById(id) instanceof EditText) { edit(id).setError(failure.getMessage()); scrollTo(id); }
             }
-        });
+            message(failure.getMessage());
+        }
     }
-    private void loadLegacy() {
-        utilityBusy = true; updateButtons(controller.phase());
-        images.execute(() -> {
-            Map<String, ?> old = new LinkedHashMap<>(getPreferences(MODE_PRIVATE).getAll());
-            main.post(() -> {
-                if (isDestroyed()) return;
-                if (!started) { utilityFinished("旧参数加载已停止；当前参数未改变"); return; }
-                if (!old.containsKey("label_width")) {
-                    utilityFinished("旧参数缺少独立 label_width；请手动填写后保存，当前参数未改变"); return;
-                }
-                if (old.containsKey("media")) { loadLegacyConfirmed(old, null); return; }
-                new AlertDialog.Builder(this).setTitle("旧参数未保存介质；请选择本次介质")
-                    .setSingleChoiceItems(new String[]{"间隙纸", "黑标纸", "连续纸"}, -1, (dialog, selected) -> {
-                        dialog.dismiss(); loadLegacyConfirmed(old, selected);
-                    }).setNegativeButton("取消", (dialog, which) -> utilityFinished("未加载旧参数；当前参数未改变"))
-                    .setOnCancelListener(dialog -> utilityFinished("未加载旧参数；当前参数未改变")).show();
-            });
-        });
+    /** 系统恢复仅保存表单选项；设备地址和 Raw 文本不进入恢复草稿。 */
+    private Bundle inputs() {
+        Bundle data=new Bundle();
+        printDraft.save(data);
+        data.putBoolean("m90_ble_explicit", owner.m90BleExplicit);
+        for(int id:FIELDS) if(id!=R.id.address) data.putString(getResources().getResourceEntryName(id),edit(id).getText().toString());
+        for(int id:CHOICES) data.putInt(getResources().getResourceEntryName(id),choice(id));
+        return data;
     }
-    private void loadLegacyConfirmed(Map<String, ?> old, Integer media) {
-        images.execute(() -> {
-            try {
-                DemoSettings accepted = media == null ? DemoSettings.legacy(old) : DemoSettings.legacy(old, media);
-                main.post(() -> {
-                    if (isDestroyed()) return;
-                    if (!started) { utilityFinished("旧参数加载已停止；当前参数未改变"); return; }
-                    applySettings(accepted); utilityFinished("旧参数已加载；请更新预览并手动保存，未连接或发送");
-                    log("旧参数已显式加载；无设备 IO");
-                });
-            } catch (RuntimeException failure) {
-                main.post(() -> utilityFinished("旧参数缺少必要字段或数值无效；当前参数未改变，请手动确认后保存"));
+    /** 恢复手动草稿和通信参数；不恢复或采用打印 Profile。 */
+    private void restoreDraft(Bundle data, boolean retained) {
+        if (data == null) return;
+        boolean previous = applying;
+        applying = true;
+        try {
+            printDraft = printDraft.restored(data);
+            restoreInputs(data);
+            adoptPrintProfile(model.printProfile());
+            mirrorPrintDraft();
+            if (!retained) {
+                owner.m90BleExplicit = data.getBoolean("m90_ble_explicit");
             }
-        });
+        } finally { applying = previous; }
     }
+    private void restoreInputs(Bundle data) {
+        if(data==null) return;
+        for(int id:FIELDS) { String key=getResources().getResourceEntryName(id); if(data.containsKey(key)) edit(id).setText(data.getString(key)); }
+        for(int id:CHOICES) { String key=getResources().getResourceEntryName(id); if(data.containsKey(key)) select(id,data.getInt(key)); }
+    }
+    /** 先读取旧草稿的定位来源，再采用当前配置，避免旧居中结果成为手动绝对起点。 */
+    private void adoptPrintProfile(PrinterProfile profile) {
+        if (profile == null) return;
+        if (profile.labelAlignment != PrinterProfile.LabelAlignment.CENTERED &&
+            printDraft.originMode() == OriginPlacement.CENTERED) setNumber(R.id.x_offset, 0);
+        printDraft = printDraft.adopted(profile);
+    }
+    /** 兼容 ID 仅作为草稿输出镜像，不从隐藏控件读取或接收输入事件。 */
+    private void mirrorPrintDraft() {
+        boolean previous = applying; applying = true;
+        try {
+            edit(R.id.dpi).setText(printDraft.dpiText()); edit(R.id.width).setText(printDraft.widthText());
+            select(R.id.print_format, printDraft.receipt() ? 1 : 0);
+            select(R.id.origin_mode, printDraft.originMode());
+        } finally { applying = previous; }
+    }
+    @Override protected void onSaveInstanceState(Bundle saved) {
+        saved.putBundle("inputs",inputs()); saved.putBoolean("logs",showingLogs); saved.putBoolean("raw",showingRaw);
+        sections.save(saved);
+        super.onSaveInstanceState(saved);
+    }
+    /** Framework 恢复控件也会触发监听；配置来源与已绑定 Profile 以 Owner 当前状态为准。 */
+    @Override protected void onRestoreInstanceState(Bundle saved) {
+        boolean previous = applying;
+        applying = true;
+        try {
+            super.onRestoreInstanceState(saved);
+            // Framework 可能重新填入旧 resolved X；显式草稿保留其旧策略，供适配层再次判别。
+            restoreDraft(saved.getBundle("inputs"), true);
+            // 同步异步选择通知的 tag 与 Spinner 尚待布局的恢复位置。
+            for (int id : CHOICES) select(id, choice(id));
+            displayedProfile = null;
+            render();
+        } finally {
+            applying = previous;
+        }
+    }
+    /** 文件选择器可能在 onStart 之前返回，先保存结果，待前台与清理条件满足后再消费。 */
+    @Override protected void onActivityResult(int request,int result,Intent data) {
+        super.onActivityResult(request,result,data);
+        if(request==IMPORT) {
+            owner.acceptImageResult(result == RESULT_OK && data != null ? data.getData() : null);
+            acceptImport(); render();
+        } else if(request==EXPORT) {
+            owner.acceptLogExport(result==RESULT_OK && data!=null ? data.getData() : null);
+            acceptExport();
+        }
+    }
+    /** 前台且完成连接清理后，只消费一次所选 URI；导入不依赖打印参数或预览。 */
+    private void acceptImport() {
+        if(!started || owner.importUri==null || !model.state().canConnect()) return;
+        Uri uri=owner.importUri; owner.importUri=null;
+        owner.images.importImage(uri);
+    }
+    /** 导出也等待界面恢复空闲，先取走待写数据再排后台任务，防止重入导致重复写入。 */
+    private void acceptExport() {
+        if (idle()) owner.writeLogExport();
+    }
+    /** 重绑保留的状态与监听，继续处理显式文件操作，不恢复蓝牙连接或重放打印。 */
     @Override protected void onStart() {
-        super.onStart(); started = true;
-        if (controller != null) updateButtons(controller.phase());
-        if (showingLogs) renderLogs();
+        super.onStart(); started=true; model.foreground(); owner.images.foreground();
+        owner.attach(listener); model.attach(listener); owner.images.attach(listener); changed();
     }
+    /** 配置重建保留 Owner 并取消尚未展示的完整预览；真正离开前台时断开设备并取消图片准备。 */
     @Override protected void onStop() {
-        dismissConfigMenu();
-        cancelLogPositioning();
-        pendingImportAfterDisconnect = false;
-        started = false; preparationGeneration.incrementAndGet(); previewing = false; imageOperation = ""; permissionAction = null;
-        stopDiscovery(false);
-        controller.disconnect(); // Foreground-only demo; leaving never resumes a print.
-        super.onStop();
+        logView.onStop(showingLogs);
+        if(isChangingConfigurations() && requestedPreview) owner.images.cancel();
+        started=false; afterPermission=null; requestedDiscovery=false; requestedPreview=false;
+        if(devicePicker!=null) devicePicker.dismiss();
+        if(previewImage!=null) previewImage.setImageDrawable(null);
+        if(previewDialog!=null) previewDialog.dismiss();
+        owner.images.clearPreview();
+        if(configMenu!=null) configMenu.dismiss();
+        if(utilityDialog!=null) utilityDialog.dismiss();
+        owner.stopUi(listener,isChangingConfigurations()); super.onStop();
     }
+    @Override public Object onRetainNonConfigurationInstance() { return owner; }
+    /** 先解除界面对位图和回调的引用；是否最终关闭资源由 Owner 根据重建状态决定。 */
     @Override protected void onDestroy() {
-        started = false; permissionAction = null;
-        stopDiscovery(false);
-        dismissConfigMenu();
-        cancelLogPositioning();
-        pendingImportAfterDisconnect = false; imagePickerOpen = false;
-        if (unregisterLogBack != null) { unregisterLogBack.run(); unregisterLogBack = null; }
-        controller.close(); preparationGeneration.incrementAndGet();
-        clearThumbnail();
-        File source = sourceFile; if (source != null) images.execute(() -> source.delete());
-        super.onDestroy();
+        logView.close();
+        if(unregisterBack!=null) unregisterBack.run();
+        ((ImageView)findViewById(R.id.thumbnail)).setImageDrawable(null);
+        owner.destroyUi(listener,isChangingConfigurations()); super.onDestroy();
     }
 }

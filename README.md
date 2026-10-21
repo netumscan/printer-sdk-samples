@@ -1,5 +1,28 @@
 # printer-sdk-samples
 
+<!-- current-android-full-demo -->
+
+当前 Android Full Demo 使用 SDK **0.3.0-preview.8**；Android Quick Start 与两个 iOS 示例继续使用 **0.3.0-preview.2**。
+
+| 应用 | SDK 版本 | C ABI | 精确依赖锁 | 入口 |
+| --- | --- | --- | --- | --- |
+| Android Full Demo | `0.3.0-preview.8` | `3/r2` | [独立锁](android/full-demo/sdk-lock.json) | [当前完整 Demo](android/full-demo/README.md) |
+| Android Quick Start | `0.3.0-preview.2` | `3/r1` | [历史锁](sdk-lock.json) | [Quick Start](android/quick-start/README.md) |
+| iOS Quick Start | `0.3.0-preview.2` | `3/r1` | [历史锁](sdk-lock.json) | [Quick Start](ios/quick-start/README.md) |
+| iOS Full Demo | `0.3.0-preview.2` | `3/r1` | [历史锁](sdk-lock.json) | [Full Demo](ios/full-demo/README.md) |
+
+Android Full Demo 的 Maven 坐标为 `com.netumscan:printer-sdk-android:0.3.0-preview.8`。根目录 `sdk-lock.json` 只描述其余三个历史示例，不代表当前 Android Full Demo。
+
+当前 Android 的 Manager、Profile、图像与生命周期调用请从 [Full Demo 说明](android/full-demo/README.md) 开始。[客户指南](docs/README.md)、[共享 APP 示例](shared-app/README.md)及下方历史说明对应旧 SDK API；当前 Android 接口以 [Android SDK 发布文档](https://github.com/netumscan/printer-sdk-android)为准。
+
+Android 构建、lint、逐应用 AAR 校验与运行门禁见 [Full Demo 验证说明](android/full-demo/README.md)。来源记录位于 `samples-manifest.json`：当前 Android 为 `android_full_demo`，历史快照保留在 `legacy_manifest`。
+
+<details>
+<summary>历史 0.3.0-preview.2 说明（不适用于当前 Android Full Demo）</summary>
+
+<!-- legacy-readme-start -->
+# printer-sdk-samples
+
 NETUM 打印机 SDK 的 MIT 许可应用示例。Android 与 iOS 均固定接入在线 SDK **0.3.0-preview.2**。
 克隆本仓库即可构建，无需访问 SDK 私有开发仓库。
 
@@ -58,3 +81,7 @@ CI 不连接打印机、不发布 APK/IPA，也不使用任何签名密钥。双
 构建及模拟器通过不等于无线、固件、纸面输出或手机峰值内存完成验收。
 数据发送完成不代表机械打印完成；连接中断后不会自动续打或重放。
 M90 取消后重连的短斜痕问题仍待解决，ESC/POS 尚未完成硬件验收。
+
+<!-- legacy-readme-end -->
+
+</details>

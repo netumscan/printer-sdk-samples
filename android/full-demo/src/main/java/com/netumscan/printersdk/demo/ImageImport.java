@@ -1,28 +1,46 @@
+// SPDX-License-Identifier: MIT
 package com.netumscan.printersdk.demo;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.ExifInterface;
+import com.netumscan.printersdk.internal.ImageTransforms;
 import java.io.*;
 import java.util.concurrent.CancellationException;
-import com.netumscan.printersdk.demo.PrinterController.Cancellation;
 
-/** Platform decoder. Its caller serializes imports and owns the temporary source file. */
+/** 平台图片检查与解码；来源、打印和预览分别调用，不持有界面状态。 */
 final class ImageImport {
-    static void copy(InputStream input, File destination, Cancellation cancelled) throws IOException {
+    private static final class Metadata {
+        final int width, height, orientation;
+        Metadata(int width, int height, int orientation) {
+            this.width = width; this.height = height; this.orientation = orientation;
+        }
+    }
+    static void copy(InputStream input, File destination, ImageCancellation cancelled) throws IOException {
+        copy(input, destination, cancelled, ImageRaster.MAX_FILE_BYTES);
+    }
+    static void copy(InputStream input, File destination, ImageCancellation cancelled, long limit) throws IOException {
+        if (limit <= 0 || limit > ImageRaster.MAX_FILE_BYTES) throw new IOException("Image cache limit");
         long count = 0;
         try (OutputStream output = new FileOutputStream(destination)) {
             byte[] block = new byte[16384]; int read;
             while ((read = input.read(block)) != -1) {
                 if (cancelled.getAsBoolean()) throw new CancellationException();
                 count += read;
-                if (count > ImageRaster.MAX_FILE_BYTES) throw new IOException("Image limit");
+                if (count > limit) throw new IOException("Image cache/file limit");
                 output.write(block, 0, read);
             }
         }
         if (count == 0) throw new IOException("Empty image");
     }
-    static PreparedImage prepare(File file, LabelConfig config, Cancellation cancelled) throws IOException {
+    static PreparedImage prepare(File file, LabelConfig config, ImageCancellation cancelled) throws IOException {
+        return new PreparedImage(config, decode(file, config, cancelled));
+    }
+    /** 导入只检查源文件，不依赖打印宽高，也不生成任何预览。 */
+    static void validate(File file, ImageCancellation cancelled) throws IOException {
+        metadata(file, cancelled);
+    }
+    private static Metadata metadata(File file, ImageCancellation cancelled) throws IOException {
         if (cancelled.getAsBoolean()) throw new CancellationException();
         if (file.length() <= 0 || file.length() > ImageRaster.MAX_FILE_BYTES) throw new IOException("Image limit");
         try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
@@ -49,11 +67,18 @@ final class ImageImport {
             if (orientation == ExifInterface.ORIENTATION_UNDEFINED) orientation = ExifInterface.ORIENTATION_NORMAL;
         }
         if (orientation < 1 || orientation > 8) throw new IOException("Image orientation");
-        ImageRaster.Layout fit = new ImageRaster.Layout(orientation >= 5 ? bounds.outHeight : bounds.outWidth,
-            orientation >= 5 ? bounds.outWidth : bounds.outHeight, config.labelWidthDots, config.height);
+        if (cancelled.getAsBoolean()) throw new CancellationException();
+        return new Metadata(bounds.outWidth, bounds.outHeight, orientation);
+    }
+    /** 打印直接从源文件解码为 Gray8；不需要 PreparedImage 或预览 Bitmap。 */
+    static byte[] decode(File file, LabelConfig config, ImageCancellation cancelled) throws IOException {
+        Metadata image = metadata(file, cancelled);
+        int orientation = image.orientation;
+        ImageRaster.Layout fit = new ImageRaster.Layout(orientation >= 5 ? image.height : image.width,
+            orientation >= 5 ? image.width : image.height, config.labelWidthDots, config.height);
         BitmapFactory.Options options = new BitmapFactory.Options(); options.inScaled = false;
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-        options.inSampleSize = ImageRaster.sample(bounds.outWidth, bounds.outHeight, fit, orientation);
+        options.inSampleSize = ImageRaster.sample(image.width, image.height, fit, orientation);
         if (cancelled.getAsBoolean()) throw new CancellationException();
         Bitmap decoded = BitmapFactory.decodeFile(file.getPath(), options);
         if (decoded == null) throw new IOException("Invalid image");
@@ -66,15 +91,19 @@ final class ImageImport {
             argb = new int[width * height];
             decoded.getPixels(argb, 0, width, 0, 0, width, height);
         } finally { decoded.recycle(); }
-        byte[] pixels = ImageRaster.render(argb, width, height, orientation, fit, config.labelWidthDots, config.height, cancelled);
-        return new PreparedImage(config, pixels);
+        return ImageRaster.render(argb, width, height, orientation, fit, config.labelWidthDots, config.height, cancelled);
     }
     static Bitmap preview(PreparedImage image) { return preview(image, () -> false); }
-    /** Bounded display-only sample of the immutable submission canvas. */
-    static Bitmap thumbnail(PreparedImage image, Cancellation cancelled) {
+    /** 从显示快照生成有尺寸上限的缩略图，与打印提交无关。 */
+    static Bitmap thumbnail(PreparedImage image, ImageCancellation cancelled) {
+        ImageTransforms.Layout fit = ImageTransforms.contain(image.config.labelWidthDots, image.config.height, 360, 360);
+        return preview(image, fit.width, fit.height, cancelled);
+    }
+    static Bitmap preview(PreparedImage image, ImageCancellation cancelled) {
+        return preview(image, image.config.labelWidthDots, image.config.height, cancelled);
+    }
+    private static Bitmap preview(PreparedImage image, int width, int height, ImageCancellation cancelled) {
         int sourceWidth = image.config.labelWidthDots, sourceHeight = image.config.height;
-        double scale = Math.min(1.0, 360.0 / Math.max(sourceWidth, sourceHeight));
-        int width = Math.max(1, (int)(sourceWidth * scale)), height = Math.max(1, (int)(sourceHeight * scale));
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         int[] row = new int[width];
         for (int y = 0; y < height; y++) {
@@ -84,19 +113,6 @@ final class ImageImport {
                 int sourceX = (int)((long)x * sourceWidth / width);
                 int value = image.grayAt(sourceY * sourceWidth + sourceX);
                 row[x] = 0xff000000 | value * 0x010101;
-            }
-            bitmap.setPixels(row, 0, width, 0, y, width, 1);
-        }
-        return bitmap;
-    }
-    static Bitmap preview(PreparedImage image, Cancellation cancelled) {
-        int width = image.config.labelWidthDots, height = image.config.height;
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        int[] row = new int[width];
-        for (int y = 0; y < height; y++) {
-            if (cancelled.getAsBoolean()) { bitmap.recycle(); throw new CancellationException(); }
-            for (int x = 0; x < width; x++) {
-                int value = image.grayAt(y * width + x); row[x] = 0xff000000 | value * 0x010101;
             }
             bitmap.setPixels(row, 0, width, 0, y, width, 1);
         }

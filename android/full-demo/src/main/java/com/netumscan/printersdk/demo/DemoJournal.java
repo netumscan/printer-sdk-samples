@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package com.netumscan.printersdk.demo;
 
 import java.io.*;
@@ -14,10 +15,10 @@ final class DemoJournal implements AutoCloseable {
     interface Clock { long wall(); long elapsed(); }
     interface Listener { void accept(String record); }
     private static final Pattern PRIVATE = Pattern.compile("(?i)(?:content|file|https?)://|[0-9a-f]{2}(?::[0-9a-f]{2}){5}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|(?:^|\\s)/(?:[^\\s/]+/)+[^\\s]*");
-    private static final Pattern PRIVATE_FIELD = Pattern.compile("(?i)(?:image(?:name|path|content)?|file(?:name|path)|uri|path|exif|raw(?:bytes|payload|input)?|pixels|device(?:name|id|address|serial)?|address|identifier|mac|serial(?:number|_number)?|print(?:content|payload)|signing(?:identity|certificate|key|team)?|teamid|certificate|privatekey)\\s*[:=]");
+    private static final Pattern PRIVATE_FIELD = Pattern.compile("(?i)(?:image(?:[_ -]?(?:name|path|content|uri|url))?|file(?:[_ -]?(?:name|path))?|uri|path|exif|raw(?:[_ -]?(?:bytes|payload|input))?|pixels|device(?:[_ -]?(?:name|id|address|serial))?|address|identifier|mac|serial(?:[_ -]?number)?|print[_ -]?(?:content|payload)|signing(?:[_ -]?(?:identity|certificate|key|team))?|team[_ -]?id|certificate|private[_ -]?key)\\s*[:=]");
     private static final Pattern WALL = Pattern.compile("(?:^| )utc_ms=(\\d+) "), SEQUENCE = Pattern.compile(" seq=(\\d+) ");
     private static final Pattern RECORD = Pattern.compile("^utc=[0-9TZ:.\\-]+ utc_ms=[0-9]+ elapsed_ms=[0-9]+ run=[0-9a-f]{16} connection=[0-9]+ seq=[0-9]+ message=.*$");
-    private static final ExecutorService worker = Executors.newSingleThreadExecutor(task -> {
+    private final ExecutorService worker = Executors.newSingleThreadExecutor(task -> {
         Thread thread = new Thread(task, "PrinterDemo.journal"); thread.setDaemon(true); return thread;
     });
     private final File directory, currentFile, previousFile;
@@ -132,7 +133,7 @@ final class DemoJournal implements AutoCloseable {
             try {
                 if (!degraded) try (OutputStream output = new FileOutputStream(currentFile, true)) { output.write(line.getBytes(StandardCharsets.UTF_8)); }
             } catch (IOException | RuntimeException error) { degraded = true; }
-            callback.accept(line.trim());
+            if (callback != null) callback.accept(line.trim());
         });
     }
     Future<String> snapshot() {
@@ -154,5 +155,6 @@ final class DemoJournal implements AutoCloseable {
             } catch (IOException | RuntimeException error) { degraded = true; }
         });
     }
-    public void close() { /* Process-owned serial lane also protects Activity recreation. */ }
+    /** The retained DemoOwner closes this lane only when its session is destroyed. */
+    @Override public void close() { worker.shutdown(); }
 }

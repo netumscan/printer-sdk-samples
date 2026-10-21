@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: MIT
 package com.netumscan.printersdk.demo;
 
 import java.util.*;
+import com.netumscan.printersdk.PrinterProfile;
 
 /** Versioned app preferences, never a printer identity or an SDK profile catalog. */
 final class DemoSettings {
@@ -36,11 +38,16 @@ final class DemoSettings {
         int x = integer(copy, "x_offset", 0, 7991);
         if (kind == 1 && (mode != OriginPlacement.MANUAL || adjustment != 0 || x != 0))
             throw new IllegalArgumentException("小票不使用横向定位策略或校准偏移");
-        if (OriginPlacement.resolve(width, canvas, mode, x, adjustment) != x)
-            throw new IllegalArgumentException("保存的横向起点与定位策略不一致");
-        label = new LabelConfig(integer(copy, "dpi", 1, 1200), width, canvas,
-            integer(copy, "height", 128, 65535), integer(copy, "copies", 1, 20), form, x, kind == 1,
+        int dpi = integer(copy, "dpi", 1, 1200);
+        PrinterProfile draft = kind == 1 ? PrinterProfile.escPos(dpi, width) :
+            PrinterProfile.cpcl(dpi, width, dpi / 25.4, mode == OriginPlacement.CENTERED
+                ? PrinterProfile.LabelAlignment.CENTERED : PrinterProfile.LabelAlignment.LEFT);
+        label = new LabelConfig(draft, canvas,
+            integer(copy, "height", 128, 65535), integer(copy, "copies", 1, 20), form,
+            mode == OriginPlacement.CENTERED ? 0 : x, adjustment,
             integer(copy, "trailing_blank", 0, 65535));
+        if (mode == OriginPlacement.CENTERED && label.xOffsetDots != x)
+            throw new IllegalArgumentException("保存的横向起点与定位策略不一致");
         if (transport == 0) {
             for (String key : new String[]{"ble_profile", "write_mode", "mtu", "payload", "service", "characteristic"}) unused(copy, key);
         } else {

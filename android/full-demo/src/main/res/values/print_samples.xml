@@ -1,0 +1,24 @@
+<resources>
+    <string name="pixel_example_label">本次打印内容</string>
+    <string-array name="pixel_examples">
+        <item>当前图片（Gray8）</item>
+        <item>RGB24 彩色渐变</item>
+        <item>RGBA32 透明度</item>
+        <item>二值化 / 抖动对照</item>
+        <item>多图（小票含空白段）</item>
+    </string-array>
+    <string name="pixel_example_help">示例不替换原图；预览仅支持当前图片。</string>
+    <string name="pixel_example_selected">示例：%1$s</string>
+    <string name="print_pixel_example">打印示例</string>
+    <string name="print_fifo">提交 3 个请求（FIFO）</string>
+    <string name="print_fifo_help">内容和份数相同，按顺序发送，可分别取消。</string>
+    <string name="print_requests_title">打印请求记录</string>
+    <string name="print_requests_help">保留最近 32 条，最多同时等待 8 条。</string>
+    <string name="print_request_heading">第 %1$d 条 · %2$s · %3$s</string>
+    <string name="print_request_waiting">等待结果</string>
+    <string name="print_request_cancelling">取消中；已发送数据无法撤回</string>
+    <string name="cancel_print_request">取消第 %1$d 条请求</string>
+    <string name="cancel_earliest_print">取消最早请求</string>
+    <string name="print_requests_pending">%1$d 条请求等待结果</string>
+    <string name="print_requests_full">已有 8 条请求，请等待或取消</string>
+</resources>

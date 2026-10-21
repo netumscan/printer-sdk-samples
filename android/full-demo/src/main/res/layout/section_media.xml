@@ -1,0 +1,26 @@
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView style="@style/Section" android:text="@string/media_section_heading" />
+    <LinearLayout android:id="@+id/media_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView style="@style/FieldLabel" android:text="@string/media_section" android:labelFor="@id/media" android:layout_width="0dp" android:layout_weight="1" />
+            <Button android:id="@+id/media_help_button" style="@style/TextButton" android:layout_width="wrap_content" android:minWidth="48dp" android:text="@string/help_button" android:contentDescription="@string/media_help_title" />
+        </LinearLayout>
+        <Spinner android:id="@+id/media" style="@style/Selector" android:nextFocusForward="@id/form" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/cpcl_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView style="@style/FieldLabel" android:text="@string/form_label" android:labelFor="@id/form" android:layout_width="0dp" android:layout_weight="1" />
+            <Button android:id="@+id/form_help_button" style="@style/TextButton" android:layout_width="wrap_content" android:minWidth="48dp" android:text="@string/help_button" android:contentDescription="@string/form_help_title" />
+        </LinearLayout>
+        <Spinner android:id="@+id/form" style="@style/Selector" android:nextFocusForward="@id/apply_media" />
+        <TextView android:id="@+id/form_error" style="@style/ErrorLabel" android:visibility="gone" android:accessibilityLiveRegion="polite" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/media_apply_group" style="@style/InsetPanel" android:layout_marginTop="12dp">
+        <TextView android:id="@+id/media_status" style="@style/FieldLabel" android:text="@string/media_not_sent" android:accessibilityLiveRegion="polite" />
+        <Button android:id="@+id/apply_media" style="@style/SecondaryButton" android:text="@string/apply_media" android:enabled="false" />
+    </LinearLayout>
+    <Button android:id="@+id/retry_initialize" style="@style/SecondaryButton" android:text="@string/retry_initialize" android:enabled="false" android:visibility="gone" />
+    <LinearLayout android:id="@+id/label_motion_group" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="12dp">
+        <Button android:id="@+id/locate_label" style="@style/QuietButton" android:text="@string/locate_label" android:enabled="false" />
+    </LinearLayout>
+</merge>
