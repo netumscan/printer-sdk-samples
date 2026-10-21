@@ -3,7 +3,8 @@
 """Build both Android consumers using separate exact SDK pins and run their gates.
 
 Only explicitly selected Android emulators may be installed or cleared. The
-historical Quick Start gate is retained. The current Full Demo uses its entire
+Quick Start gate follows its source manifest: either the retained historical
+gate or the current offline lifecycle gate. The Full Demo uses its entire
 instrumentation suite, including actual loaded JNI identity and memory IO.
 """
 import argparse
@@ -62,6 +63,30 @@ def validate_identity(output, lock):
     return {"distribution_version": expected[0], "native_version": expected[1], "abi_version": 3, "abi_revision": 2}
 
 
+def runtime_scope(current_quick):
+    return ("separate_sdk_pins_current_full_demo_and_current_quick_start" if current_quick else
+            "separate_sdk_pins_and_complete_current_demo")
+
+
+def quick_runtime_report(lock, nonce):
+    return {"schema_version": 2, "success": True, "nonce": nonce, "offline_launch": True,
+        "printer_created": False, "operation_created": False, "bluetooth_runtime_permissions_ungranted": True,
+        "hardware_verified": False, "no_native_session": True, "activity_destroyed": True,
+        "manager_cleanup_verified": True, "validation_scope": "current_quick_start_offline_lifecycle",
+        "sdk_runtime_identity": {"distribution_version": lock["version"], "native_version": lock["native_sdk_version"],
+            "abi_version": 3, "abi_revision": 2}}
+
+
+def validate_quick_report(report, lock, nonce, current_quick):
+    expected = quick_runtime_report(lock, nonce) if current_quick else {
+        "schema_version": 1, "success": True, "nonce": nonce, "offline_launch": True,
+        "printer_created": False, "operation_created": False,
+        "bluetooth_runtime_permissions_ungranted": True, "hardware_verified": False}
+    if report != expected:
+        raise ValueError("Quick Start runtime evidence is stale, incomplete or differs from its exact SDK pin")
+    return expected.get("sdk_runtime_identity")
+
+
 def inspect_app(android, module, lock, contract):
     # Preserve the historical DEX/native/license/bytecode checks, but bind each
     # invocation to that application's own lock rather than a global version.
@@ -85,6 +110,7 @@ def verify(android, output, serial, adb_path=None):
     contract = load(root / "tools/android_demo_contract.py", "mixed_demo_contract")
     checker = load(root / "tools/check-samples.py", "mixed_source_checker")
     before = checker.check(root)
+    current_quick = "android_quick_start" in json.loads((root / "samples-manifest.json").read_text())
     source_manifest_sha256 = digest(root / "samples-manifest.json")
     output.mkdir(parents=True, exist_ok=True)
     if any((output / name).exists() for name in ("validation.json", "runtime-validation.json", "gradle.log", "adb.log")):
@@ -107,8 +133,10 @@ def verify(android, output, serial, adb_path=None):
         "validation_scope": "mixed_exact_sdk_pins", "source_manifest_sha256": source_manifest_sha256,
         "applications": applications, "emulator_runtime_verified": False,
         "runtime_compatibility_verified": False,
-        "runtime_compatibility_scope": "separate_sdk_pins_and_complete_current_demo",
-        "historical_quick_start_gate_retained": True, "historical_full_demo_replaced": True}
+        "runtime_compatibility_scope": runtime_scope(current_quick),
+        "historical_quick_start_gate_retained": not current_quick, "historical_full_demo_replaced": True}
+    if current_quick:
+        packaging["current_quick_start_gate_verified"] = False
     write_json(output / "validation.json", packaging)
     runtime = load(android / "scripts/verify-runtime.py", "historical_runtime_helpers")
     sdk_home = Path(os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT", ""))
@@ -138,12 +166,10 @@ def verify(android, output, serial, adb_path=None):
     adb.run("shell", "input", "keyevent", "KEYCODE_WAKEUP")
     adb.run("shell", "wm", "dismiss-keyguard")
     quick_output = adb.run("shell", "am", "instrument", "-w", "-r", "-e", "nonce", nonce, QUICK_RUNNER, timeout=180)
-    instrument_passed(quick_output, "offline runtime passed; nonce=" + nonce)
+    quick_marker = "current offline runtime passed; nonce=" if current_quick else "offline runtime passed; nonce="
+    instrument_passed(quick_output, quick_marker + nonce)
     quick_raw = adb.run("exec-out", "run-as", QUICK, "cat", "files/quick-runtime-gate.json")
-    expected_quick = {"schema_version": 1, "success": True, "nonce": nonce, "offline_launch": True,
-        "printer_created": False, "operation_created": False, "bluetooth_runtime_permissions_ungranted": True, "hardware_verified": False}
-    if json.loads(quick_raw) != expected_quick:
-        raise ValueError("Historical Quick Start runtime evidence is stale or incomplete")
+    quick_identity = validate_quick_report(json.loads(quick_raw), locks["quick-start"], nonce, current_quick)
     (output / "quick-start-runtime.json").write_text(quick_raw + "\n")
     adb.run("shell", "am", "force-stop", QUICK)
     full_output = adb.run("shell", "am", "instrument", "-w", "-r", RUNNER, timeout=600)
@@ -166,15 +192,21 @@ def verify(android, output, serial, adb_path=None):
         "apks_sha256": apk_hashes, "evidence_sha256": evidence,
         "applications": {"quick-start": {"sdk_version": locks["quick-start"]["version"],
             "aar_sha256": locks["quick-start"]["android"]["aar_sha256"], "offline_runtime_verified": True,
-            "gate": "retained_historical_quick_start"},
+            "gate": "current_QuickStartRuntimeGate" if current_quick else "retained_historical_quick_start"},
             "full-demo": {"sdk_version": locks["full-demo"]["version"],
                 "aar_sha256": locks["full-demo"]["android"]["aar_sha256"], "sdk_runtime_identity": identity,
                 "complete_instrumentation_verified": True, "gate": "current_DemoInstrumentation"}}}
+    if current_quick:
+        report["applications"]["quick-start"].update(sdk_runtime_identity=quick_identity,
+            lifecycle_cleanup_verified=True)
     write_json(output / "runtime-validation.json", report)
     packaging.update(success=True, emulator_runtime_verified=True, runtime_compatibility_verified=True, runtime=report,
         runtime_validation_sha256=digest(output / "runtime-validation.json"))
+    if current_quick:
+        packaging["current_quick_start_gate_verified"] = True
     write_json(output / "validation.json", packaging)
-    print("Verified separate online SDK pins, both R8/native packages, historical Quick Start and complete current Full Demo instrumentation.")
+    quick_scope = "current Quick Start offline lifecycle" if current_quick else "historical Quick Start"
+    print("Verified separate online SDK pins, both R8/native packages, " + quick_scope + " and complete current Full Demo instrumentation.")
     return packaging
 
 

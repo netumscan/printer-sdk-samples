@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Preserve the historical SDK consumers and verify the current Full Demo overlay."""
+"""Preserve historical consumers and verify independently pinned Android overlays."""
 import hashlib
 import importlib.util
 import json
@@ -40,12 +40,17 @@ def check(root):
     legacy = manifest["legacy_manifest"]
     if legacy.get("schema") != 1 or legacy.get("hardware_verified") is not False:
         raise ValueError("Invalid retained legacy manifest")
+    quick = manifest.get("android_quick_start")
+    quick_current = "android_quick_start" in manifest
+    if quick_current and not isinstance(quick, dict):
+        raise ValueError("Invalid current Quick Start manifest")
+    current_prefixes = (contract.FULL, contract.QUICK) if quick_current else (contract.FULL,)
     retained = {name: digest for name, digest in legacy["files_sha256"].items()
-                if not name.startswith(contract.FULL) and name not in contract.COMMON}
+                if not name.startswith(current_prefixes) and name not in contract.COMMON}
     if any(actual.get(name) != digest for name, digest in retained.items()):
         raise ValueError("Historical Quick Start, iOS, API references or root SDK lock changed")
     extras = set(actual) - set(retained)
-    if any(not name.startswith(contract.FULL) and name not in contract.COMMON for name in extras):
+    if any(not name.startswith(current_prefixes) and name not in contract.COMMON for name in extras):
         raise ValueError("Android overlay modifies an unauthorized public path")
     if actual.get("tools/check-legacy-samples.py") != legacy["files_sha256"]["tools/check-samples.py"]:
         raise ValueError("Historical source checker was changed")
@@ -92,6 +97,26 @@ def check(root):
             or 'versionName = "' + full_lock["version"] + '"' not in build
             or 'testInstrumentationRunner = "com.netumscan.printersdk.demo.DemoInstrumentation"' not in build):
         raise ValueError("Full Demo must use its independent exact Maven pin and complete instrumentation")
+    quick_lock = None
+    if quick_current:
+        if quick.get("sdk_lock") != contract.QUICK + "sdk-lock.json":
+            raise ValueError("Quick Start lock path differs")
+        quick_lock = contract.app_lock(root, "quick-start")
+        if quick_lock["version"] == root_lock["version"]:
+            raise ValueError("The current Quick Start must not reuse the historical SDK pin")
+        origin = "samples/android/quick-start/src/main"
+        target = contract.QUICK + "src/main/"
+        source_files = {name: digest for name, digest in actual.items() if name.startswith(target)}
+        canonical = {origin: {"target": target, "files_sha256": source_files}}
+        if not source_files or quick.get("canonical_sources") != canonical:
+            raise ValueError("Current Quick Start provenance differs")
+        if quick.get("source_fingerprint") != sha(json.dumps(canonical, sort_keys=True).encode()):
+            raise ValueError("Quick Start source fingerprint differs")
+        build = (root / contract.QUICK / "build.gradle.kts").read_text()
+        if ('implementation("' + quick_lock["android"]["coordinate"] + '")' not in build
+                or 'versionName = "' + quick_lock["version"] + '"' not in build
+                or 'testInstrumentationRunner = "com.netumscan.printersdk.samples.runtime.QuickStartRuntimeGate"' not in build):
+            raise ValueError("Quick Start must use its independent exact Maven pin and current instrumentation")
     for tool in ("tools/check-api-reference.py", "tools/check-api-history.py"):
         load(root / tool, "retained_" + Path(tool).stem.replace("-", "_")).check(root)
     prohibited = re.compile(r"/Users/[A-Za-z0-9_.-]+/|/home/[A-Za-z0-9_.-]+/|mavenLocal\s*\(|"
@@ -112,6 +137,9 @@ def check(root):
                 linked = (path.parent / target).resolve()
                 if target and (not linked.is_relative_to(root) or not linked.exists()):
                     raise ValueError("Broken current Android documentation link")
-    return {"verified": True, "schema": 2, "files_verified": len(actual), "hardware_verified": False,
+    report = {"verified": True, "schema": 2, "files_verified": len(actual), "hardware_verified": False,
             "android_full_demo_sdk_version": full_lock["version"], "historical_sdk_version": root_lock["version"],
             "historical_files_preserved": len(retained), "legacy_full_demo_replaced": True}
+    if quick_lock is not None:
+        report.update(android_quick_start_sdk_version=quick_lock["version"], legacy_quick_start_replaced=True)
+    return report

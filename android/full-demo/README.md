@@ -3,7 +3,8 @@
 This is the current Android application from the SDK development repository. It
 uses the exact Maven Central dependency `com.netumscan:printer-sdk-android:0.3.0-preview.8`.
 [sdk-lock.json](sdk-lock.json) records its AAR SHA-256, release commit and ABI.
-The root lock and the other three applications retain their historical SDK pins.
+Android Full Demo and Quick Start use independent SDK locks. The root lock and
+the two iOS applications retain their historical SDK pins.
 
 1. Search for a printer, select it and connect.
 2. The SDK matches a Profile by the device name. Configure an unknown device
@@ -32,8 +33,8 @@ bash android/verify.sh --emulator-serial emulator-5554 --output /tmp/printer-sam
 ```
 
 The gate builds Debug and R8 Release APKs, runs lint, checks each application's
-own exact AAR and native payload, then executes the historical Quick Start
-offline gate and this application's complete instrumentation on the selected
+own exact AAR and native payload, then executes the current Quick Start
+offline lifecycle gate and this application's complete instrumentation on the selected
 emulator. Bluetooth permissions stay ungranted; tests use memory transport and
 do not print paper. Historical iOS validation keeps its original gate. The
 replaced Android Full Demo's historical journal gate is preserved in the old

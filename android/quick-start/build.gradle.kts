@@ -9,7 +9,7 @@ android {
         minSdk = 21
         targetSdk = 35
         versionCode = 2
-        versionName = "0.3.0-preview.2"
+        versionName = "0.3.0-preview.8"
         testInstrumentationRunner = "com.netumscan.printersdk.samples.runtime.QuickStartRuntimeGate"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
@@ -24,14 +24,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 }
-dependencies { implementation("com.netumscan:printer-sdk-android:0.3.0-preview.2") }
+dependencies { implementation("com.netumscan:printer-sdk-android:0.3.0-preview.8") }
 
 tasks.register("copyResolvedSdk") {
     doLast {
         val sdk = configurations["releaseRuntimeClasspath"].resolvedConfiguration.resolvedArtifacts.single {
             it.moduleVersion.id.group == "com.netumscan" && it.name == "printer-sdk-android"
         }
-        require(sdk.moduleVersion.id.version == "0.3.0-preview.2")
+        require(sdk.moduleVersion.id.version == "0.3.0-preview.8")
         sdk.file.copyTo(layout.buildDirectory.file("verification/resolved-sdk.aar").get().asFile, overwrite = true)
     }
 }

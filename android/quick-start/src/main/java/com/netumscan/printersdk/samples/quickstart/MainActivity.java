@@ -6,83 +6,153 @@ import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import com.netumscan.printersdk.DiscoveredDevice;
+import com.netumscan.printersdk.PrinterManager;
+import com.netumscan.printersdk.PrinterProfiles;
+import java.util.ArrayList;
+import java.util.List;
 
-/** Minimal explicit SPP/CPCL integration. No discovery, printing, or reconnect on launch. */
+/** Customer entry point: permissions, explicit device selection, connect, print and disconnect. */
 public final class MainActivity extends Activity {
-    private static final int CONNECT_PERMISSION = 10;
-    private QuickStartSession session;
-    private TextView status;
-    private EditText address, dpi, width;
-    private boolean destroyed;
+    private static final int PERMISSION = 10;
+    private QuickStartModel model;
+    private LinearLayout deviceList;
+    private TextView selection, status, printResult, cleanupResult;
+    private Button scan, connect, print, cancel, disconnect;
+    private Runnable afterPermission;
+    private boolean permissionPending;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        // Recreation starts offline with a new Manager. No address, parameters or requests are restored.
+        model = new QuickStartModel(new PrinterManager(this), this::render);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         int padding = (int)(16 * getResources().getDisplayMetrics().density);
         content.setPadding(padding, padding, padding, padding);
-        ScrollView scroll = new ScrollView(this); scroll.addView(content); setContentView(scroll);
-        text(content, "Printer SDK · Android Quick Start");
-        text(content, "先在 Android 蓝牙设置中配对支持 SPP / CPCL 的打印机。以下 DPI 和最大宽度是示例值，需按设备文档确认。点击打印会实际出纸。");
-        address = input(content, "蓝牙地址 AA:BB:CC:DD:EE:FF", "", false);
-        dpi = input(content, "DPI", "203", true);
-        width = input(content, "设备最大可打印宽度（dots，8 的倍数）", "576", true);
-        button(content, "授权并连接", view -> connect());
-        button(content, "打印测试条纹（1 份）", view -> session.print());
-        button(content, "取消当前任务", view -> session.cancel());
-        button(content, "查看连接、工作和队列状态", view -> session.connectionState());
-        button(content, "关闭连接", view -> session.disconnect());
-        status = text(content, "未连接；SDK 0.3.0-preview.2 · native 0.3.0 / ABI 3/r1；硬件未知");
-        session = new QuickStartSession(this, message -> runOnUiThread(() -> {
-            if (!destroyed) status.setText(message);
-        }));
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(content);
+        setContentView(scroll);
+        text(content, "Printer SDK · Quick Start");
+        text(content, "开启打印机和手机蓝牙：扫描 → 选择 → 连接 → 打印 → 断开。" +
+            "本例使用 SDK 已知名称的 LT-M90 BLE 配置；其他设备请使用 Full Demo。");
+        text(content, "固定示例：384 × 64 dots GRAY8 条纹、1 份、FORM 关闭。请先确认打印机型号与纸张适合此示例。");
+        scan = button(content, "1. 扫描 BLE 设备（10 秒）", view -> {
+            if (!permissionPending && model.canSelect()) withPermission(true, model::scan);
+        });
+        deviceList = new LinearLayout(this);
+        deviceList.setOrientation(LinearLayout.VERTICAL);
+        content.addView(deviceList);
+        selection = text(content, "尚未选择设备");
+        connect = button(content, "2. 连接所选设备", view -> {
+            if (!permissionPending && model.canConnect()) withPermission(false, model::connect);
+        });
+        print = button(content, "3. 打印固定条纹", view -> model.print());
+        cancel = button(content, "取消当前请求并断开", view -> model.cancel());
+        disconnect = button(content, "4. 断开", view -> model.disconnect());
+        status = text(content, "");
+        printResult = text(content, "");
+        cleanupResult = text(content, "");
+        render();
     }
 
-    private TextView text(LinearLayout content, String value) {
-        TextView view = new TextView(this); view.setText(value); content.addView(view); return view;
-    }
-
-    private EditText input(LinearLayout content, String hint, String value, boolean numeric) {
-        text(content, hint);
-        EditText view = new EditText(this);
-        view.setSingleLine(true); view.setText(value); view.setHint(hint);
-        view.setInputType(numeric ? InputType.TYPE_CLASS_NUMBER : InputType.TYPE_CLASS_TEXT);
-        content.addView(view); return view;
-    }
-
-    private void button(LinearLayout content, String title, View.OnClickListener action) {
-        Button view = new Button(this); view.setText(title); view.setOnClickListener(action); content.addView(view);
-    }
-
-    private void connect() {
-        if (Build.VERSION.SDK_INT >= 31 && checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
-                != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[] { Manifest.permission.BLUETOOTH_CONNECT }, CONNECT_PERMISSION);
-            return;
+    private void render() {
+        if (model.destroyed || status == null) return;
+        boolean selectable = !permissionPending && model.canSelect();
+        deviceList.removeAllViews();
+        selection.setText("尚未选择设备；扫描后请点击你的打印机");
+        for (DiscoveredDevice device : model.candidates) {
+            boolean selected = device.address.equals(model.selectedAddress);
+            String label = (device.name == null ? "未命名设备" : device.name) + " · " +
+                device.address.substring(Math.max(0, device.address.length() - 8));
+            Button candidate = button(deviceList, (selected ? "✓ " : "") + label, view -> model.select(device.address));
+            candidate.setEnabled(selectable);
+            if (selected) selection.setText("已选择：" + label +
+                (PrinterProfiles.resolveBleOptions(device.name, null) == null ? "；请使用 Full Demo 显式配置" :
+                    "；名称推荐不认证硬件型号"));
         }
-        try {
-            session.connect(address.getText().toString().trim(), Integer.parseInt(dpi.getText().toString()),
-                Integer.parseInt(width.getText().toString()));
-        } catch (NumberFormatException error) { status.setText("请填写有效的 DPI 和宽度整数"); }
+        scan.setEnabled(selectable);
+        connect.setEnabled(!permissionPending && model.canConnect());
+        print.setEnabled(!permissionPending && model.canPrint());
+        cancel.setEnabled(!permissionPending && model.canCancel());
+        disconnect.setEnabled(!permissionPending && model.canDisconnect());
+        status.setText(permissionPending ? "等待附近设备／扫描权限…" : model.status);
+        printResult.setText(model.lastPrintResult == null ?
+            "尚无打印结果；DATA_SENT 只代表数据已发送，未确认实际打印完成" :
+            "最后一次打印结果：" + QuickStartModel.terminalText(model.lastPrintResult));
+        cleanupResult.setText(model.lastCleanupResult == null ? "" :
+            "最后一次断开结果：" + QuickStartModel.terminalText(model.lastCleanupResult));
     }
 
-    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
-        super.onRequestPermissionsResult(requestCode, permissions, results);
-        if (requestCode != CONNECT_PERMISSION) return;
-        if (results.length == 1 && results[0] == PackageManager.PERMISSION_GRANTED) connect();
-        else status.setText("需要蓝牙连接权限；授权后请手动重试");
+    @android.annotation.SuppressLint("InlinedApi")
+    static String[] requiredPermissions(boolean scanning) {
+        if (Build.VERSION.SDK_INT >= 31) return scanning ?
+            new String[]{Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT} :
+            new String[]{Manifest.permission.BLUETOOTH_CONNECT};
+        return scanning && Build.VERSION.SDK_INT >= 23 ?
+            new String[]{Manifest.permission.ACCESS_FINE_LOCATION} : new String[0];
     }
 
-    @Override public void onDestroy() {
-        destroyed = true;
-        if (session != null) session.close();
+    private void withPermission(boolean scanning, Runnable action) {
+        if (Build.VERSION.SDK_INT < 23) { action.run(); return; }
+        List<String> missing = new ArrayList<>();
+        for (String permission : requiredPermissions(scanning))
+            if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) missing.add(permission);
+        if (missing.isEmpty()) { action.run(); return; }
+        afterPermission = action;
+        permissionPending = true;
+        render();
+        requestPermissions(missing.toArray(new String[0]), PERMISSION);
+    }
+
+    @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) {
+        super.onRequestPermissionsResult(request, permissions, grants);
+        if (request != PERMISSION || !permissionPending) return;
+        Runnable action = afterPermission;
+        afterPermission = null;
+        permissionPending = false;
+        if (!model.foreground || model.destroyed) return;
+        boolean granted = grants.length > 0 && grants.length == permissions.length;
+        for (int grant : grants) granted &= grant == PackageManager.PERMISSION_GRANTED;
+        if (granted && action != null) action.run();
+        else model.status = "需要附近设备／扫描权限；授权后请手动重试。Android 6–11 BLE 扫描还需要开启系统定位";
+        render();
+    }
+
+    private TextView text(LinearLayout parent, String value) {
+        TextView view = new TextView(this);
+        view.setText(value);
+        parent.addView(view);
+        return view;
+    }
+
+    private Button button(LinearLayout parent, String label, View.OnClickListener action) {
+        Button view = new Button(this);
+        view.setText(label);
+        view.setOnClickListener(action);
+        parent.addView(view);
+        return view;
+    }
+
+    @Override protected void onStart() {
+        super.onStart();
+        model.start();
+    }
+
+    @Override protected void onStop() {
+        permissionPending = false;
+        afterPermission = null;
+        model.stop();
+        super.onStop();
+    }
+
+    @Override protected void onDestroy() {
+        model.close();
         super.onDestroy();
     }
 }

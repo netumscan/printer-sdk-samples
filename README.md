@@ -2,23 +2,25 @@
 
 <!-- current-android-full-demo -->
 
-当前 Android Full Demo 使用 SDK **0.3.0-preview.8**；Android Quick Start 与两个 iOS 示例继续使用 **0.3.0-preview.2**。
+当前 Android Full Demo 使用 SDK **0.3.0-preview.8**；Android Quick Start 使用 **0.3.0-preview.8**；两个 iOS 示例继续使用 **0.3.0-preview.2**。
 
 | 应用 | SDK 版本 | C ABI | 精确依赖锁 | 入口 |
 | --- | --- | --- | --- | --- |
 | Android Full Demo | `0.3.0-preview.8` | `3/r2` | [独立锁](android/full-demo/sdk-lock.json) | [当前完整 Demo](android/full-demo/README.md) |
-| Android Quick Start | `0.3.0-preview.2` | `3/r1` | [历史锁](sdk-lock.json) | [Quick Start](android/quick-start/README.md) |
+| Android Quick Start | `0.3.0-preview.8` | `3/r2` | [独立锁](android/quick-start/sdk-lock.json) | [Quick Start](android/quick-start/README.md) |
 | iOS Quick Start | `0.3.0-preview.2` | `3/r1` | [历史锁](sdk-lock.json) | [Quick Start](ios/quick-start/README.md) |
 | iOS Full Demo | `0.3.0-preview.2` | `3/r1` | [历史锁](sdk-lock.json) | [Full Demo](ios/full-demo/README.md) |
 
-Android Full Demo 的 Maven 坐标为 `com.netumscan:printer-sdk-android:0.3.0-preview.8`。根目录 `sdk-lock.json` 只描述其余三个历史示例，不代表当前 Android Full Demo。
+Android Full Demo 的 Maven 坐标为 `com.netumscan:printer-sdk-android:0.3.0-preview.8`。根目录 `sdk-lock.json` 只描述两个 iOS 历史示例，不代表当前 Android 两个示例。
+
+客户首次接入从 [Android Quick Start](android/quick-start/README.md) 开始，包含扫描、选择、连接、固定示例打印、结果处理和断开；日常开发测试使用 [Android Full Demo](android/full-demo/README.md)。
 
 当前 Android 的 Manager、Profile、图像与生命周期调用请从 [Full Demo 说明](android/full-demo/README.md) 开始。[客户指南](docs/README.md)、[共享 APP 示例](shared-app/README.md)及下方历史说明对应旧 SDK API；当前 Android 接口以 [Android SDK 发布文档](https://github.com/netumscan/printer-sdk-android)为准。
 
-Android 构建、lint、逐应用 AAR 校验与运行门禁见 [Full Demo 验证说明](android/full-demo/README.md)。来源记录位于 `samples-manifest.json`：当前 Android 为 `android_full_demo`，历史快照保留在 `legacy_manifest`。
+Android 构建、lint、逐应用 AAR 校验与运行门禁见 [Full Demo 验证说明](android/full-demo/README.md)。来源记录位于 `samples-manifest.json`：当前 Android 为 `android_full_demo` 和 `android_quick_start`，历史快照保留在 `legacy_manifest`。
 
 <details>
-<summary>历史 0.3.0-preview.2 说明（不适用于当前 Android Full Demo）</summary>
+<summary>历史 0.3.0-preview.2 说明（不适用于当前 Android 两个示例）</summary>
 
 <!-- legacy-readme-start -->
 # printer-sdk-samples

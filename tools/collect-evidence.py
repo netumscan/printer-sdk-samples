@@ -42,14 +42,18 @@ def read_json(path):
 def validate_mixed(root, source, validation):
     contract = load(root / "tools/android_demo_contract.py", "collected_demo_contract")
     gate = load(root / "android/scripts/verify-mixed.py", "collected_mixed_gate")
+    source_manifest, source_sha = read_json(root / "samples-manifest.json")
+    current_quick = "android_quick_start" in source_manifest
     if (validation.get("schema_version") != 2 or validation.get("success") is not True
             or validation.get("hardware_verified") is not False or validation.get("emulator_runtime_verified") is not True
             or validation.get("runtime_compatibility_verified") is not True
-            or validation.get("runtime_compatibility_scope") != "separate_sdk_pins_and_complete_current_demo"
+            or validation.get("runtime_compatibility_scope") != gate.runtime_scope(current_quick)
             or validation.get("validation_scope") != "mixed_exact_sdk_pins"
-            or validation.get("historical_quick_start_gate_retained") is not True
+            or validation.get("historical_quick_start_gate_retained") is not (not current_quick)
             or validation.get("historical_full_demo_replaced") is not True):
         raise ValueError("Mixed verification has not completed its documented scope")
+    if current_quick and validation.get("current_quick_start_gate_verified") is not True:
+        raise ValueError("Current Quick Start gate has not completed")
     runtime, runtime_sha = read_json(source / "runtime-validation.json")
     if (runtime.get("schema_version") != 2 or runtime.get("success") is not True
             or runtime.get("hardware_verified") is not False or runtime.get("emulator_only") is not True
@@ -58,7 +62,6 @@ def validate_mixed(root, source, validation):
             or not re.fullmatch(r"[0-9a-f]{32}", runtime.get("nonce", ""))
             or validation.get("runtime_validation_sha256") != runtime_sha or validation.get("runtime") != runtime):
         raise ValueError("Mixed runtime report is incomplete or differs from its hash")
-    _, source_sha = read_json(root / "samples-manifest.json")
     if runtime.get("source_manifest_sha256") != source_sha or validation.get("source_manifest_sha256") != source_sha:
         raise ValueError("Mixed evidence is bound to another sample source snapshot")
     names = {"quick-start", "full-demo"}
@@ -70,9 +73,9 @@ def validate_mixed(root, source, validation):
         raise ValueError("Missing mixed runtime APK identity")
     locks = {}
     for name in names:
-        lock_path = root / ("android/full-demo/sdk-lock.json" if name == "full-demo" else "sdk-lock.json")
+        lock_path = root / ("android/" + name + "/sdk-lock.json" if name == "full-demo" or current_quick else "sdk-lock.json")
         lock, _ = read_json(lock_path)
-        if name == "full-demo":
+        if name == "full-demo" or current_quick:
             contract.validate_full_lock(lock)
         locks[name] = lock
         packaged, ran = validation["applications"][name], runtime["applications"][name]
@@ -93,12 +96,14 @@ def validate_mixed(root, source, validation):
         if result.get("status") != "included" or result.get("source_sha256") != hashes[name]:
             raise ValueError("Mixed runtime evidence differs from its recorded hash")
     quick, _ = read_json(source / "quick-start-runtime.json")
-    if quick != {"schema_version": 1, "success": True, "nonce": runtime["nonce"], "offline_launch": True,
-            "printer_created": False, "operation_created": False, "bluetooth_runtime_permissions_ungranted": True,
-            "hardware_verified": False}:
-        raise ValueError("Original Quick Start runtime gate is incomplete or stale")
-    if runtime["applications"]["quick-start"].get("gate") != "retained_historical_quick_start" or runtime["applications"]["quick-start"].get("offline_runtime_verified") is not True:
-        raise ValueError("Original Quick Start gate has not passed")
+    quick_identity = gate.validate_quick_report(quick, locks["quick-start"], runtime["nonce"], current_quick)
+    quick_ran = runtime["applications"]["quick-start"]
+    expected_gate = "current_QuickStartRuntimeGate" if current_quick else "retained_historical_quick_start"
+    if quick_ran.get("gate") != expected_gate or quick_ran.get("offline_runtime_verified") is not True:
+        raise ValueError("Quick Start gate has not passed for this source snapshot")
+    if current_quick and (quick_ran.get("sdk_runtime_identity") != quick_identity or
+            quick_ran.get("lifecycle_cleanup_verified") is not True):
+        raise ValueError("Current Quick Start JNI identity or lifecycle cleanup differs")
     full, _ = read_json(source / "instrumentation-result.json")
     if (full.get("schema_version") != 1 or full.get("success") is not True or full.get("hardware_verified") is not False
             or full.get("nonce") != runtime["nonce"]
@@ -134,7 +139,7 @@ def collect(platform, source, command_output, output):
     finally:
         LEGACY.ANDROID_FILES = original_files
     if mixed:
-        manifest["validation_scope"] = "separate_sdk_pins_and_complete_current_demo"
+        manifest["validation_scope"] = validation.get("runtime_compatibility_scope")
         if not valid and manifest["verification_status"] == "passed":
             manifest["verification_status"] = "failed"
         manifest["mixed_report_integrity_verified"] = valid

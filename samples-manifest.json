@@ -79,6 +79,20 @@
     "sdk_lock": "android/full-demo/sdk-lock.json",
     "source_fingerprint": "6f7411810512614ec132022f38275b2c33717cb3b4c639b46b64d707f0071e00"
   },
+  "android_quick_start": {
+    "canonical_sources": {
+      "samples/android/quick-start/src/main": {
+        "files_sha256": {
+          "android/quick-start/src/main/AndroidManifest.xml": "edba5b63df1d2348c0a3df383545710307155fffbb08acbbad1e8bbc91fcea8a",
+          "android/quick-start/src/main/java/com/netumscan/printersdk/samples/quickstart/MainActivity.java": "a6bcebaadb838a4de7cbefc8cc74ab81e5a8a83b710c12692739eba4183d96ac",
+          "android/quick-start/src/main/java/com/netumscan/printersdk/samples/quickstart/QuickStartModel.java": "a37bc8bf194ec0e2c23af7da76ad3555b2e6f82717c73a7b2e3768ac89fe1053"
+        },
+        "target": "android/quick-start/src/main/"
+      }
+    },
+    "sdk_lock": "android/quick-start/sdk-lock.json",
+    "source_fingerprint": "51331a78b529330b9bc8016e1fa2e297d848655e12e33ca200f039af2cb00a34"
+  },
   "executable_files": [
     "android/gradlew"
   ],
@@ -88,12 +102,12 @@
     ".gitignore": "8d7ca14666cfc127739d8f56e5bc708d4113b0d5625287bc94cd5f95a56e06e3",
     "LICENSE": "ccbe9c8257b2f0702b165aabfcb43fee6965253f0ab5008f405add3552c8daa7",
     "LICENSING.md": "164ebe7d404aa59f28ded921ee99152e9a5cc70895f94e690b053e9851c9c3af",
-    "README.md": "61100e92988a38e96c4adb2a17d529b853140e1bf77531542f51ec310f0186da",
+    "README.md": "4a3fa6e96f51d2c2cd0a1cfd4492a68006d1812b1baf3fa968155823c95c4a95",
     "VERIFICATION.md": "cb3644168fe5015427f4ffc50d69b66ac7b6f881d4297609dc34fc5e5e59f326",
     "android/README.md": "7d762e34f9d133a6b2f79cd65035f15647896bc57dc29d97a76fd5805f3a27d0",
     "android/build.gradle.kts": "9d7fbc099136a6cf4d494fb8f6b8de6f860912ac2a01bccb447d0107b8fb5546",
     "android/full-demo/LICENSE": "ccbe9c8257b2f0702b165aabfcb43fee6965253f0ab5008f405add3552c8daa7",
-    "android/full-demo/README.md": "8c1a13fcaf57b21e676d72b000ef6f2ab4587d453d6216b354fb48343f9c92a9",
+    "android/full-demo/README.md": "3d0cb9b4a5a3d2d57b80ef6e605cebd13d5f1faed5fc799261c06379bae295d0",
     "android/full-demo/build.gradle.kts": "f4f765b108f6f6c73e861974955ade73ee9aa49dc3317b8c5c7ac25a525edfb0",
     "android/full-demo/sdk-lock.json": "f3de4492bbbe8dafeff9740168b106a3fe0a7d654a23e7074941ae4bdfd5e757",
     "android/full-demo/src/androidTest/java/com/netumscan/printersdk/AndroidImageAdapterChecks.java": "8d14cd073d74e068488b2dd6dccd7a8899893b8c6fb9b45b725dbed54f9ed9f7",
@@ -169,13 +183,14 @@
     "android/gradlew": "734b3879d3501dce471cf0522d3bcbafe76873d9fc5129345b67fb43bd15e933",
     "android/gradlew.bat": "57931b17dd228e5c24dac90e815d0bf82477e831a4618dfab4136f5446b42a9f",
     "android/quick-start/LICENSE": "ccbe9c8257b2f0702b165aabfcb43fee6965253f0ab5008f405add3552c8daa7",
-    "android/quick-start/README.md": "294a0a2b3d7c08631af01e44a2dca9aacda00388d06fc14659b9e5c1be46f98d",
-    "android/quick-start/build.gradle.kts": "1c8dfe020c04720824a244ffd797870a6e49aed33ca45e7cac26c31612d44bbd",
-    "android/quick-start/src/androidTest/java/com/netumscan/printersdk/samples/runtime/QuickStartRuntimeGate.java": "1b0201d9250bf95f44168b92e47661a57d551443f445b6050ff15d45c588c6a3",
-    "android/quick-start/src/main/AndroidManifest.xml": "f3be54e12c890e2999cd1ea25642ae6ce932719397148725805a462ba5cf8fe2",
-    "android/quick-start/src/main/java/com/netumscan/printersdk/samples/quickstart/MainActivity.java": "0b500c6d455b1aa47b090612987272475dc1494e27d5a80db786d360f481504b",
-    "android/quick-start/src/main/java/com/netumscan/printersdk/samples/quickstart/QuickStartSession.java": "35a465c0fd7884573bd534f5fec2d1a16d72fc5e42a57ffaadae6f29c89386f9",
-    "android/scripts/verify-mixed.py": "5de21221de46d20281cc77e906aa7eb3de56c2a1b8ff5f3da585bec2d38f07ea",
+    "android/quick-start/README.md": "9fe424316a7f3e6b19f434835ee5987444927e329fcd6518808051d97895179c",
+    "android/quick-start/build.gradle.kts": "5931c60880e76048881c665bcd0470851502b429f1b95c55c413af7ab44c86f4",
+    "android/quick-start/sdk-lock.json": "f3de4492bbbe8dafeff9740168b106a3fe0a7d654a23e7074941ae4bdfd5e757",
+    "android/quick-start/src/androidTest/java/com/netumscan/printersdk/samples/runtime/QuickStartRuntimeGate.java": "1a37e2dbecf4c6c9be0bf0107c14ab9bb525455b460b8702aaa517dc4b34def3",
+    "android/quick-start/src/main/AndroidManifest.xml": "edba5b63df1d2348c0a3df383545710307155fffbb08acbbad1e8bbc91fcea8a",
+    "android/quick-start/src/main/java/com/netumscan/printersdk/samples/quickstart/MainActivity.java": "a6bcebaadb838a4de7cbefc8cc74ab81e5a8a83b710c12692739eba4183d96ac",
+    "android/quick-start/src/main/java/com/netumscan/printersdk/samples/quickstart/QuickStartModel.java": "a37bc8bf194ec0e2c23af7da76ad3555b2e6f82717c73a7b2e3768ac89fe1053",
+    "android/scripts/verify-mixed.py": "a308c9ea053f0b873ce31bfcf0e65e1cd9fc7bf23fda2ac569f649cf684c2c09",
     "android/scripts/verify-packaging.py": "c1f28a378d67fd408d72c94bbe36d224f0662c9d14c08c8daabfd60db24bb88b",
     "android/scripts/verify-runtime.py": "bba1c5d73f0f40050035a275279c6b2c00948add5a55fc88140d6f02a258f5e5",
     "android/settings.gradle.kts": "9925250fca731dfb35f08e3cb946e7edd7c1a8aa6a01329c1af8de8cc0852ee2",
@@ -224,13 +239,13 @@
     "shared-app/README.md": "75832173b88419e5e0d243b689e426589e96088255f5eab977363a0effec84ba",
     "shared-app/android/SharedPrinterApp.java": "4c79008fe2e3251b0cf8c2bf41dab874c87d90c079fb05d308344c6865e69bec",
     "shared-app/ios/SharedPrinterApp.swift": "75215dfd023c64fae39b91384ccff4513984bdfa73c5d741ec72b83589dca0d7",
-    "tools/android_demo_contract.py": "49c7f979c7e5c159642cc75f88ecd499f21369735b09341a3b5dfcd749bf11d3",
-    "tools/check-android-demo-overlay.py": "9a77a0cdb1c79780d87890c6f90974b3ab3ea34de1547538d8a38c3c88f2bc6b",
+    "tools/android_demo_contract.py": "031641a059b61877b455e30f70b1ee67da7202c6ada29e241795d1102582b573",
+    "tools/check-android-demo-overlay.py": "66210b1fd67a839786fd3c5a74380f620c9a300bb8b46c91c32481ae993bf24c",
     "tools/check-api-history.py": "38fa675b6b205cc55b6769cda118824bfea00f6c2bdc0a3b79b9992ba7ce327a",
     "tools/check-api-reference.py": "c1ad7980a17bfbdad73b0733a1d5090b55b853e755b24a9fa5a940dd6c711442",
     "tools/check-legacy-samples.py": "773dfa4c13eccbc8bcf7dfc7b9ecd0cbe69f57c79eec38e0b325d28590d83f99",
     "tools/check-samples.py": "00ce14399e76da69622090ae260bbaa3795c13b4016999f77b0a9111f103c455",
-    "tools/collect-evidence.py": "d11a00f4d3c40ab528322f358c569a6778f20843869e9b91afdb6d7f7034b6b0",
+    "tools/collect-evidence.py": "698066351ab3a18feb7233198599b0b1e5a3a47950d80fcdae85c4869aabf12d",
     "tools/collect-legacy-evidence.py": "a38ab954cca010099ec6587a7025adaae887d598f7d8a169a17dc4e303d08553",
     "tools/sdk_contract.py": "2652b07902ee0c2487185bc4a961bea85b923c22942fe0f3e3af1bde3c0489c8"
   },
