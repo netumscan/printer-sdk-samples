@@ -38,6 +38,9 @@ def inventory(root):
         relative = path.relative_to(root)
         if any(part in IGNORED for part in relative.parts) or path.name == ".DS_Store":
             continue
+        if relative.parts[0] == "flutter" and (any(part in {".dart_tool", "ephemeral", "Pods", ".symlinks", ".swiftpm", "__pycache__"} for part in relative.parts)
+                or path.name in {"local.properties", "Generated.xcconfig", "flutter_export_environment.sh", "GeneratedPluginRegistrant.h", "GeneratedPluginRegistrant.m", "GeneratedPluginRegistrant.java", ".flutter-plugins-dependencies", "gradlew", "gradlew.bat", "gradle-wrapper.jar", ".last_build_id", "Flutter.podspec"}):
+            continue
         if path.is_symlink():
             raise ValueError("Symlink is not a sample input: " + relative.as_posix())
         if path.is_file() and relative.as_posix() != "samples-manifest.json":
@@ -188,6 +191,17 @@ def check(root):
     history.__file__ = str(history_tool)
     exec(compile(history_tool.read_bytes(), str(history_tool), "exec"), history.__dict__)
     history_report = history.check(root)
+    flutter_gate = None
+    flutter_report = None
+    if "flutter_demo" in manifest:
+        flutter_tool = root / "tools/check-flutter-demo.py"
+        if flutter_tool.is_symlink() or not flutter_tool.is_file():
+            raise ValueError("Missing Flutter source consumer checker")
+        flutter_gate = types.ModuleType("samples_flutter_gate")
+        exec(compile(flutter_tool.read_bytes(), str(flutter_tool), "exec"), flutter_gate.__dict__)
+        flutter_report = flutter_gate.check(root, manifest, actual)
+    elif any(name.startswith("flutter/") for name in actual):
+        raise ValueError("Flutter source is missing its manifest provenance")
     # Only these exact, fully verified outputs may contain reviewed compiler
     # identifiers (for example c:@T@NSTimeInterval), never arbitrary templates.
     reference_files = {"docs/api-reference.json", "docs/android-java-api.md", "docs/ios-swift-api.md",
@@ -207,13 +221,17 @@ def check(root):
         if "xcuserdata" in path.parts or "xcframework" in name or name.endswith("local.properties"):
             raise ValueError("Private/generated input found: " + name)
         # This checker contains the rejection patterns itself.
-        if name == "tools/check-samples.py":
+        if name in {"tools/check-samples.py", "tools/check-flutter-demo.py"}:
+            continue
+        if flutter_gate is not None and path.suffix.lower() == ".png" and name.startswith("flutter/"):
+            flutter_gate.validate_png(name, path.read_bytes())
             continue
         try:
             text = path.read_text()
         except UnicodeDecodeError:
             raise ValueError("Unexpected binary sample source: " + name) from None
-        if prohibited.search(text) or (name not in reference_files and re.search(r"@[A-Z][A-Z0-9_]*@", text)):
+        scan_text = flutter_gate.validated_flutter_project(text) if flutter_gate is not None and name == flutter_gate.PROJECT else text
+        if prohibited.search(scan_text) or (name not in reference_files and re.search(r"@[A-Z][A-Z0-9_]*@", text)):
             raise ValueError("Local dependency, signing value or unresolved template: " + name)
         if path.suffix == ".md":
             for link in re.findall(r"(?<!!)\[[^\]\n]+\]\(([^)\n]+)\)", text):
@@ -223,8 +241,11 @@ def check(root):
                 linked = (path.parent / target).resolve()
                 if target and (not linked.is_relative_to(root.resolve()) or not linked.exists()):
                     raise ValueError("Broken sample documentation link in " + name + ": " + link)
-    return {"verified": True, "sdk_version": version, "files_verified": len(actual), "hardware_verified": False,
-            "api_reference": reference_report, "api_history": history_report}
+    report = {"verified": True, "sdk_version": version, "files_verified": len(actual), "hardware_verified": False,
+              "api_reference": reference_report, "api_history": history_report}
+    if flutter_report is not None:
+        report["flutter_demo"] = flutter_report
+    return report
 
 
 if __name__ == "__main__":

@@ -1,0 +1,90 @@
+name: Flutter
+
+on:
+  push:
+    branches: [main, 'codex/samples-sync-*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    name: flutter-${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            os: ubuntu-24.04
+          - platform: ios
+            os: macos-15
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: python3 tools/check-samples.py
+      - name: Install pinned Flutter 3.41.9
+        shell: bash
+        run: |
+          git init "$RUNNER_TEMP/flutter-sdk"
+          git -C "$RUNNER_TEMP/flutter-sdk" remote add origin https://github.com/flutter/flutter.git
+          git -C "$RUNNER_TEMP/flutter-sdk" fetch --depth 1 origin refs/tags/3.41.9:refs/tags/3.41.9
+          git -C "$RUNNER_TEMP/flutter-sdk" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/flutter-sdk" rev-parse HEAD)" = 00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+          echo "$RUNNER_TEMP/flutter-sdk/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        if: matrix.platform == 'android'
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - if: matrix.platform == 'android'
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Resolve locked Flutter dependencies
+        working-directory: flutter
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze and test Flutter
+        working-directory: flutter
+        run: |
+          flutter analyze --no-pub
+          flutter test --no-pub
+      - name: Build Android APK
+        if: matrix.platform == 'android'
+        working-directory: flutter
+        run: flutter build apk --debug --no-pub
+      - name: Verify exact Android SDK artifact in APK
+        if: matrix.platform == 'android'
+        run: python3 tools/check-flutter-android.py --apk flutter/build/app/outputs/flutter-apk/app-debug.apk
+      - name: Prepare unsigned iOS build
+        if: matrix.platform == 'ios'
+        working-directory: flutter
+        run: flutter build ios --config-only --simulator --debug --no-codesign --no-pub
+      - name: Test iOS bridge on simulator
+        if: matrix.platform == 'ios'
+        shell: bash
+        run: |
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/flutter-simulators.json"
+          simulator_id="$(python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); print(next(d["udid"] for runtime,devices in data["devices"].items() if ".iOS-" in runtime for d in devices if d.get("isAvailable") and d["name"].startswith("iPhone")))' "$RUNNER_TEMP/flutter-simulators.json")"
+          if ! xcrun simctl boot "$simulator_id"; then
+            echo 'Simulator already booted; checking readiness.'
+          fi
+          xcrun simctl bootstatus "$simulator_id" -b
+          xcodebuild -project flutter/ios/Runner.xcodeproj -scheme Runner \
+            -configuration Debug -sdk iphonesimulator -destination "id=$simulator_id" \
+            -derivedDataPath "$RUNNER_TEMP/flutter-ios" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/flutter-ios-packages" \
+            ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO \
+            -parallel-testing-enabled NO -collect-test-diagnostics never \
+            -only-testing:RunnerTests test

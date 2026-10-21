@@ -77,3 +77,38 @@ Use the corresponding [Android](android/README.md) or [iOS](ios/README.md)
 instructions for prerequisites. Only explicitly selected emulators/simulators
 are used; these checks do not install on physical phones or accept printer
 hardware.
+
+## Flutter verification
+
+The separate **Flutter** workflow pins Flutter 3.41.9 to upstream commit
+`00b0c91f06209d9e4a41f71b7a512d6eb3b9c694`. Its `flutter-android` and
+`flutter-ios` jobs use the public [Flutter Quick Start](flutter/README.md), its
+committed Dart dependency lock, and exact SDK 0.3.0-preview.10 pins.
+
+Both jobs run static analysis and the 18 Dart/widget tests. Android builds a
+debug APK, validates the AAR SHA-256 from `flutter/sdk-lock.json`, and compares
+the packaged SDK libraries and notices with that exact AAR. iOS builds without
+production signing and runs the 5 RunnerTests on an available simulator,
+including per-request final results and an independently started engine detach.
+No job connects to a printer or publishes an APK/IPA.
+
+Open the Flutter workflow's individual step logs for these checks. The two
+`*-software-verification` masked artifacts described above belong to the native
+Samples workflow; they are not evidence for the Flutter jobs. A passing source
+inventory check alone does not establish a successful Flutter build or runtime.
+
+Local checks:
+
+```sh
+python3 tools/check-samples.py
+cd flutter
+flutter pub get --enforce-lockfile
+flutter analyze --no-pub
+flutter test --no-pub
+flutter build apk --debug --no-pub
+```
+
+For iOS simulator architecture notes and the unsigned Xcode command, see the
+[Flutter README](flutter/README.md). Native SDK build/runtime evidence remains
+scoped to the corresponding native workflow and version. Hardware acceptance
+remains deferred (`hardware_verified=false`).

@@ -10,7 +10,7 @@ Android最低API21、Java8；iOS最低iOS15。实际发布后使用同版精确M
 
 ## Android
 
-构造LabelSession时提供应用Context、DiscoveredDevice、是否BLE和Ui。打印支持Bitmap或完整PNG/JPEG byte[]，widthMm／heightMm为本页尺寸。固定一份、不隐式FORM；定位调用独立方法。
+构造 LabelSession 时提供应用 Context、DiscoveredDevice、是否 BLE 和 Ui；可选型号构造重载用于已确认型号的改名设备或无名保存地址。打印支持 Bitmap 或完整 PNG/JPEG byte[]，widthMm／heightMm 为本页尺寸。固定一份、不隐式 FORM；定位调用独立方法。
 
 ```java
 import android.content.Context;
@@ -30,14 +30,24 @@ public final class LabelSession implements AutoCloseable {
     private volatile Ui ui;
     private RequestId active;
     public LabelSession(Context context, DiscoveredDevice device, boolean lowEnergy, Ui ui) {
-        manager = new PrinterManager(context); this.ui = ui;
+        this(context, device, lowEnergy, null, ui);
+    }
+    /** Explicit model selection also supports renamed and saved address-only devices. */
+    public LabelSession(Context context, DiscoveredDevice device, boolean lowEnergy, PrinterModel model, Ui ui) {
+        this(new PrinterManager(context), device, lowEnergy, model, ui);
+    }
+    LabelSession(PrinterManager manager, DiscoveredDevice device, boolean lowEnergy, PrinterModel model, Ui ui) {
+        this.manager = manager; this.ui = ui;
         PrinterManager.Callback<ConnectionInfo> connected = result -> {
             Ui target = this.ui; if (target != null) target.connection(result);
         };
         PrinterManager.DisconnectedListener disconnected = result -> {
             Ui target = this.ui; if (target != null) target.disconnected(result);
         };
-        if (lowEnergy) manager.connectBle(device, connected, disconnected);
+        if (model != null) {
+            if (lowEnergy) manager.connectBle(device, model, connected, disconnected);
+            else manager.connectSpp(device, model, connected, disconnected);
+        } else if (lowEnergy) manager.connectBle(device, connected, disconnected);
         else manager.connectSpp(device, connected, disconnected);
     }
     public void setPrinterModel(PrinterModel model) {
@@ -67,7 +77,7 @@ public final class LabelSession implements AutoCloseable {
 
 ## iOS
 
-在MainActor由ViewModel持有AppPrinter。connect提供DiscoveredPrinter；printEncodedImage提供完整PNG/JPEG Data与页面毫米。回调直接更新MainActor状态。SDK同时提供UIImage入口。
+在 MainActor 由 ViewModel 持有 AppPrinter。connect 提供 DiscoveredPrinter，可选 model 用于改名设备或只有 UUID 的目标；不传时仍按名称推荐。printEncodedImage 提供完整 PNG/JPEG Data 与页面毫米。回调直接更新 MainActor 状态。SDK 同时提供 UIImage 入口。
 
 ```swift
 import Foundation
@@ -83,9 +93,13 @@ final class AppPrinter {
     var disconnected: (ManagerResult<Void>) -> Void = { _ in }
     init(manager: PrinterManager = PrinterManager()) { self.manager = manager }
     @discardableResult
-    func connect(_ device: DiscoveredPrinter) -> RequestID {
-        manager.connectBle(device: device, completion: { [weak self] in self?.showConnection($0) },
-            onDisconnected: { [weak self] in self?.disconnected($0) })
+    func connect(_ device: DiscoveredPrinter, model: PrinterModel? = nil) -> RequestID {
+        let completed: @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { [weak self] in self?.showConnection($0) }
+        let disconnected: @MainActor @Sendable (ManagerResult<Void>) -> Void = { [weak self] in self?.disconnected($0) }
+        if let model {
+            return manager.connectBle(device: device, model: model, completion: completed, onDisconnected: disconnected)
+        }
+        return manager.connectBle(device: device, completion: completed, onDisconnected: disconnected)
     }
     @discardableResult
     func printEncodedImage(_ pngJpeg: Data, widthMm: Double, heightMm: Double) -> RequestID {
