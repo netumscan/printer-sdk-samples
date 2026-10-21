@@ -10,11 +10,12 @@ import re
 import subprocess
 import time
 import zipfile
+import uuid
 from pathlib import Path
 import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from sdk_contract import c_export_count, ios_test_count
+from sdk_contract import c_export_count, ios_test_count, validate_ios_runtime_api
 
 IOS = Path(__file__).resolve().parent
 SDK_LOCK = json.loads((IOS.parent / "sdk-lock.json").read_text())
@@ -22,7 +23,8 @@ VERSION = SDK_LOCK["version"]
 REVISION = SDK_LOCK["ios"]["revision"]
 CHECKSUM = SDK_LOCK["ios"]["xcframework_sha256"]
 REPOSITORY = "https://github.com/netumscan/printer-sdk-ios"
-ARTIFACT_URL = REPOSITORY + "/releases/download/v" + VERSION + "/PrinterSDK.xcframework.zip"
+ARTIFACT_URLS = {REPOSITORY + "/releases/download/v" + VERSION + "/" + name
+                 for name in ("XLPrinterSDK.xcframework.zip", "PrinterSDK.xcframework.zip")}
 SCHEMES = {"PrinterQuickStart": "quickstart", "PrinterFullDemo": "fulldemo"}
 
 
@@ -65,6 +67,51 @@ def verify_runtime_compatibility(container, app, previous_journal=b""):
         time.sleep(0.25)
     raise SystemExit("Running Full Demo did not produce its compatibility record")
 
+
+
+def minimal_api_version(lock):
+    return lock.get("version") == "0.3.0-preview.10"
+
+
+def select_simulator(devices, explicit_udid=None):
+    candidates = [device for runtime, group in devices.items() if ".iOS-" in runtime
+                  for device in group if device.get("isAvailable") is True]
+    if explicit_udid:
+        matches = [device for device in candidates if device.get("udid") == explicit_udid]
+        if len(matches) != 1:
+            raise SystemExit("Explicit UDID must identify exactly one available iOS simulator")
+        return matches[0]
+    candidates = [device for device in candidates if str(device.get("name", "")).startswith("iPhone")]
+    candidates.sort(key=lambda device: (device.get("state") == "Booted", device.get("name", "")), reverse=True)
+    if not candidates:
+        raise SystemExit("No available iOS simulator; supply --simulator-udid or install an iOS runtime")
+    return candidates[0]
+
+
+def verify_runtime_api(container, app, nonce, previous_journal=b"", lock=None):
+    lock = SDK_LOCK if lock is None else lock
+    if not minimal_api_version(lock):
+        raise SystemExit("Minimal runtime verification requires exact .10")
+    resource_path = app / "printer-sdk-samples-build.json"
+    resource = json.loads(resource_path.read_text())
+    journal = Path(container) / "Library/Application Support/PrinterDemo/logs/journal-0.log"
+    for _ in range(80):
+        if journal.is_file() and journal.stat().st_size <= 1024 * 1024:
+            current = journal.read_bytes()
+            added = current[len(previous_journal):] if current.startswith(previous_journal) else current
+            for line in added.decode().splitlines():
+                if "runtime_api_record=" not in line:
+                    continue
+                record = json.loads(line.split("runtime_api_record=", 1)[1])
+                if not isinstance(record, dict) or record.get("nonce") != nonce:
+                    continue
+                value = dict(record, build_resource=resource, journal_sha256=hashlib.sha256(current).hexdigest())
+                try:
+                    return validate_ios_runtime_api(value, lock)
+                except (ValueError, KeyError) as error:
+                    raise SystemExit("Running minimal iOS Demo identity/lifecycle differs: " + str(error)) from None
+        time.sleep(0.25)
+    raise SystemExit("Running minimal iOS Demo did not produce this launch's offline identity/lifecycle record")
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -138,15 +185,17 @@ def main():
     if len(artifacts) != 1:
         raise SystemExit("Expected exactly one downloaded XCFramework")
     artifact = artifacts[0]
+    artifact_url = artifact.get("source", {}).get("url")
     if (artifact.get("targetName") != "CPrinterSDK"
             or artifact.get("packageRef", {}).get("identity") != "printer-sdk-ios"
-            or artifact.get("source") != {"type": "remote", "url": ARTIFACT_URL, "checksum": CHECKSUM}):
+            or artifact_url not in ARTIFACT_URLS
+            or artifact.get("source") != {"type": "remote", "url": artifact_url, "checksum": CHECKSUM}):
         raise SystemExit("SwiftPM did not use the locked public binary URL and checksum")
     binary = Path(artifact["path"]).resolve()
     if not binary.is_relative_to((output / "source-packages/artifacts").resolve()):
         raise SystemExit("Resolved binary did not come from the fresh online artifact directory")
-    archive = output / "PrinterSDK.xcframework.zip"
-    run(["curl", "--fail", "--location", "--retry", "3", "--output", archive, ARTIFACT_URL])
+    archive = output / artifact_url.rsplit("/", 1)[1]
+    run(["curl", "--fail", "--location", "--retry", "3", "--output", archive, artifact_url])
     if digest(archive) != CHECKSUM:
         raise SystemExit("Downloaded binary archive checksum differs from sdk-lock.json")
     archived = {}
@@ -207,22 +256,15 @@ def main():
                 simulator_apps[scheme] = app
     evidence = {"success": True, "sdk_version": VERSION, "sdk_revision": REVISION,
                 "compatibility_identity_verified": True,
-                "repository_url": REPOSITORY, "artifact_url": ARTIFACT_URL, "binary_sha256": CHECKSUM,
+                "repository_url": REPOSITORY, "artifact_url": artifact_url, "binary_sha256": CHECKSUM,
                 "online_only": True, "fresh_package_cache": True, "download_matches_swiftpm_artifact": True,
                 "builds": builds, "hardware_verified": False, "physical_device_installed": False,
                 "simulator_runtime": False}
     evidence["runtime_compatibility_verified"] = False
+    if minimal_api_version(SDK_LOCK): evidence["runtime_api_verified"] = False
     if not args.skip_runtime:
         devices = json.loads(run(["xcrun", "simctl", "list", "devices", "available", "--json"]))["devices"]
-        candidates = [device for runtime, group in devices.items() if ".iOS-" in runtime
-                      for device in group if device.get("isAvailable") and device["name"].startswith("iPhone")]
-        if args.simulator_udid:
-            candidates = [device for device in candidates if device["udid"] == args.simulator_udid]
-        else:
-            candidates.sort(key=lambda device: (device["state"] == "Booted", device["name"]), reverse=True)
-        if not candidates:
-            raise SystemExit("No available iPhone simulator; install an iOS runtime or use --skip-runtime")
-        simulator = candidates[0]
+        simulator = select_simulator(devices, args.simulator_udid)
         udid = simulator["udid"]
         if simulator["state"] != "Booted":
             run(["xcrun", "simctl", "boot", udid])
@@ -230,7 +272,7 @@ def main():
         result_bundle = output / "Tests.xcresult"
         run(common + ["-scheme", "PrinterQuickStart", "-configuration", "Debug", "-destination", "id=" + udid,
                       "-derivedDataPath", output / "derived-tests", "-resultBundlePath", result_bundle,
-                      "-parallel-testing-enabled", "NO", f"ARCHS={simulator_arch}", "ONLY_ACTIVE_ARCH=YES",
+                      "-parallel-testing-enabled", "NO", "-collect-test-diagnostics", "never", f"ARCHS={simulator_arch}", "ONLY_ACTIVE_ARCH=YES",
                       "CODE_SIGN_IDENTITY=-", "test"], timeout=900)
         summary = json.loads(run(["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", result_bundle]))
         expected_tests = ios_test_count(SDK_LOCK)
@@ -244,9 +286,14 @@ def main():
             bundle_id = "com.netumscan.printersdk.samples." + SCHEMES[scheme]
             if scheme == "PrinterFullDemo":
                 container = run(["xcrun", "simctl", "get_app_container", udid, bundle_id, "data"]).strip()
-                journal = Path(container) / "Library/Application Support/NETUMPrinterDemo/logs/journal-0.log"
+                journal_root = "PrinterDemo" if minimal_api_version(SDK_LOCK) else "NETUMPrinterDemo"
+                journal = Path(container) / ("Library/Application Support/" + journal_root + "/logs/journal-0.log")
                 previous_journal = journal.read_bytes() if journal.is_file() else b""
-            run(["xcrun", "simctl", "launch", "--terminate-running-process", udid, bundle_id])
+            launch = ["xcrun", "simctl", "launch", "--terminate-running-process", udid, bundle_id]
+            nonce = str(uuid.uuid4())
+            if scheme == "PrinterFullDemo" and minimal_api_version(SDK_LOCK):
+                launch += ["--psdk-offline-verification", nonce]
+            run(launch)
             time.sleep(1)
             processes = run(["xcrun", "simctl", "spawn", udid, "launchctl", "list"])
             if bundle_id not in processes:
@@ -254,8 +301,12 @@ def main():
             run(["xcrun", "simctl", "io", udid, "screenshot", output / (scheme + ".png")])
             launched.append(scheme)
             if scheme == "PrinterFullDemo":
-                evidence["runtime_compatibility"] = verify_runtime_compatibility(container, app, previous_journal)
-                evidence["runtime_compatibility_verified"] = True
+                if minimal_api_version(SDK_LOCK):
+                    evidence["runtime_api"] = verify_runtime_api(container, app, nonce, previous_journal)
+                    evidence["runtime_api_verified"] = True
+                else:
+                    evidence["runtime_compatibility"] = verify_runtime_compatibility(container, app, previous_journal)
+                    evidence["runtime_compatibility_verified"] = True
         evidence.update(simulator_runtime=True, simulator_name=simulator["name"], tests_passed=expected_tests, tests_failed=0,
                         tests_skipped=0, simulator_apps_launched=launched)
     if resolved.read_bytes() != pinned_bytes:

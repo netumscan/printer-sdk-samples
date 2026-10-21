@@ -13,7 +13,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import com.netumscan.printersdk.DiscoveredDevice;
 import com.netumscan.printersdk.PrinterManager;
-import com.netumscan.printersdk.PrinterProfiles;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,8 +39,8 @@ public final class MainActivity extends Activity {
         setContentView(scroll);
         text(content, "Printer SDK · Quick Start");
         text(content, "开启打印机和手机蓝牙：扫描 → 选择 → 连接 → 打印 → 断开。" +
-            "本例使用 SDK 已知名称的 LT-M90 BLE 配置；其他设备请使用 Full Demo。");
-        text(content, "固定示例：384 × 64 dots GRAY8 条纹、1 份、FORM 关闭。请先确认打印机型号与纸张适合此示例。");
+            "本例连接时明确选择 LT-M90 型号；请先确认实物型号，其他型号不要使用本例。");
+        text(content, "固定示例：Bitmap 条纹，页面 48 × 8 mm、1 份、不追加标签定位；连接与打印不会自动设置纸张。");
         scan = button(content, "1. 扫描 BLE 设备（10 秒）", view -> {
             if (!permissionPending && model.canSelect()) withPermission(true, model::scan);
         });
@@ -73,8 +72,7 @@ public final class MainActivity extends Activity {
             Button candidate = button(deviceList, (selected ? "✓ " : "") + label, view -> model.select(device.address));
             candidate.setEnabled(selectable);
             if (selected) selection.setText("已选择：" + label +
-                (PrinterProfiles.resolveBleOptions(device.name, null) == null ? "；请使用 Full Demo 显式配置" :
-                    "；名称推荐不认证硬件型号"));
+                "；连接时采用 LT-M90，请确认实物型号");
         }
         scan.setEnabled(selectable);
         connect.setEnabled(!permissionPending && model.canConnect());

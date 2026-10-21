@@ -22,6 +22,11 @@ RUNNER = FULL + ".test/com.netumscan.printersdk.samples.runtime.RuntimeGate"
 CHECKS = {"emulator_only", "fresh_app_data", "quick_start_offline_launch", "full_demo_offline_launch",
           "jni_loaded", "abi_handshake", "partial_writes", "raw_order", "fresh_compatibility_journal",
           "exact_sdk_identity", "bluetooth_permissions_ungranted"}
+MINIMAL_CHECKS = (CHECKS - {"fresh_compatibility_journal"}) | {"manager_cleanup"}
+
+
+def minimal_api(lock):
+    return lock.get("version") == "0.3.0-preview.10"
 
 
 def digest(path):
@@ -31,6 +36,29 @@ def digest(path):
 def validate_device(serial, qemu, booted):
     if not re.fullmatch(r"emulator-[0-9]+", serial) or qemu != "1" or booted != "1":
         raise ValueError("An explicitly selected, fully booted Android emulator is required; physical devices are refused")
+
+
+def validate_manager_runtime(value, nonce, identity, *, quick=False):
+    """Local candidate evidence is separate from the published compatibility journal."""
+    if (identity.get("sdk_abi_version"), identity.get("sdk_abi_revision")) != (3, 2):
+        raise ValueError("Manager local runtime requires exact ABI 3/r2")
+    if (value.get("schema_version") != 1 or value.get("success") is not True or value.get("nonce") != nonce
+            or value.get("hardware_verified") is not False or value.get("manager_cleanup_verified") is not True
+            or value.get("bluetooth_runtime_permissions_ungranted") is not True
+            or value.get("validation_scope") != "current_manager_offline_lifecycle_smoke"):
+        raise ValueError("Manager offline runtime scope, nonce or cleanup evidence differs")
+    if quick:
+        expected = {"distribution_version": identity["sdk_distribution_version"], "native_version": identity["sdk_core_version"],
+                    "abi_version": 3, "abi_revision": 2}
+        if (value.get("offline_launch") is not True or value.get("printer_created") is not False
+                or value.get("operation_created") is not False or value.get("sdk") != expected):
+            raise ValueError("Quick Start runtime identity or offline behavior differs")
+    elif (value.get("full_demo_offline") is not True or value.get("native") != native_evidence(3, 2,
+            identity["sdk_core_version"], identity["sdk_distribution_version"])
+            or type(value.get("api_level")) is not int or value["api_level"] < 21
+            or value.get("process_abi") not in {"arm64-v8a", "armeabi-v7a", "x86_64"}):
+        raise ValueError("Full Demo Manager/JNI/partial-write/once runtime evidence differs")
+    return value
 
 
 def validate_runtime(value, nonce, identity, device_started_ms):
@@ -76,7 +104,11 @@ def validate_runtime(value, nonce, identity, device_started_ms):
 def validate_report(report, lock):
     """Reject old packaging-only reports and mismatched runtime SDK identities."""
     abi_version, abi_revision = abi_identity(lock)
-    if (report.get("schema_version") != 1 or report.get("success") is not True
+    minimal = minimal_api(lock)
+    expected_evidence = {"instrumentation-result.json", "quick-start-runtime.json"}
+    if not minimal:
+        expected_evidence.add("full-demo-journal.log")
+    if (report.get("schema_version") != (2 if minimal else 1) or report.get("success") is not True
             or report.get("emulator_only") is not True or report.get("hardware_verified") is not False
             or report.get("physical_device_installed") is not False
             or not re.fullmatch(r"emulator-[0-9]+", report.get("emulator_serial", ""))
@@ -84,7 +116,7 @@ def validate_report(report, lock):
             or report.get("sdk_version") != lock["version"]
             or report.get("sdk_revision") != lock["android"]["revision"]
             or report.get("aar_sha256") != lock["android"]["aar_sha256"]
-            or set(report.get("checks", {})) != CHECKS
+            or set(report.get("checks", {})) != (MINIMAL_CHECKS if minimal else CHECKS)
             or any(value is not True for value in report["checks"].values())
             or report.get("process_abi") not in {"arm64-v8a", "armeabi-v7a", "x86_64"}
             or not isinstance(report.get("api_level"), int) or report["api_level"] < 21
@@ -92,10 +124,28 @@ def validate_report(report, lock):
             or report.get("native") != native_evidence(abi_version, abi_revision,
                                                       lock["native_sdk_version"], lock["version"])
             or set(report.get("apks_sha256", {})) != {"quick-start", "full-demo", "runtime-test", "quick-start-test"}
-            or set(report.get("evidence_sha256", {})) != {"instrumentation-result.json", "quick-start-runtime.json", "full-demo-journal.log"}
+            or set(report.get("evidence_sha256", {})) != expected_evidence
             or any(not re.fullmatch(r"[0-9a-f]{64}", value) for group in ("apks_sha256", "evidence_sha256")
                    for value in report[group].values())):
         raise ValueError("Android emulator runtime report is missing or incomplete")
+    if minimal:
+        identity = report.get("build_identity", {})
+        if (report.get("validation_scope") != "current_manager_offline_lifecycle_smoke"
+                or identity.get("sdk_distribution_version") != lock["version"]
+                or identity.get("sdk_core_version") != lock["native_sdk_version"]
+                or (identity.get("sdk_abi_version"), identity.get("sdk_abi_revision")) != (abi_version, abi_revision)
+                or identity.get("sdk_release_commit") != lock["android"]["revision"]
+                or identity.get("sdk_artifact_sha256") != lock["android"]["aar_sha256"]
+                or not re.fullmatch(r"[0-9a-f]{64}", identity.get("demo_source_fingerprint", ""))
+                or identity.get("demo_build_version") != lock["version"] + "+samples." + identity["demo_source_fingerprint"][:12]):
+            raise ValueError("Minimal API runtime build identity differs from SDK lock")
+        validate_manager_runtime(report.get("full_demo_runtime", {}), report["nonce"], identity)
+        validate_manager_runtime(report.get("quick_start_runtime", {}), report["nonce"], identity, quick=True)
+        if (report["full_demo_runtime"]["native"] != report["native"]
+                or report["full_demo_runtime"]["api_level"] != report["api_level"]
+                or report["full_demo_runtime"]["process_abi"] != report["process_abi"]):
+            raise ValueError("Minimal API runtime summaries differ from actual gate output")
+        return
     compatibility = report.get("compatibility_record", {})
     sdk = compatibility.get("sdk", {})
     demo = compatibility.get("demo", {})
@@ -150,6 +200,7 @@ def verify(android_root, output, serial, adb_path=None):
         raise ValueError("Selected emulator ABI is not included in the published AAR")
     nonce = uuid.uuid4().hex
     lock = json.loads((android_root.parent / "sdk-lock.json").read_text())
+    minimal = minimal_api(lock)
     identity = json.loads((android_root / "full-demo/src/main/assets/printer-sdk-samples-build.json").read_text())["identity"]
     if (identity["sdk_distribution_version"] != lock["version"]
             or identity["sdk_release_commit"] != lock["android"]["revision"]
@@ -174,7 +225,9 @@ def verify(android_root, output, serial, adb_path=None):
         raise ValueError("Quick Start offline instrumentation failed; inspect adb.log")
     quick_raw = adb.run("exec-out", "run-as", QUICK, "cat", "files/quick-runtime-gate.json")
     quick_value = json.loads(quick_raw)
-    if quick_value != {"schema_version": 1, "success": True, "nonce": nonce, "offline_launch": True,
+    if minimal:
+        validate_manager_runtime(quick_value, nonce, identity, quick=True)
+    elif quick_value != {"schema_version": 1, "success": True, "nonce": nonce, "offline_launch": True,
                        "printer_created": False, "operation_created": False,
                        "bluetooth_runtime_permissions_ungranted": True, "hardware_verified": False}:
         raise ValueError("Quick Start runtime evidence is stale or incomplete")
@@ -182,26 +235,38 @@ def verify(android_root, output, serial, adb_path=None):
     quick_evidence.write_text(quick_raw + "\n")
     adb.run("shell", "am", "force-stop", QUICK)
     result = adb.run("shell", "am", "instrument", "-w", "-r", "-e", "nonce", nonce, RUNNER, timeout=120)
-    if "INSTRUMENTATION_CODE: -1" not in result or "runtime gate passed; nonce=" + nonce not in result:
+    passed = "Manager offline smoke passed; nonce=" if minimal else "runtime gate passed; nonce="
+    if "INSTRUMENTATION_CODE: -1" not in result or passed + nonce not in result:
         raise ValueError("Online SDK instrumentation failed; inspect adb.log")
     raw = adb.run("exec-out", "run-as", FULL, "cat", "files/runtime-gate.json")
     value = json.loads(raw)
-    validate_runtime(value, nonce, identity, device_started_ms)
+    if minimal:
+        validate_manager_runtime(value, nonce, identity)
+    else:
+        validate_runtime(value, nonce, identity, device_started_ms)
     if value["process_abi"] != device_abi:
         raise ValueError("Runtime process ABI differs from selected emulator ABI")
     payload = output / "instrumentation-result.json"
     payload.write_text(raw + "\n")
-    journal = output / "full-demo-journal.log"
-    journal.write_text(value["journal"])
-    report = {"schema_version": 1, "success": True, "emulator_serial": serial,
+    evidence = [payload, quick_evidence]
+    if not minimal:
+        journal = output / "full-demo-journal.log"
+        journal.write_text(value["journal"])
+        evidence.append(journal)
+    report = {"schema_version": 2 if minimal else 1, "success": True, "emulator_serial": serial,
               "emulator_only": True, "hardware_verified": False, "physical_device_installed": False,
               "nonce": nonce, "device_started_ms": device_started_ms, "api_level": value["api_level"],
               "process_abi": value["process_abi"], "sdk_version": lock["version"],
               "sdk_revision": lock["android"]["revision"], "aar_sha256": lock["android"]["aar_sha256"],
-              "native": value["native"], "compatibility_record": value["compatibility_record"],
-              "checks": {name: True for name in sorted(CHECKS)},
+              "native": value["native"],
+              "checks": {name: True for name in sorted(MINIMAL_CHECKS if minimal else CHECKS)},
               "apks_sha256": {name: digest(path) for name, path in apks.items()},
-              "evidence_sha256": {path.name: digest(path) for path in (payload, quick_evidence, journal)}}
+              "evidence_sha256": {path.name: digest(path) for path in evidence}}
+    if minimal:
+        report.update(validation_scope="current_manager_offline_lifecycle_smoke", build_identity=identity,
+            full_demo_runtime=value, quick_start_runtime=quick_value)
+    else:
+        report["compatibility_record"] = value["compatibility_record"]
     validate_report(report, lock)
     target.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     packaging_path = output / "validation.json"
@@ -209,8 +274,10 @@ def verify(android_root, output, serial, adb_path=None):
     for name in ("quick-start", "full-demo"):
         if packaging["applications"][name]["debug_apk_sha256"] != report["apks_sha256"][name]:
             raise ValueError("Runtime APK differs from the packaging-verified application")
-    packaging.update(emulator_runtime_verified=True, runtime_compatibility_verified=True,
+    packaging.update(emulator_runtime_verified=True, runtime_compatibility_verified=not minimal,
                      runtime=report, runtime_validation_sha256=digest(target))
+    if minimal:
+        packaging["runtime_api_verified"] = True
     packaging_path.write_text(json.dumps(packaging, indent=2, sort_keys=True) + "\n")
     adb.run("shell", "am", "force-stop", FULL)
     print("Online Android SDK emulator runtime passed: real JNI/ABI handshake, partial writes, Raw order, fresh offline diagnostics")

@@ -1,22 +1,22 @@
-# 兼容性与候选身份
+# 兼容性与分发身份
 
-[返回指南](README.md) · 适用发布候选 `0.3.0-preview.2`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.10`
 
-本版 native `0.3.0`、C ABI `3/r1` 与 ABI2 不兼容。必须成套更新公共头、原生库、JNI/Swift
-包装并重新编译，不能混用句柄、只替换某个文件，或依赖旧符号别名/兼容 shim。
-原生消费者先检查 major==3、revision>=1，再调用结构体/句柄入口。
+当前 Manager 移动 API 与旧移动 API 不兼容，应用必须重新编译并迁移；不能继续公开使用旧的设备、
+operation、image/job、订阅或 scanner 控制对象。应用使用同一版本的 Java/Swift 包装和 native 库。
 
-生产只有一个 printer_sdk.h、25 个动态 C 导出、25 个具体结构及 header inline 初始化器。
-初始化器不在动态导出表中；自然对齐结构不得 packed。输入初始化不提供业务默认值，
-聚合结构需分别初始化选中嵌套输入；输出仅初始化最外层，由 SDK 填写嵌套输出。
+本轮移动 API 收敛没有改变 native `0.3.0` / C ABI `3/r2`：生产仍为一个 `printer_sdk.h`、
+27 个动态 C 导出、23 个 Android JNI 导出及 25 个具体结构。C SDK 的独立消费者继续使用已冻结的
+句柄与 snapshot/result 契约；移动端隐藏内部类型不等于删除 C 符号。
+自然对齐结构不得 packed，header inline 初始化器不在动态导出表中。
 
-`0.3.0-preview.2` 是独立冻结的发布候选，`contract_status=candidate`、
-`published_contract_verified=false`。声明校验通过不表示 AAR/XCFramework 已上传，
-不应将候选摘要写成真实公开发布证明。后续精确制品版本、commit 和 SHA-256 分别核验。
+C ABI3 与 ABI2 不兼容；ABI3/r1 的既有结构布局和 25 个入口仍由 r2 保留，r2 额外提供两个
+携带调用诊断的入口。需要 r2 行为的 native 消费者检查 major==3、revision>=2。
+移动 API、C ABI、SDK 分发版本和硬件验证是独立概念，不能只凭其中一个推断兼容。
 
-随包 api-history.json 保留原 ABI2 的不可变发布证明，并单独检查新候选声明；不修改旧
-anchors/proofs/seals、不将本候选加入 published_releases。API 参考采用新 Java/Swift
-编译器基线，旧声明不会被静默沿用。
+`0.3.0-preview.10` 的状态以随包契约为准。开发身份不是发布候选；冻结候选也不等于已上传制品。
+公开历史的 anchors/proofs/seals、旧候选、旧开发快照和 SDK lock 保持独立，不能为新 API 重写旧 pins。
+旧在线 Samples 和 consumer 模板按原版本冻结，不会自动升级到新 Manager。
 
-sdkInfo 提供 native/distribution 版本及可选 buildID。buildID 未知时明确标记未知；
-它不能替代制品 SHA-256 或独立消费者验证。软件测试不提升 hardware_verified。
+`manager.sdkInfo` 异步提供 native/distribution 版本及可选 buildID；ABI身份由分发契约记录，移动结果不公开ABI字段。
+buildID 未知时明确显示未知；它不能替代 SHA-256 或独立消费者验证，软件测试不提升 hardware_verified。

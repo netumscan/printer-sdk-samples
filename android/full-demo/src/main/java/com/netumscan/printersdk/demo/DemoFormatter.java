@@ -22,8 +22,7 @@ final class DemoFormatter {
     static String identity(DemoResult<SdkInfo> result) {
         if (result == null) return "SDK 信息未知（等待 Manager.sdkInfo）";
         SdkInfo info = result.raw.value;
-        return info == null ? result(result) : "SDK " + info.distributionVersion + " / ABI " + info.abiVersion +
-            "/r" + info.abiRevision + "；硬件状态未知";
+        return info == null ? result(result) : "SDK " + info.distributionVersion + " / native " + info.nativeVersion + "；硬件状态未知";
     }
     static String result(DemoResult<?> result) {
         if (result == null) return "尚无请求结果";
@@ -35,11 +34,13 @@ final class DemoFormatter {
             text += "\n采用的打印配置：" + profileDetails((ConnectionInfo)raw.value);
         } else if (raw.value instanceof StatusResult) {
             StatusResult status = (StatusResult)raw.value;
-            text += "\n硬件已知条件 mask=" + status.knownConditions + "，活动条件 mask=" + status.activeConditions + "；其余条件未知";
+            text += "\n缺纸=" + condition(status.paperOut) + "，开盖=" + condition(status.coverOpen) +
+                "，纸将尽=" + condition(status.paperNearEnd) + "，切刀错误=" + condition(status.cutterError);
         } else if (raw.value instanceof PrinterCapabilities) {
             PrinterCapabilities capabilities = (PrinterCapabilities)raw.value;
-            text += "\nSDK 实现：介质=" + capabilities.feature(PrinterManager.FEATURE_MEDIA).isImplemented() +
-                "，走纸=" + capabilities.feature(PrinterManager.FEATURE_FEED_TO_NEXT_LABEL).isImplemented() + "；实际硬件支持仍需验证";
+            text += "\n图像=" + capabilities.imagePrinting + "，纸张=" + capabilities.paperTypeSelection +
+                "，定位=" + capabilities.labelPositioning + "，状态=" + capabilities.statusQuery +
+                "，Raw=" + capabilities.rawCommands + "；实际出纸仍需验证";
         } else if (raw.value instanceof java.util.List<?>) {
             text += "\n候选设备：" + ((java.util.List<?>)raw.value).size() + " 台；选择后可明确使用地址，不会自动连接";
         }
@@ -55,14 +56,9 @@ final class DemoFormatter {
     }
     /** Only adopted configuration values; no address or Bluetooth name enters the journal. */
     static String profileDetails(ConnectionInfo info) {
-        PrinterProfile profile = info.printProfile;
-        String details = "source=" + info.configurationSource;
-        if (profile == null) return details + " profile=UNKNOWN model=UNKNOWN";
-        return details + " model=" + (profile.modelId == null ? "CUSTOM" : profile.modelId) +
-            " protocol=" + profile.protocol + " dpi=" + profile.dpi +
-            " maxWidthDots=" + profile.maxPrintWidthDots + " dotsPerMm=" + profile.dotsPerMm +
-            " labelAlignment=" + profile.labelAlignment;
+        return "model=" + (info.model == null ? "UNKNOWN" : info.model);
     }
+    private static String condition(Boolean value) { return value == null ? "未知" : value ? "是" : "否"; }
     static String connection(DemoUiState state) {
         String text = state.disconnectedResult == null ? "" : result(state.disconnectedResult);
         if (state.cleanupResult != null) text += (text.isEmpty() ? "" : "\n") + result(state.cleanupResult);

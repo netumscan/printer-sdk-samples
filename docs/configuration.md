@@ -1,22 +1,40 @@
-# 连接与打印配置
+# 设备、图片与纸张
 
-[返回指南](README.md) · 适用发布候选 `0.3.0-preview.2`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.10`
 
-设备只拥有通信连接；协议配置在每次打印、介质设置或走纸时单独传入。TCP/SPP/BLE 是
-传输类型，CPCL/ESC/POS 是协议，不能相互推断。Android SPP 使用经典蓝牙 RFCOMM；
-BLE 需显式提供服务、写特征及流控配置。设备名或开发 preset 不构成硬件验证。
+每个Manager管理一个连接。扫描或保存的设备目标只包含地址／标识符和可选名称；不暴露平台句柄。已知名称可以推荐内置PrinterModel，改名但已支持的设备可显式指定型号。未知型号不得默认按M90处理；UUID、协议、点密度、超时和传输分块由SDK内部管理。
 
-Profile 包含协议、DPI、宽度、页高及传输/条带策略。App 必须使用已确认的设备/固件配置，
-每次提交不改变设备默认值。光栅条带大小与传输分块大小独立；Raw 的 SDK 默认分块为
-1024 字节、写超时为 5000ms，属于 SDK 策略，不是设备能力。
+连接成功后读取ConnectionInfo.device和可选model。连接后空闲时setPrinterModel可以更正型号；成功只更新本地配置并失效旧介质证据，失败保留原值，断开清除。名称不认证硬件。
 
-能力快照分别保留实现范围、deviceSupport、evidence、known 和 geometry 的有效字段；
-未知不等于支持、就绪或无限。当前纯通信设备没有已知打印几何。标签页高是单页/单份限制，
-小票 maxTotalLength 是所有副本和结束留白的整单预算；两者不能替换使用。
+## 当前移动端支持矩阵
 
-当前源载荷接纳策略：每图 16MiB、每作业逻辑图片 32MiB、Raw 1MiB、活动与等待载荷
-64MiB、最多 64 个未终结 operation、copies 为 1..100。resourceSnapshot 只作本地观察，
-不预留空间；提交返回才是接纳权威。这些是源载荷预算，不是手机 RSS 上限。
+| 能力 | Android | iOS |
+| --- | --- | --- |
+| 最低编译／部署目标 | API21、Java8 | iOS15、Swift5/6 |
+| BLE发现／连接 | scanBle、connectBle | scanBLE、connectBle |
+| 系统已配对设备列表 | bondedDevices | 不提供 |
+| 经典蓝牙 | connectSpp，SPP/RFCOMM | 不提供 |
+| 图片 | Bitmap、PNG/JPEG byte[] | UIImage、PNG/JPEG Data |
+| 纸型／定位 | 按已采用型号能力执行 | 同Android |
+| 硬件状态查询／结构化切纸 | 当前不支持，查询回调1004 | 同Android |
+| TCP／USB／串口移动入口 | 不提供 | 不提供 |
+| 权限、配对、文件选择 | App/plugin负责 | App/plugin负责 |
+| 自动重连／续打／重放 | 不提供 | 不提供 |
 
-当前 CPCL/ESC/POS 状态查询在 IO 前返回 UNSUPPORTED_OPERATION（1004），不产生 operation；
-硬件显示未知。连接、SDK 工作和队列状态可以展示给客户，但不能据此推断机械打印完成。
+此矩阵描述软件实现，hardware_verified=false。1004不覆盖参数错误或未连接状态。最低部署目标不表示最低系统运行时已验收，设备在已配对列表不证明支持SPP。
+
+## 图片与页面尺寸
+
+printImage接收Bitmap／UIImage；printEncodedImage接收完整PNG/JPEG byte[]／Data。Flutter的Uint8List通过标准codec映射为Android byte[]和iOS FlutterStandardTypedData.data，插件直接转交；不使用Base64或裸RGBA。Flutter ui.Image需明确导出PNG。
+
+两入口均只传widthMm、heightMm和完成回调。毫米按已采用型号的精确点密度换算，屏幕density、UIImage.scale和文件DPI不决定尺寸。SDK修正方向、透明白底、等比缩小居中补白，不放大、不裁剪；固定一份、阈值128、不反色、不隐式FORM或切纸。文本和条码先由App渲染为图片。
+
+SDK接纳时取得自有快照；调用返回后调用者可更改原buffer或回收Bitmap。复制期间不得并发修改输入。解码与准备在有界后台执行，取消后的实际读者退出前继续计入资源。逻辑载荷预算不等于进程RSS上限；资源不足应缩减输入或在途工作，不连续重试规避。
+
+## 纸张与结果
+
+PaperType为GAP_LABEL／BLACK_MARK／CONTINUOUS，Swift为gapLabel／blackMark／continuous，即间隙标签纸、黑标纸、连续纸。setPaperType独立发送设置，不自动校准或持久化；locateNextLabel独立定位，页面尺寸不替代纸型。
+
+capabilities返回三态Support和可选毫米范围，UNKNOWN保留未知。queryStatus的缺纸、开盖、纸将尽和切刀错误均为可选布尔；缺失不等于正常。DATA_SENT仅证明发送完成，不代表设置已读回或机械打印完成。
+
+UIImage入口支持可取得CGImage的非动画图片；CI-only、矢量／系统符号等无CGImage来源及动画图片返回1001。App可先渲染为CGImage-backed UIImage，或提供PNG/JPEG Data。UIImage源像素快照按bytesPerRow×height限制为16MiB，编码Data上限32MiB；大图优先使用Data，由SDK后台按目标采样。快照复制期间不得并发修改输入，返回后可修改或释放原数据。iOS只有保存UUID、没有有效名称且未显式选择型号时，连接返回1004。

@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 跨 Activity 配置重建保留的会话资源与主线程界面状态。
- * 旋转屏幕等重建会复用 Manager 和当前任务；真正进入后台时则断开设备并取消图片准备。
+ * 配置重建和受控选图临时离开会保留连接；普通后台则断开设备并取消图片准备。
  */
 final class DemoOwner implements AutoCloseable {
     final DemoModel model;
@@ -41,7 +41,7 @@ final class DemoOwner implements AutoCloseable {
     private boolean closed;
     private boolean exportPickerPending, exportPickerOpen, logsCleared;
     private long exportGeneration;
-    boolean utilityBusy, importAfterDisconnect, pickerOpen, m90BleExplicit;
+    boolean utilityBusy, pickerOpen;
     private boolean pickerValid;
     Uri importUri;
     private Uri exportUri;
@@ -218,7 +218,7 @@ final class DemoOwner implements AutoCloseable {
     }
     /** 只有显式发起且仍有效的选择器可交回数据；从不因此重连或打印。 */
     boolean beginImagePicker() {
-        if (closed || pickerOpen) return false;
+        if (closed || pickerOpen || importUri != null) return false;
         pickerOpen = true; pickerValid = true;
         return true;
     }
@@ -230,27 +230,29 @@ final class DemoOwner implements AutoCloseable {
         if (accept && uri == null) notice = "已取消导入；保留上一有效图片，未发送";
     }
     void abandonImageFlow() {
-        importAfterDisconnect = false; pickerValid = false; importUri = null;
+        pickerValid = false; importUri = null;
         if (images != null) images.cancel();
         // 已打开的系统选择器仍占用其返回槽，不能误接成新流程。
     }
-    /** 配置重建只解绑界面；真正进入后台才触发设备断开和图片取消。 */
+    /** 配置重建或受控选图只解绑界面；普通后台触发设备断开和图片取消。 */
     void stopUi(Runnable listener, boolean changingConfiguration) {
         model.detach(listener);
         if (images != null) images.detach(listener);
         // 按 listener 身份解绑，防止旧 Activity 的回调移除新 Activity 已注册的监听。
         if (changed == listener) changed = null;
         if (!changingConfiguration) {
-            importAfterDisconnect = false;
-            if (!pickerOpen && importUri == null) pickerValid = false;
             // Home 后不自动弹出尚未打开的保存选择器；已打开的系统选择器可正常返回结果。
             if (!exportPickerOpen && exportUri == null) {
                 ++exportGeneration;
                 exportPickerPending = false;
                 exportText = null;
             }
-            model.background();
-            if (images != null) images.background();
+            // 选择器覆盖与选择器中按 Home 都可能触发同一次 onStop；整个受控选图流程保留连接。
+            if (!pickerOpen) {
+                importUri = null; pickerValid = false;
+                model.background();
+                if (images != null) images.background();
+            }
         }
     }
     /** 配置重建继续保留本对象，Activity 真正销毁时释放会话资源。 */

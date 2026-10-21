@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 package com.netumscan.printersdk.demo;
 
-import com.netumscan.printersdk.PrinterProfile;
 
 /** 旧配置的定位字段适配；起点计算始终委托 SDK。 */
 final class OriginPlacement {
@@ -13,8 +12,8 @@ final class OriginPlacement {
         if (mode == MANUAL && manualOrigin != 0 && adjustment != 0)
             throw new LabelConfig.ValidationError("origin_adjustment", "手动横向起点和校准偏移不能同时非零");
         try {
-            PrinterProfile profile = PrinterProfile.cpcl(203, deviceWidth, 203 / 25.4,
-                mode == CENTERED ? PrinterProfile.LabelAlignment.CENTERED : PrinterProfile.LabelAlignment.LEFT);
+            DemoGeometry profile = DemoGeometry.cpcl(203, deviceWidth, 203 / 25.4,
+                mode == CENTERED ? DemoGeometry.LabelAlignment.CENTERED : DemoGeometry.LabelAlignment.LEFT);
             return profile.labelOriginXDots(canvasWidth, mode == CENTERED || manualOrigin == 0 ? adjustment : manualOrigin);
         } catch (IllegalArgumentException invalid) {
             throw new LabelConfig.ValidationError(mode == CENTERED || manualOrigin == 0 ? "origin_adjustment" : "x_offset", invalid.getMessage());

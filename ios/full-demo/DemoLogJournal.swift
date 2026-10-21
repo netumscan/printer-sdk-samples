@@ -1,289 +1,386 @@
 import Foundation
-import CoreFoundation
-import CPrinterSDK
+import PrinterSDK
 
-/// Optional generated distribution identity; source builds leave unavailable facts nil.
-struct DemoBuildIdentity {
-    static let resource = "printer-sdk-samples-build"
-    let sdkDistributionVersion: String?
-    let sdkReleaseCommit: String?
-    let sdkArtifactSha256: String?
-    let sdkCoreVersion: String?
-    let sdkAbiVersion: Int?
-    let sdkAbiRevision: Int?
-    let demoSourceFingerprint: String?
-    let demoBuildVersion: String?
+enum DemoJournalError: Error, Equatable, Sendable {
+    case unavailable
+    case closed
 
-    init(_ identity: [String: Any] = [:]) {
-        sdkDistributionVersion = Self.version(identity["sdk_distribution_version"])
-        sdkReleaseCommit = Self.digest(identity["sdk_release_commit"], count: 40)
-        sdkArtifactSha256 = Self.digest(identity["sdk_artifact_sha256"], count: 64)
-        sdkCoreVersion = Self.version(identity["sdk_core_version"])
-        sdkAbiVersion = Self.unsigned(identity["sdk_abi_version"])
-        sdkAbiRevision = Self.unsigned(identity["sdk_abi_revision"])
-        demoSourceFingerprint = Self.digest(identity["demo_source_fingerprint"], count: 64)
-        demoBuildVersion = Self.token(identity["demo_build_version"])
-    }
-    static func read(_ data: Data?) -> DemoBuildIdentity {
-        guard let data, data.count <= 16384,
-              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              unsigned(root["schema_version"]) == 1,
-              let identity = root["identity"] as? [String: Any] else { return DemoBuildIdentity() }
-        return DemoBuildIdentity(identity)
-    }
-    static func bundled(_ bundle: Bundle = .main) -> DemoBuildIdentity {
-        guard let resource = bundle.url(forResource: resource, withExtension: "json"),
-              let size = (try? resource.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, size <= 16384 else {
-            return DemoBuildIdentity()
+    var message: String {
+        switch self {
+        case .unavailable: return "本机日志存储不可用"
+        case .closed: return "日志已关闭"
         }
-        return read(try? Data(contentsOf: resource))
-    }
-    var hasSDKIdentity: Bool {
-        sdkDistributionVersion != nil || sdkReleaseCommit != nil || sdkArtifactSha256 != nil ||
-            sdkCoreVersion != nil || sdkAbiVersion != nil || sdkAbiRevision != nil
-    }
-    private static func token(_ value: Any?) -> String? {
-        guard let value = value as? String,
-              value.range(of: "^[A-Za-z0-9][A-Za-z0-9._+\\-]{0,95}\\z", options: .regularExpression) != nil,
-              value.range(of: "^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\\z", options: [.regularExpression, .caseInsensitive]) == nil else { return nil }
-        return value
-    }
-    private static func version(_ value: Any?) -> String? {
-        guard let value = token(value),
-              value.range(of: "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9][A-Za-z0-9.\\-]*)?(?:\\+[A-Za-z0-9][A-Za-z0-9.\\-]*)?\\z", options: .regularExpression) != nil else { return nil }
-        return value
-    }
-    private static func digest(_ value: Any?, count: Int) -> String? {
-        guard let value = value as? String,
-              value.range(of: "^[0-9a-f]{\(count)}\\z", options: .regularExpression) != nil else { return nil }
-        return value
-    }
-    private static func unsigned(_ value: Any?) -> Int? {
-        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
-              number.doubleValue >= 0, number.doubleValue <= Double(UInt32.max),
-              number.doubleValue == Double(number.int64Value) else { return nil }
-        return number.intValue
     }
 }
 
-/// Local metadata only. Capturing ABI calls does not create a device or execute printer IO.
-struct DemoCompatibilityRecord {
-    static let schemaVersion = 1
-    let values: [String: Any]
-    init(identity: DemoBuildIdentity = .bundled(), osVersion: String, transport: String?,
-         abiVersion: Int? = Int(psdk_abi_version()), abiRevision: Int? = Int(psdk_abi_revision())) {
-        func value(_ value: Any?) -> Any { value ?? NSNull() }
-        let sdk: [String: Any] = [
-            "distribution_version": value(identity.sdkDistributionVersion), "core_version": value(identity.sdkCoreVersion),
-            "abi_version": value(abiVersion), "abi_revision": value(abiRevision),
-            "release_commit": value(identity.sdkReleaseCommit), "artifact_sha256": value(identity.sdkArtifactSha256),
-            "identity_source": value(identity.hasSDKIdentity ? "distribution_manifest" : nil),
-            "abi_source": value(abiVersion != nil && abiRevision != nil ? "runtime" : nil)
-        ]
-        let demo: [String: Any] = ["source_fingerprint": value(identity.demoSourceFingerprint), "build_version": value(identity.demoBuildVersion)]
-        let runtime: [String: Any] = ["platform": "ios",
-            "os_version": value(osVersion.range(of: "^[0-9]+(?:\\.[0-9]+){0,3}\\z", options: .regularExpression) != nil ? osVersion : nil),
-            "transport": value(transport == "bluetooth_spp" || transport == "bluetooth_ble" ? transport : nil)]
-        values = ["schema_version": Self.schemaVersion, "sdk": sdk, "demo": demo, "runtime": runtime,
-            "known_limitations": ["hardware_acceptance_deferred", "data_sent_is_not_printed", "no_automatic_replay"],
-            "hardware_verified": false]
-    }
-    func json() -> String {
-        // Every value above has a closed JSON type; optional facts are explicit nulls.
-        String(decoding: try! JSONSerialization.data(withJSONObject: values, options: [.sortedKeys, .withoutEscapingSlashes]), as: UTF8.self)
-    }
-    func exporting(_ journal: String) -> String { "compatibility_record=" + json() + "\n" + journal }
-}
-
-/// Append is nonblocking; all retained-file operations are ordered on this private queue.
-final class DemoLogJournal {
+/// Diagnostic metadata only: callers must never pass print content or device identity.
+/// The lock orders accepted work; all retained state and file I/O belong to `queue`.
+final class DemoLogJournal: @unchecked Sendable {
     static let maximumFileBytes = 1024 * 1024
-    static let maximumRecordBytes = 4 * 1024
+    static let maximumRecordBytes = 4096
+    static let maximumVisibleRecords = 160
     static let retentionSeconds: TimeInterval = 7 * 24 * 60 * 60
-    let runID = UUID().uuidString
-    private let queue = DispatchQueue(label: "PrinterDemo.journal")
-    private let stateLock = NSLock()
+
+    private struct Record: Sendable {
+        let text: String
+        let date: Date
+        var failedToPersist = false
+        var byteCount: Int { text.utf8.count + 1 }
+    }
+
+    private let queue = DispatchQueue(label: "PrinterDemo.log-journal", qos: .utility)
+    private let lock = NSLock()
     private let root: URL
-    private let warning: (String) -> Void
-    private let clock: () -> Date
-    private let started = ProcessInfo.processInfo.systemUptime
+    private let clock: @Sendable () -> Date
+    private let runID = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+    private var closed = false
     private var sequence: UInt64 = 0
-    private var memory: [String] = []
+    private var memory: [Record] = []
     private var memoryBytes = 0
-    private var failedRecords: Set<String> = []
+    private var nextExpiry: Date?
     private var initialized = false
-    private var warned = false
-    private var lastPrune: Date?
+    private var diskUnavailable = false
     private var current: URL { root.appendingPathComponent("journal-0.log") }
     private var previous: URL { root.appendingPathComponent("journal-1.log") }
 
-    init(root: URL? = nil, warning: @escaping (String) -> Void = { _ in }, clock: @escaping () -> Date = Date.init) {
-        self.root = root ?? DemoPrivateFiles.supportDirectory().appendingPathComponent("logs", isDirectory: true)
-        self.warning = warning; self.clock = clock
-        queue.async { self.initialize() }
+    init(root: URL? = nil, clock: @escaping @Sendable () -> Date = { Date() }) {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        self.root = root ?? support.appendingPathComponent("PrinterDemo/logs", isDirectory: true)
+        self.clock = clock
     }
 
+    /// Returns the same bounded, sanitized line retained by the journal. Never waits for disk.
     @discardableResult
-    func append(_ message: String, connection: Int) -> String {
-        stateLock.lock()
+    func append(_ message: String) -> String { append(message, redacting: true) }
+
+    private func append(_ message: String, redacting: Bool) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !closed else { return "" }
         sequence &+= 1
-        let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let prefix = "utc=\(formatter.string(from: clock())) elapsed_ms=\(Int((ProcessInfo.processInfo.systemUptime - started) * 1000)) run=\(runID) conn=\(connection) seq=\(String(format: "%012llu", sequence)) "
-        let sanitized = Self.redact(message).replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
-        let record = Self.bounded(prefix + sanitized, limit: Self.maximumRecordBytes - 1)
-        // Queue enqueue stays under the same lock as sequence allocation.
+        let date = clock()
+        let formatter = Self.formatter()
+        let prefix = "utc=\(formatter.string(from: date)) run=\(runID) seq=\(sequence) "
+        let text = Self.bounded(prefix + (redacting ? Self.redact(message) : message), limit: Self.maximumRecordBytes - 1)
+        let record = Record(text: text, date: date)
         queue.async { self.retainAndWrite(record) }
-        stateLock.unlock()
-        return record
+        return text
     }
 
-    func snapshot(completion: @escaping (Result<String, Error>) -> Void) {
-        stateLock.lock()
+    /// Explicit release verification only: typed, allowlisted SDK/build metadata, never device or customer content.
+    func recordRuntimeVerification(_ proof: DemoOfflineRuntimeProof, resourceURL: URL?) {
         queue.async {
-            self.pruneIfNeeded(force: true)
-            let disk = self.readRecords()
-            var records = disk ?? []
-            let retained = Set(records)
-            records.append(contentsOf: self.memory.filter { !retained.contains($0) && (disk == nil || self.failedRecords.contains($0)) })
-            // Wall clocks may move backwards. Disk order establishes run order;
-            // record sequence establishes order within each run, including fallback gaps.
-            var runOrder: [String: Int] = [:]
-            for record in records {
-                let run = Self.field("run=", in: record)
-                if runOrder[run] == nil { runOrder[run] = runOrder.count }
+            do {
+                guard let resourceURL else { throw DemoJournalError.unavailable }
+                let file = try FileHandle(forReadingFrom: resourceURL)
+                defer { try? file.close() }
+                let data = try file.read(upToCount: 64 * 1024 + 1) ?? Data()
+                guard data.count <= 64 * 1024 else { throw DemoJournalError.unavailable }
+                let record = try proof.encodedRecord(buildResource: data)
+                // All strings have strict identity/nonce validation; generic path redaction would corrupt build IDs.
+                _ = self.append("runtime_api_record=" + record, redacting: false)
+            } catch { _ = self.append("event=runtime_api_record_rejected") }
+        }
+    }
+
+    /// The callback runs on the journal queue. Disk failure falls back to bounded session memory.
+    func snapshot(completion: @escaping @Sendable (Result<String, DemoJournalError>) -> Void) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !closed else { queue.async { completion(.failure(.closed)) }; return }
+        queue.async {
+            let now = self.clock()
+            self.expireMemory(at: now)
+            var records: [String]
+            do {
+                try self.initialize(at: now)
+                try self.pruneFiles(at: now)
+                records = try self.read(self.previous, at: now) + self.read(self.current, at: now)
+                let persisted = Set(records)
+                records += self.memory.filter { $0.failedToPersist && !persisted.contains($0.text) }.map(\.text)
+            } catch {
+                self.diskUnavailable = true
+                records = self.memory.map(\.text)
             }
-            records = self.filterAge(records).sorted {
-                let firstRun = Self.field("run=", in: $0), secondRun = Self.field("run=", in: $1)
-                if firstRun != secondRun { return runOrder[firstRun, default: 0] < runOrder[secondRun, default: 0] }
-                return Self.field("seq=", in: $0) < Self.field("seq=", in: $1)
-            }
-            let note = "Printer Demo 日志窗口：UTC 毫秒 / 运行内经过时间；两个各 1 MiB 文件，最长 7 天，单条最多 4 KiB。轮转或期限清理会截断更早记录；磁盘故障时仅有本次运行的有界内存记录。\n"
+            let note = self.diskUnavailable
+                ? "日志存储不可用；以下仅含保留文件及本次运行的有界内存记录。\n"
+                : "日志窗口：两个各 1 MiB 文件，保留 7 天，单条最多 4096 字节；轮转会移除较早记录。\n"
+            records = Self.ordered(records)
             completion(.success(note + records.joined(separator: "\n") + (records.isEmpty ? "" : "\n")))
         }
-        stateLock.unlock()
     }
 
-    func clear(completion: @escaping (Result<Void, Error>) -> Void) {
-        stateLock.lock()
+    /// Clearing session memory succeeds even when file removal fails; failure is explicit to the UI.
+    func clear(completion: @escaping @Sendable (Result<Void, DemoJournalError>) -> Void) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !closed else { queue.async { completion(.failure(.closed)) }; return }
         queue.async {
+            self.memory.removeAll()
+            self.memoryBytes = 0
+            self.nextExpiry = nil
             do {
                 for file in [self.previous, self.current] where FileManager.default.fileExists(atPath: file.path) {
                     try FileManager.default.removeItem(at: file)
                 }
-                self.memory.removeAll(); self.memoryBytes = 0; self.failedRecords.removeAll(); self.warned = false
+                self.diskUnavailable = false
                 completion(.success(()))
             } catch {
-                self.diskFailure()
-                completion(.failure(DemoValidationError(message: "清除本机日志失败")))
+                self.diskUnavailable = true
+                completion(.failure(.unavailable))
             }
         }
-        stateLock.unlock()
     }
 
-    private func initialize() {
-        guard !initialized else { return }
-        initialized = true
-        do { try DemoPrivateFiles.createDirectory(root); try prune() }
-        catch { diskFailure() }
+    /// Already accepted work finishes in order. No open file handle survives an operation.
+    func close() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !closed else { return }
+        closed = true
+        queue.async { self.memory.removeAll(); self.memoryBytes = 0 }
     }
 
-    private func retainAndWrite(_ record: String) {
-        initialize()
-        memory.append(record); memoryBytes += record.utf8.count + 1
-        while memoryBytes > 2 * Self.maximumFileBytes, let first = memory.first {
-            memoryBytes -= first.utf8.count + 1; memory.removeFirst(); failedRecords.remove(first)
+    private func retainAndWrite(_ record: Record) {
+        let now = clock()
+        expireMemory(at: now)
+        memory.append(record)
+        memoryBytes += record.byteCount
+        while memoryBytes > 2 * Self.maximumFileBytes, let oldest = memory.first {
+            memoryBytes -= oldest.byteCount
+            memory.removeFirst()
         }
-        pruneIfNeeded(force: false)
         do {
-            try DemoPrivateFiles.createDirectory(root)
-            let bytes = Data((record + "\n").utf8)
-            let attributes = try? FileManager.default.attributesOfItem(atPath: current.path)
-            let size = (attributes?[.size] as? NSNumber)?.intValue ?? 0
+            try initialize(at: now)
+            if let expiry = nextExpiry, expiry <= now { try pruneFiles(at: now) }
+            let bytes = Data((record.text + "\n").utf8)
+            try createDirectory()
+            let size = try fileSize(current)
+            guard size <= Self.maximumFileBytes else { throw DemoJournalError.unavailable }
             if size + bytes.count > Self.maximumFileBytes {
                 if FileManager.default.fileExists(atPath: previous.path) { try FileManager.default.removeItem(at: previous) }
                 if FileManager.default.fileExists(atPath: current.path) { try FileManager.default.moveItem(at: current, to: previous) }
             }
             if !FileManager.default.fileExists(atPath: current.path) {
-                guard FileManager.default.createFile(atPath: current.path, contents: nil) else { throw DemoValidationError(message: "日志存储不可用") }
+                guard FileManager.default.createFile(atPath: current.path, contents: nil,
+                    attributes: [.posixPermissions: 0o600]) else { throw DemoJournalError.unavailable }
             }
-            let handle = try FileHandle(forWritingTo: current); defer { try? handle.close() }
-            try handle.seekToEnd(); try handle.write(contentsOf: bytes)
-            // Each queued write is closed before snapshot is dequeued.
-        } catch { failedRecords.insert(record); diskFailure() }
-    }
-
-    private func diskFailure() {
-        guard !warned else { return }
-        warned = true
-        warning("本机日志写入失败；打印不受影响，本次运行保留有界内存日志")
-    }
-
-    private func pruneIfNeeded(force: Bool) {
-        if force || lastPrune == nil || clock().timeIntervalSince(lastPrune!) >= 3600 {
-            do { try prune() } catch { diskFailure() }
+            let handle = try FileHandle(forWritingTo: current)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: bytes)
+            let expiry = record.date.addingTimeInterval(Self.retentionSeconds)
+            nextExpiry = nextExpiry.map { min($0, expiry) } ?? expiry
+        } catch {
+            diskUnavailable = true
+            if !memory.isEmpty { memory[memory.count - 1].failedToPersist = true }
         }
     }
 
-    private func prune() throws {
+    private func initialize(at now: Date) throws {
+        guard !initialized else { return }
+        try createDirectory()
+        try pruneFiles(at: now)
+        initialized = true
+    }
+
+    private func createDirectory() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700])
+        var directory = root
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try directory.setResourceValues(values)
+    }
+
+    private func fileSize(_ file: URL) throws -> Int {
+        guard FileManager.default.fileExists(atPath: file.path) else { return 0 }
+        let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+        guard values.isRegularFile == true, values.isSymbolicLink != true,
+              let size = values.fileSize else { throw DemoJournalError.unavailable }
+        return size
+    }
+
+    private func read(_ file: URL, at now: Date) throws -> [String] {
+        guard FileManager.default.fileExists(atPath: file.path) else { return [] }
+        guard try fileSize(file) <= Self.maximumFileBytes else { throw DemoJournalError.unavailable }
+        let formatter = Self.formatter()
+        return try String(contentsOf: file, encoding: .utf8).split(separator: "\n").compactMap { line in
+            let value = String(line)
+            guard value.utf8.count < Self.maximumRecordBytes,
+                  let date = Self.date(value, formatter: formatter),
+                  now.timeIntervalSince(date) < Self.retentionSeconds else { return nil }
+            return value
+        }
+    }
+
+    private func pruneFiles(at now: Date) throws {
+        nextExpiry = nil
+        let formatter = Self.formatter()
         for file in [previous, current] where FileManager.default.fileExists(atPath: file.path) {
-            let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
-            guard let size = attributes[.size] as? NSNumber, size.intValue <= Self.maximumFileBytes else {
-                try FileManager.default.removeItem(at: file)
-                continue
+            let records = try read(file, at: now)
+            let bytes = Data((records.joined(separator: "\n") + (records.isEmpty ? "" : "\n")).utf8)
+            // Rewriting is infrequent: initialization, export, or the next record's expiry.
+            try bytes.write(to: file, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+            for record in records {
+                if let date = Self.date(record, formatter: formatter) {
+                    let expiry = date.addingTimeInterval(Self.retentionSeconds)
+                    nextExpiry = nextExpiry.map { min($0, expiry) } ?? expiry
+                }
             }
-            let all = try String(contentsOf: file, encoding: .utf8).split(separator: "\n").map(String.init)
-            let live = filterAge(all).filter { $0.utf8.count < Self.maximumRecordBytes }
-            if live != all { try Data((live.joined(separator: "\n") + (live.isEmpty ? "" : "\n")).utf8).write(to: file, options: .atomic) }
-        }
-        memory = filterAge(memory); memoryBytes = memory.reduce(0) { $0 + $1.utf8.count + 1 }
-        failedRecords.formIntersection(memory)
-        lastPrune = clock()
-    }
-
-    private func readRecords() -> [String]? {
-        var result: [String] = []
-        for file in [previous, current] {
-            guard FileManager.default.fileExists(atPath: file.path) else { continue }
-            guard let attributes = try? FileManager.default.attributesOfItem(atPath: file.path),
-                  let size = attributes[.size] as? NSNumber, size.intValue <= Self.maximumFileBytes,
-                  let data = try? Data(contentsOf: file), let value = String(data: data, encoding: .utf8) else { return nil }
-            result.append(contentsOf: value.split(separator: "\n").map(String.init))
-        }
-        return result
-    }
-
-    private func filterAge(_ values: [String]) -> [String] {
-        let cutoff = clock().addingTimeInterval(-Self.retentionSeconds)
-        let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return values.filter { line in
-            guard line.hasPrefix("utc="), let first = line.split(separator: " ").first,
-                  let date = formatter.date(from: String(first.dropFirst(4))) else { return false }
-            return date >= cutoff
         }
     }
 
-    private static func field(_ prefix: String, in value: String) -> String {
-        String(value.split(separator: " ").first { $0.hasPrefix(prefix) } ?? "")
+    private func expireMemory(at now: Date) {
+        memory.removeAll { now.timeIntervalSince($0.date) >= Self.retentionSeconds }
+        memoryBytes = memory.reduce(0) { $0 + $1.byteCount }
+    }
+
+    private static func formatter() -> ISO8601DateFormatter {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }
+
+    private static func date(_ record: String, formatter: ISO8601DateFormatter) -> Date? {
+        guard record.hasPrefix("utc="), let end = record.firstIndex(of: " ") else { return nil }
+        return formatter.date(from: String(record[record.index(record.startIndex, offsetBy: 4)..<end]))
     }
 
     static func redact(_ message: String) -> String {
-        var value = message
+        // Bound work as well as output. Newlines cannot inject forged journal records.
+        let separators = CharacterSet.controlCharacters.union(.newlines)
+        var value = String(String.UnicodeScalarView(bounded(message, limit: 16 * 1024).unicodeScalars.map {
+            separators.contains($0) ? UnicodeScalar(32)! : $0
+        }))
         for pattern in [
-            "(?i)\\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\\b",
+            "(?i)\\b(?:raw(?:Payload|Bytes|Input|Command|Text)?|printContent|printPayload|image(?:Name|Path|Content)|device(?:Name|Id|Identifier|Serial|Address)|peripheral(?:Id|UUID)|address|host|mac|serial(?:Number|_number)?|privateKey|certificate)\\s*[:=]\\s*[^;]*",
+            "(?i)\\braw[ _-]+(?:payload|bytes|input|command|text)\\b[^;]*",
+            "(?i)\\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\\b",
             "(?i)\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b",
-            "(?i)\\b(?:imageName|imagePath|imageContent|exif|rawPayload|rawBytes|rawInput|deviceName|deviceId|deviceIdentifier|deviceSerial|address|peripheralId|peripheralUUID|mac|serial(?:number|_number)?|print(?:content|payload)|signing(?:identity|certificate|key|team)?|teamId|certificate|privateKey)\\s*[:=]\\s*[^;\\n]*",
-            "(?:file://|/Users/|/private/|/var/|/tmp/)[^\\s;]+"
+            "(?i)\\b[a-z][a-z0-9+.-]*://[^\\s;]+",
+            "\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}(?::[0-9]+)?\\b",
+            "(?i)(?<![a-z0-9])(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}(?:%[a-z0-9._-]+)?(?![a-z0-9])",
+            "(?i)\\b(?:[a-z0-9-]+\\.)+[a-z]{2,}(?::[0-9]+)?\\b",
+            "(?:[A-Za-z]:[\\\\/]|~[/\\\\]|/)[^\\s;]+"
         ] {
             value = value.replacingOccurrences(of: pattern, with: "[redacted]", options: .regularExpression)
         }
         return value
     }
 
+    private static func ordered(_ records: [String]) -> [String] {
+        func field(_ prefix: String, in text: String) -> String {
+            text.split(separator: " ").first(where: { $0.hasPrefix(prefix) }).map { String($0.dropFirst(prefix.count)) } ?? ""
+        }
+        var runs: [String: Int] = [:]
+        for record in records {
+            let run = field("run=", in: record)
+            if runs[run] == nil { runs[run] = runs.count }
+        }
+        return records.sorted {
+            let firstRun = field("run=", in: $0), secondRun = field("run=", in: $1)
+            if firstRun != secondRun { return runs[firstRun, default: 0] < runs[secondRun, default: 0] }
+            return (UInt64(field("seq=", in: $0)) ?? 0) < (UInt64(field("seq=", in: $1)) ?? 0)
+        }
+    }
+
     private static func bounded(_ value: String, limit: Int) -> String {
         guard value.utf8.count > limit else { return value }
-        let suffix = " [record truncated]"
+        let suffix = " [truncated]"
         var bytes = Array(value.utf8.prefix(limit - suffix.utf8.count))
         while String(bytes: bytes, encoding: .utf8) == nil { bytes.removeLast() }
-        return String(bytes: bytes, encoding: .utf8)! + suffix
+        return String(decoding: bytes, as: UTF8.self) + suffix
+    }
+}
+
+
+/// Data from actual public SDK calls. This is separate from legacy compatibility/ABI evidence.
+struct DemoOfflineRuntimeProof: Sendable {
+    struct Step: Sendable {
+        let name: String
+        let code: Int32
+        let mainThread, asynchronous, uniqueRequest, completionNone, outputMayHaveOccurred: Bool
+    }
+    let nonce: UUID
+    let sdk: SDKInfo
+    let steps: [Step]
+
+    func encodedRecord(buildResource: Data) throws -> String {
+        guard let resource = try JSONSerialization.jsonObject(with: buildResource) as? [String: Any],
+              resource["schema_version"] as? Int == 1, let identity = resource["identity"] as? [String: Any],
+              let distribution = identity["sdk_distribution_version"] as? String,
+              let core = identity["sdk_core_version"] as? String,
+              let revision = identity["sdk_release_commit"] as? String,
+              let artifact = identity["sdk_artifact_sha256"] as? String,
+              let fingerprint = identity["demo_source_fingerprint"] as? String,
+              let demoBuild = identity["demo_build_version"] as? String,
+              distribution == sdk.distributionVersion, core == sdk.nativeVersion,
+              Self.matches(distribution, "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"),
+              Self.matches(core, "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"),
+              Self.matches(revision, "^[0-9a-f]{40}$"), Self.matches(artifact, "^[0-9a-f]{64}$"),
+              Self.matches(fingerprint, "^[0-9a-f]{64}$"),
+              demoBuild == distribution + "+samples." + fingerprint.prefix(12) else { throw DemoJournalError.unavailable }
+        if let build = sdk.buildID { guard Self.matches(build, "^[0-9a-f]{64}$") else { throw DemoJournalError.unavailable } }
+        let value: [String: Any] = [
+            "schema_version": 1, "scope": "sdk_identity_and_offline_lifecycle", "nonce": nonce.uuidString.lowercased(),
+            "sdk": ["native_version": sdk.nativeVersion, "distribution_version": sdk.distributionVersion,
+                    "build_id": sdk.buildID as Any? ?? NSNull()],
+            "distribution": ["distribution_version": distribution, "core_version": core,
+                             "release_commit": revision, "artifact_sha256": artifact],
+            "demo": ["source_fingerprint": fingerprint, "build_version": demoBuild],
+            "offline_lifecycle": ["operations": steps.map(\.name), "codes": steps.map(\.code),
+                "callbacks_on_main_thread": steps.allSatisfy(\.mainThread),
+                "callbacks_asynchronous": steps.allSatisfy(\.asynchronous),
+                "exactly_once": steps.allSatisfy(\.uniqueRequest),
+                "completion_none": steps.allSatisfy(\.completionNone),
+                "output_may_have_occurred": steps.contains(where: \.outputMayHaveOccurred)],
+            "hardware_verified": false, "transport": "none"
+        ]
+        let data = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys, .withoutEscapingSlashes])
+        guard let string = String(data: data, encoding: .utf8), string.utf8.count < 3500 else { throw DemoJournalError.unavailable }
+        return string
+    }
+    private static func matches(_ value: String, _ pattern: String) -> Bool { value.range(of: pattern, options: .regularExpression) != nil }
+}
+
+@MainActor
+enum DemoOfflineRuntimeVerification {
+    private final class Delivery { var returned = false; var requestID: RequestID? }
+    private final class Recorder {
+        var requests: Set<RequestID> = []
+        var steps: [DemoOfflineRuntimeProof.Step] = []
+        func record<Value>(_ name: String, _ value: ManagerResult<Value>, delivery: Delivery) {
+            let unique = requests.insert(value.requestID).inserted && delivery.requestID == value.requestID
+            steps.append(.init(name: name, code: value.code, mainThread: Thread.isMainThread,
+                asynchronous: delivery.returned, uniqueRequest: unique,
+                completionNone: value.completion == .none, outputMayHaveOccurred: value.outputMayHaveOccurred))
+        }
+    }
+    private static func call<Value>(_ name: String, recorder: Recorder,
+        _ operation: (@escaping @MainActor @Sendable (ManagerResult<Value>) -> Void) -> RequestID) async -> ManagerResult<Value> {
+        let delivery = Delivery()
+        return await withCheckedContinuation { next in
+            delivery.requestID = operation { result in
+                recorder.record(name, result, delivery: delivery)
+                next.resume(returning: result)
+            }
+            delivery.returned = true
+        }
+    }
+    static func run(nonce: UUID, journal: DemoLogJournal, resourceURL: URL?) async {
+        // A second Manager exists only for this explicit offline acceptance invocation. No connect/print/raw call occurs.
+        let manager = PrinterManager(), recorder = Recorder()
+        let info: ManagerResult<SDKInfo> = await call("sdkInfo", recorder: recorder) { manager.sdkInfo(completion: $0) }
+        let _: ManagerResult<Void> = await call("disconnect", recorder: recorder) { manager.disconnect(completion: $0) }
+        let _: ManagerResult<Void> = await call("disconnect", recorder: recorder) { manager.disconnect(completion: $0) }
+        let _: ManagerResult<SDKInfo> = await call("sdkInfo", recorder: recorder) { manager.sdkInfo(completion: $0) }
+        let _: ManagerResult<Void> = await call("close", recorder: recorder) { manager.close(completion: $0) }
+        let _: ManagerResult<Void> = await call("close", recorder: recorder) { manager.close(completion: $0) }
+        let _: ManagerResult<SDKInfo> = await call("sdkInfo", recorder: recorder) { manager.sdkInfo(completion: $0) }
+        guard let sdk = info.value else { journal.append("event=runtime_api_identity_missing"); return }
+        journal.recordRuntimeVerification(.init(nonce: nonce, sdk: sdk, steps: recorder.steps), resourceURL: resourceURL)
     }
 }

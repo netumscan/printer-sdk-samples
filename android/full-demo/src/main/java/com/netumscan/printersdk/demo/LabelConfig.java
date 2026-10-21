@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 package com.netumscan.printersdk.demo;
 
-import com.netumscan.printersdk.PrinterProfile;
 
 /** 本次打印的不可变参数，宽高以 dots 表示；不读取屏幕尺寸或预览 View。 */
 final class LabelConfig {
@@ -15,7 +14,7 @@ final class LabelConfig {
     final int dpi, printerWidthDots, labelWidthDots, height, copies, xOffsetDots, trailingBlankDots;
     final boolean form, receipt;
     final int manualOriginDots, horizontalCalibrationDots;
-    private final PrinterProfile adoptedProfile;
+    private final DemoGeometry adoptedProfile;
     LabelConfig(int dpi, int printerWidthDots, int labelWidthDots, int height, int copies, int formChoice) {
         this(dpi, printerWidthDots, labelWidthDots, height, copies, formChoice, 0);
     }
@@ -32,13 +31,13 @@ final class LabelConfig {
             labelWidthDots, height, copies, formChoice, xOffsetDots, 0, trailingBlankDots);
     }
     /** 已采用的 Profile 只供 SDK 预览和校验；提交时不覆盖 Manager 的配置。 */
-    LabelConfig(PrinterProfile profile, int labelWidthDots, int height, int copies, int formChoice,
+    LabelConfig(DemoGeometry profile, int labelWidthDots, int height, int copies, int formChoice,
                 int manualOriginDots, int horizontalCalibrationDots, int trailingBlankDots) {
         int dpi = profile.dpi, printerWidthDots = profile.maxPrintWidthDots;
-        boolean receipt = profile.protocol == PrinterProfile.Protocol.ESC_POS;
+        boolean receipt = profile.protocol == DemoGeometry.Protocol.ESC_POS;
         if (manualOriginDots != 0 && horizontalCalibrationDots != 0)
             throw new ValidationError("origin_adjustment", "手动横向起点和校准偏移不能同时非零");
-        if (profile.labelAlignment == PrinterProfile.LabelAlignment.CENTERED && manualOriginDots != 0)
+        if (profile.labelAlignment == DemoGeometry.LabelAlignment.CENTERED && manualOriginDots != 0)
             throw new ValidationError("x_offset", "当前 Profile 固定居中，只能填写校准偏移");
         int xOffsetDots;
         try { xOffsetDots = receipt ? 0 : manualOriginDots == 0
@@ -74,15 +73,17 @@ final class LabelConfig {
         this.height = height; this.copies = copies; this.trailingBlankDots = trailingBlankDots;
         form = !receipt && formChoice == 1; this.receipt = receipt;
     }
-    private static PrinterProfile legacyProfile(int dpi, int width, boolean receipt) {
-        try { return receipt ? PrinterProfile.escPos(dpi, width) : PrinterProfile.cpcl(dpi, width); }
+    private static DemoGeometry legacyProfile(int dpi, int width, boolean receipt) {
+        try { return receipt ? DemoGeometry.escPos(dpi, width) : DemoGeometry.cpcl(dpi, width); }
         catch (IllegalArgumentException invalid) {
             throw new ValidationError(dpi <= 0 || dpi > (receipt ? 255 : 1200) ? "dpi" : "width", invalid.getMessage());
         }
     }
-    com.netumscan.printersdk.PrinterProfile printProfile() {
+    DemoGeometry printProfile() {
         return adoptedProfile;
     }
+    double widthMm() { return labelWidthDots / adoptedProfile.dotsPerMm; }
+    double heightMm() { return height / adoptedProfile.dotsPerMm; }
     long receiptBudget() { return ((long)height + trailingBlankDots) * copies; }
     String description() {
         return (receipt ? "ESC/POS 小票 / " : "CPCL 标签 / ") + dpi + " DPI / 设备最大宽度=" + printerWidthDots + " dots / 标签=" +

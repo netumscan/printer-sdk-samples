@@ -1,630 +1,530 @@
-import Foundation
 import Combine
-import CoreGraphics
+import Foundation
 import PrinterSDK
 
-struct DemoNextHint {
-    let message: String
-    let target: String?
-}
-
-/// Demo dependency only; discovery continues to belong to the platform SDK.
-protocol DemoScanner: AnyObject {
-    func scan(seconds: TimeInterval, service: UUID?,
-              completion: @escaping @Sendable (Result<[DiscoveredPrinter], PrinterSDKError>) -> Void)
-    func stop()
-}
-extension BLEScanner: DemoScanner {}
+enum DemoPickerKind: String, Sendable { case files, photos }
+struct DemoPickerRequest: Identifiable, Sendable { let id: UUID; let kind: DemoPickerKind }
+struct DemoLogExport: Identifiable, Sendable { let id: UUID; let text: String }
 
 @MainActor
 final class DemoModel: ObservableObject {
-    @Published var devices: [DiscoveredPrinter] = []
+    enum Phase { case offline, connecting, ready, working, disconnecting, closed }
+    @Published private(set) var devices: [DiscoveredPrinter] = []
     @Published var selected: UUID?
-    @Published var scanning = false
-    @Published var phase: PrinterController.Phase = .offline
-    @Published var status = "尚未执行操作"
-    @Published private(set) var deviceState: DeviceStateSnapshot?
-    @Published private(set) var resourceState: ResourceSnapshot?
-    @Published private(set) var deviceDiagnostic: ErrorDiagnostic?
-    @Published private(set) var runtimeInfo: SDKInfo?
-    @Published var recoveryNotice: String?
-    @Published var logs: [String] = []
-    @Published var preview: CGImage?
-    @Published var previewing = false
-    @Published var imageSummary = "内置校准图"
-    @Published var localOperation = false
-    @Published var logWarning: String?
-    @Published var service = ""
-    @Published var characteristic = ""
-    @Published var payload = "512"
-    @Published var m90Flow = true
-    @Published var mode = 0
-    @Published var media: MediaMode = .gap
-    @Published var form = 0
-    @Published var dpi = ""
-    @Published var deviceWidth = ""
-    @Published var width = ""
-    @Published var xOffset = "0"
-    @Published var originStrategy = DemoOriginStrategy.manual
-    @Published var originAdjustment = "0"
-    @Published var height = ""
-    @Published var copies = "1"
-    @Published var documentKind = DemoDocumentKind.label
-    @Published var trailingBlank = "0"
+    @Published var connectionSettings = DemoConnectionSettings()
+    @Published var labelWidthMm = "50" { didSet { invalidatePreview() } }
+    @Published var labelHeightMm = "50" { didSet { invalidatePreview() } }
     @Published var rawHex = ""
-    @Published private(set) var fieldErrors: [String: String] = [:]
-    @Published private(set) var validationTarget: String?
-    @Published private(set) var validationRequestID: UUID?
-    @Published private(set) var importRequestID: UUID?
-    @Published private(set) var appliedMedia: MediaMode?
-    @Published private(set) var sendingMedia: MediaMode?
-    private struct ImportRequest {
-        let id: UUID
-        let configuration: LabelConfiguration
+    @Published var media = PaperType.gapLabel { didSet { if media != oldValue { mediaInitialized = false } } }
+    @Published private(set) var phase = Phase.offline
+    @Published private(set) var scanning = false
+    @Published private(set) var status = "请选择设备；连接不需要先填写图纸尺寸"
+    @Published private(set) var connectionInfo: ConnectionInfo?
+    @Published private(set) var mediaInitialized = false
+    @Published private(set) var lastResult: DemoResult? { didSet { recordResult(lastResult) } }
+    @Published private(set) var cleanupResult: DemoResult? { didSet { recordResult(cleanupResult) } }
+    @Published private(set) var connectionLoss: DemoResult? { didSet { recordResult(connectionLoss) } }
+    @Published private(set) var identityResult: DemoResult? { didSet { recordResult(identityResult) } }
+    @Published private(set) var configurationResult: DemoResult? { didSet { recordResult(configurationResult) } }
+    @Published private(set) var initializationResult: DemoResult? { didSet { recordResult(initializationResult) } }
+    @Published private(set) var inputError: DemoInputError? {
+        didSet { if let inputError { appendLog("event=input_rejected code=\(inputError.code)") } }
     }
-    private var pendingImport: ImportRequest?
-    private var mediaRequest: (mode: MediaMode, epoch: UInt64)?
-    private var foregroundActive = true
-    private var destroyed = false
-    private let scanner: DemoScanner
-    private let makeSession: ((UUID, BLEOptions) throws -> DemoPrinterSession)?
-    private let consoleLogging: Bool
-    private let journalRoot: URL?
-    private let consoleWriter = DispatchQueue(label: "PrinterDemo.console")
-    private let rendering: DispatchQueue
-    private let preparation = DemoPreparationState()
+    @Published private(set) var importedImage: DemoImportedImage?
+    @Published private(set) var imagePreview: DemoImagePreview?
+    @Published private(set) var pickerRequest: DemoPickerRequest?
+    @Published private(set) var imageLoading = false
+    @Published private(set) var previewLoading = false
+    @Published private(set) var settingsBusy = false
+    @Published private(set) var settingsStatus = "显式保存或加载参数草稿；不会恢复连接或打印任务"
+    @Published private(set) var logRecords: [String] = []
+    @Published private(set) var logBusy = false
+    @Published private(set) var logStatus = "日志不记录设备身份、文件路径或 Raw 内容"
+    @Published private(set) var logExport: DemoLogExport?
+    var logExportText: String? { logExport?.text }
+    private let configurationStore: DemoConfigurationStore?
+    private let journal: DemoLogJournal?
+    private var settingsRequest: UUID?
+    private var logRequest: UUID?
+    private var logClearRequest: UUID?
+    private var presentedLogExport: UUID?
+    private var foreground = true
+    private var runtimeVerificationStarted = false
+    private var requestNumbers: [RequestID: UInt64] = [:]
+    private var nextRequestNumber: UInt64 = 0
+    private let manager: PrinterManager
     private let imageStore: DemoImageStore
-    private let configurationStore: DemoConfigurationStore
-    private var source: DemoImageSource?
-    private var connectionSequence = 0
-    private lazy var journal = DemoLogJournal(root: journalRoot, warning: { [weak self] message in
-        DispatchQueue.main.async { [weak self] in
-            guard let self, !self.destroyed else { return }; self.logWarning = message
-        }
-    })
-    private var generation: UInt64 = 0
-    private var heldController: PrinterController?
-    private var controller: PrinterController {
-        if let heldController { return heldController }
-        let created = PrinterController(changed: { [weak self] phase, message in
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !self.destroyed, self.heldController?.phase == phase else { return }
-                self.phase = phase; self.status = message
-                self.recoveryNotice = self.heldController?.recoveryNotice
-                self.append(message)
-                if phase == .offline {
-                    self.appliedMedia = nil; self.sendingMedia = nil; self.mediaRequest = nil
-                    if let request = self.pendingImport, self.foregroundActive {
-                        self.importRequestID = request.id
-                        self.status = "已断开；请选择 PNG/JPEG 图片"
-                    }
-                }
+    private let imageWorkQueue: DispatchQueue
+    private let imageSlots = DispatchSemaphore(value: 2)
+    private var imageCancellation: DemoImageCancellation?
+    private var imageRequest: UUID?
+    private var previewRequest: UUID?
+    private var connection: RequestID?
+    private var connectingRequest: RequestID?
+    private var active: RequestID?
+    private var scanRequest: RequestID?
+    private var infoRequest: RequestID?
+    private var imageBusy: Bool { imageRequest != nil || previewLoading }
+    var canConnect: Bool { phase == .offline && !scanning && active == nil && connectingRequest == nil && !imageBusy && !settingsBusy }
+    var canManageSettings: Bool { foreground && canConnect && configurationStore != nil }
+    var canWork: Bool { phase == .ready && active == nil && connectingRequest == nil && !imageBusy }
+    var canPrint: Bool { canWork && connectionInfo?.model != nil }
+    var canImport: Bool { (canConnect || canWork) && !scanning }
+    var layoutDescription: String {
+        guard let settings = try? printSettings() else { return "请填写有效页面尺寸（mm）" }
+        return "\(settings.widthDots) × \(settings.heightDots) dots；单份、完整比例居中、阈值 128"
+    }
+    var viewState: DemoViewState {
+        let identity: SDKInfo?
+        if case .identity(let result) = identityResult { identity = result.value } else { identity = nil }
+        return DemoViewState(devices: devices, selected: selected, scanning: scanning,
+            canScan: canConnect || scanning, canEditConnection: canConnect, canConnect: canConnect && selected != nil,
+            canDisconnect: phase != .offline && phase != .disconnecting && phase != .closed,
+            canWork: canWork, canCancel: phase == .connecting || (phase == .working && active != nil) || imageBusy,
+            status: status, result: lastResult, cleanupResult: cleanupResult, connectionLoss: connectionLoss,
+            identityResult: identityResult, inputError: inputError, identity: identity)
+    }
+    init(manager: PrinterManager = PrinterManager(), imageStore: DemoImageStore = DemoImageStore(),
+         imageWorkQueue: DispatchQueue = DispatchQueue(label: "PrinterDemo.images", attributes: .concurrent),
+         configurationStore: DemoConfigurationStore? = nil, journal: DemoLogJournal? = nil) {
+        self.manager = manager; self.imageStore = imageStore; self.imageWorkQueue = imageWorkQueue
+        self.configurationStore = configurationStore; self.journal = journal
+        appendLog("event=demo_started data_sent_is_not_printed=true automatic_replay=false")
+    }
+    func loadInfo() {
+        guard infoRequest == nil, identityResult == nil, phase != .closed, phase != .disconnecting else { return }
+        infoRequest = manager.sdkInfo { [weak self] result in
+            guard let self, infoRequest == result.requestID, phase != .closed else { return }
+            infoRequest = nil; identityResult = .identity(result)
+            let arguments = ProcessInfo.processInfo.arguments
+            if !runtimeVerificationStarted, let index = arguments.firstIndex(of: "--psdk-offline-verification"),
+               arguments.indices.contains(index + 1), let nonce = UUID(uuidString: arguments[index + 1]), let journal {
+                runtimeVerificationStarted = true
+                let resource = Bundle.main.url(forResource: "printer-sdk-samples-build", withExtension: "json")
+                Task { @MainActor in await DemoOfflineRuntimeVerification.run(nonce: nonce, journal: journal, resourceURL: resource) }
             }
-        }, log: { [weak self] message in
-            DispatchQueue.main.async { [weak self] in self?.append(message) }
-        }, completed: { [weak self] kind, epoch, succeeded in
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !self.destroyed else { return }
-                if case .media(let mode) = kind, let mode,
-                   self.mediaRequest?.mode == mode, self.mediaRequest?.epoch == epoch {
-                    self.mediaRequest = nil
-                    self.sendingMedia = nil
-                    if succeeded, self.phase == .ready || self.phase == .printing { self.appliedMedia = mode }
-                }
-            }
-        }, stateChanged: { [weak self] snapshot in
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !self.destroyed, self.heldController?.deviceState == snapshot else { return }
-                self.deviceState = snapshot
-            }
-        }, detailsChanged: { [weak self] resources, diagnostic in
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !self.destroyed,
-                      self.heldController?.resourceState == resources,
-                      self.heldController?.diagnosticState == diagnostic else { return }
-                self.resourceState = resources; self.deviceDiagnostic = diagnostic
-            }
-        })
-        heldController = created
-        return created
-    }
-
-    init(scanner: DemoScanner = BLEScanner(),
-         makeSession: ((UUID, BLEOptions) throws -> DemoPrinterSession)? = nil,
-         imageStore: DemoImageStore = DemoImageStore(),
-         configurationStore: DemoConfigurationStore = DemoConfigurationStore(), journalRoot: URL? = nil,
-         rendering: DispatchQueue = DispatchQueue(label: "PrinterDemo.preview"),
-         consoleLogging: Bool = ProcessInfo.processInfo.arguments.contains("--psdk-console-log")) {
-        self.scanner = scanner; self.makeSession = makeSession; self.imageStore = imageStore
-        self.configurationStore = configurationStore; self.journalRoot = journalRoot
-        self.rendering = rendering; self.consoleLogging = consoleLogging
-        let store = imageStore
-        rendering.async { store.cleanup() }
-        runtimeInfo = try? PrinterSDK.info()
-        append("compatibility_record=" + compatibilityRecord().json())
-        append(runtimeDescription)
-        if consoleLogging { append("诊断日志已开启；请在界面选择设备与打印参数") }
-    }
-
-    var editable: Bool { !destroyed && phase == .offline && !scanning && !previewing && !localOperation && pendingImport == nil }
-    var idle: Bool { !destroyed && (phase == .offline || phase == .ready) && !scanning && !previewing && !localOperation && pendingImport == nil }
-    var canSend: Bool { currentPreparedImage() != nil }
-    var canImport: Bool { foregroundActive && idle }
-    var importTitle: String { phase == .ready ? "断开并导入 PNG/JPEG" : "导入 PNG/JPEG" }
-    var isCalibration: Bool { source == nil }
-    var connectionStatus: String {
-        DemoDeviceStateDisplay(snapshot: deviceState, phase: phase).connection
-    }
-    var deviceActivity: String { DemoDeviceStateDisplay(snapshot: deviceState, phase: phase).activity }
-    var resourceDescription: String {
-        guard let resourceState else { return "SDK 资源：未知" }
-        return "SDK 资源：\(resourceState.outstandingOperations)/\(resourceState.maxPendingOperations) 项，" +
-            "源载荷 \(resourceState.pendingPayloadBytes)/\(resourceState.maxPendingPayloadBytes) 字节（非进程内存）"
-    }
-    var diagnosticDescription: String {
-        guard let value = deviceDiagnostic, value.source != .none else { return "最近诊断：无" }
-        let native = value.nativeCode.map { "，原生码 \($0)" } ?? ""
-        return "最近诊断：\(value.errorCode) · \(value.domain)\(native) · \(value.message)" +
-            "（连接代次 \(value.connectionGeneration)）"
-    }
-    var runtimeDescription: String {
-        guard let info = runtimeInfo else { return "运行库身份：未知" }
-        return "运行库：\(info.nativeVersion) / \(info.distributionVersion.isEmpty ? "未知" : info.distributionVersion) / ABI \(info.abiVersion)/r\(info.abiRevision) / " +
-            "构建 \(info.buildID ?? "未知")"
-    }
-    var imageState: String {
-        if previewing { return "正在准备图片" }
-        guard let config = try? configuration(), preparation.snapshot?.configuration == config else { return "等待准备或更新预览" }
-        if phase == .ready { return canSend ? "已准备，可打印" : "等待准备或更新预览" }
-        return "已准备，待连接"
-    }
-    var mediaStatus: String {
-        if sendingMedia == media { return "正在发送" }
-        return appliedMedia == media ? "命令已发送，生效需实物确认" : "未发送"
-    }
-    var nextHint: DemoNextHint {
-        if destroyed { return DemoNextHint(message: "演示会话已关闭", target: nil) }
-        if pendingImport != nil { return DemoNextHint(message: "正在断开或选择图片，请稍候", target: nil) }
-        if scanning { return DemoNextHint(message: "正在扫描设备，点击定位停止按钮", target: "device") }
-        if previewing { return DemoNextHint(message: "正在准备图片，请稍候", target: nil) }
-        if localOperation { return DemoNextHint(message: "正在处理本机数据，请稍候", target: nil) }
-        if phase == .connecting || phase == .stopping || phase == .printing {
-            return DemoNextHint(message: status, target: nil)
-        }
-        do {
-            if phase == .offline {
-                guard selected != nil else { return DemoNextHint(message: "请选择设备，点击定位", target: "device") }
-                _ = try bleOptions()
-                return DemoNextHint(message: "通信参数已填写，点击定位连接按钮", target: "connect")
-            }
-            _ = try configuration()
-            if currentPreparedImage() == nil { return DemoNextHint(message: "请准备或更新图片，点击定位预览按钮", target: "preview") }
-            return DemoNextHint(message: "图片已准备，点击定位打印按钮", target: "print")
-        } catch let error as DemoValidationError {
-            return DemoNextHint(message: error.message + "，点击定位", target: error.field)
-        } catch { return DemoNextHint(message: error.localizedDescription, target: nil) }
-    }
-    private func currentPreparedImage() -> DemoPreparedImage? {
-        guard phase == .ready, idle, let config = try? configuration(),
-              let prepared = preparation.snapshot, prepared.configuration == config else { return nil }
-        return prepared
-    }
-    var labelFields: [String] {
-        [dpi, deviceWidth, width, xOffset, String(originStrategy.rawValue), originAdjustment,
-         height, copies, String(form), String(documentKind.rawValue), trailingBlank,
-         service, characteristic, payload, String(m90Flow), String(mode), String(media.rawValue)]
-    }
-    func invalidatePreview() { preparation.invalidate(); preview = nil; previewing = false }
-    func append(_ message: String) {
-        guard !destroyed else { return }
-        let record = journal.append(message, connection: connectionSequence)
-        logs.append(record)
-        if logs.count > 300 { logs.removeFirst(logs.count - 300) }
-        if consoleLogging {
-            let entry = Data("PRINTER_DEMO_LOG \(record)\n".utf8)
-            consoleWriter.async { try? FileHandle.standardOutput.write(contentsOf: entry) }
         }
     }
-    func error(_ error: Error) {
-        guard !destroyed else { return }
-        status = error.localizedDescription
-        if let failure = error as? DemoValidationError, let field = failure.field {
-            fieldErrors[field] = failure.message
-            validationTarget = field; validationRequestID = UUID()
-        }
-        append("错误：\(status)")
-    }
-    private func number(_ input: String) -> Int { Int(input.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0 }
-    private func requiredNumber(_ input: String, field: String, title: String) throws -> Int {
-        guard let value = Int(input.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            throw DemoValidationError(message: "请填写\(title)", field: field)
-        }
-        return value
-    }
-    func connectionConfiguration() throws -> DemoConnectionConfiguration {
-        try DemoConnectionConfiguration(dpi: requiredNumber(dpi, field: "dpi", title: "DPI"),
-            deviceWidth: requiredNumber(deviceWidth, field: "deviceWidth", title: "设备最大宽度"), kind: documentKind)
-    }
-    func configuration() throws -> LabelConfiguration {
-        let connection = try connectionConfiguration()
-        let width = try requiredNumber(self.width, field: "width", title: "图片宽度")
-        let height = try requiredNumber(self.height, field: "height", title: "图片高度")
-        let copies = try requiredNumber(self.copies, field: "copies", title: "份数")
-        let blank = try requiredNumber(trailingBlank, field: "trailingBlank", title: "结束留白")
-        let x = try resolvedOrigin()
-        return try LabelConfiguration(dpi: connection.dpi, deviceWidth: connection.deviceWidth, width: width,
-                               height: height, copies: copies, formChoice: form, xOffsetDots: x,
-                               kind: documentKind, trailingBlankDots: blank,
-                               originStrategy: originStrategy, originAdjustmentDots: number(originAdjustment))
-    }
-    private func bleOptions() throws -> BLEOptions {
-        let cap = try requiredNumber(payload, field: "payload", title: "单包上限")
-        guard (1...512).contains(cap) else { throw DemoValidationError(message: "单包上限须为 1–512 字节", field: "payload") }
-        if m90Flow { return try M90Profile.bleOptions(maxWriteBytes: cap) }
-        guard let service = UUID(uuidString: service.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            throw DemoValidationError(message: "请填写完整 128 位服务 UUID", field: "service")
-        }
-        guard let write = UUID(uuidString: characteristic.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            throw DemoValidationError(message: "请填写完整 128 位写特征 UUID", field: "characteristic")
-        }
-        guard mode == 1 || mode == 2 else { throw DemoValidationError(message: "请明确选择写入模式", field: "mode") }
-        return try BLEOptions(service: service, writeCharacteristic: write, withResponse: mode == 1, maxWriteBytes: cap)
-    }
-    private func resolvedOrigin() throws -> Int {
-        if documentKind == .receipt { return 0 }
-        let manualX: Int
-        let adjustment: Int
-        if originStrategy == .centered {
-            guard let value = Int(originAdjustment.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                throw DemoValidationError(message: "请填写有符号的横向校准偏移", field: "originAdjustment")
-            }
-            manualX = 0; adjustment = value
-        } else {
-            guard let value = Int(xOffset.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                throw DemoValidationError(message: "请填写横向起点", field: "xOffset")
-            }
-            manualX = value; adjustment = number(originAdjustment)
-        }
-        return try DemoHorizontalOrigin.resolve(deviceWidth: number(deviceWidth), canvasWidth: number(width),
-            manualX: manualX, strategy: originStrategy, adjustment: adjustment)
-    }
-    var centeredOriginDescription: String {
-        do { return "\(try resolvedOrigin()) dots" }
-        catch { return error.localizedDescription }
-    }
-    func applyM90DevelopmentPreset() {
-        guard editable else { return }
-        dpi = String(M90DevelopmentPreset.dpi); deviceWidth = String(M90DevelopmentPreset.widthDots)
-        documentKind = .label; m90Flow = true; payload = String(M90DevelopmentPreset.maxWriteBytes)
-        service = ""; characteristic = ""; mode = 0
-        originStrategy = .centered; originAdjustment = "0"
-        selected = nil; devices = []
-        invalidatePreview()
-        status = "M90 开发预设 r\(M90DevelopmentPreset.revision) 已应用；请手动选择设备并连接"
-        append("开发预设=\(M90DevelopmentPreset.id) / revision=\(M90DevelopmentPreset.revision) / CPCL / 203 DPI / 864 dots；未扫描、连接或发送")
-    }
+    func selectConnectionMode(_ mode: DemoConnectionSettings.Mode) { guard canConnect else { return }; connectionSettings.selectMode(mode) }
+    func selectDevice(_ identifier: UUID?) { guard canConnect else { return }; selected = identifier }
+    func toggleScan() { if scanning { stopScan() } else { scan() } }
     func scan() {
-        guard editable else { return }
-        generation &+= 1; let version = generation
-        scanning = true; status = "扫描 BLE 设备（10 秒）…"
-        append("BLE 扫描开始；10 秒")
-        scanner.scan(seconds: 10, service: nil) { [weak self] result in
-            Task { @MainActor [weak self] in self?.completeScan(result, generation: version) }
+        guard canConnect else { return }
+        appendLog("event=scan_requested")
+        inputError = nil; scanning = true; status = "扫描中…"
+        scanRequest = manager.scanBLE { [weak self] result in
+            guard let self, scanRequest == result.requestID else { return }
+            scanRequest = nil; scanning = false
+            guard phase != .closed else { return }
+            lastResult = .discovery(result)
+            guard phase == .offline else { return }
+            if result.isSuccess {
+                devices = result.value ?? []
+                if !devices.contains(where: { $0.identifier == self.selected }) { selected = nil }
+                status = "找到 \(devices.count) 个候选设备；请选择后连接"
+            } else { status = "扫描已结束；保留先前候选设备，详见原始结果" }
         }
     }
-    private func completeScan(_ result: Result<[DiscoveredPrinter], PrinterSDKError>, generation version: UInt64) {
-        guard !destroyed, version == generation, scanning else { return }
-        scanning = false
-        switch result {
-        case .success(let devices):
-            self.devices = devices
-            if let selected, !devices.contains(where: { $0.identifier == selected }) { self.selected = nil }
-            append("BLE 扫描完成；候选数量=\(devices.count)")
-            status = devices.isEmpty ? "未发现设备；请检查蓝牙、权限与距离" : "请选择设备；发现结果不代表型号已验证"
-        case .failure(let error):
-            if error.code == 1005 { status = "扫描已停止；未连接" }
-            else { self.error(error) }
-        }
-    }
-    func stopScan() {
-        guard scanning else { return }
-        generation &+= 1; scanner.stop(); scanning = false
-        status = "扫描已停止；未连接"
-        append("BLE 扫描已停止")
-    }
+    func stopScan() { if let scanRequest { manager.cancel(scanRequest) } }
     func connect() {
-        guard editable, controller.phase == .offline else { return }
-        do {
-            guard let identifier = selected else {
-                throw DemoValidationError(message: "请先扫描并选择 BLE 设备", field: "device")
-            }
-            let options = try bleOptions()
-            fieldErrors = [:]
-            connectionSequence += 1
-            append("BLE / payloadCap=\(options.maxWriteBytes) / withResponse=\(options.withResponse) / creditFlow=\(options.creditFlowControl != nil)")
-            if let factory = makeSession { controller.connect { try factory(identifier, options) } }
-            else { controller.connect(identifier: identifier, options: options) }
-        } catch { self.error(error) }
-    }
-    func applyMedia() {
-        guard idle, phase == .ready, controller.phase == .ready, documentKind == .label else { return }
-        do {
-            let profile = try connectionConfiguration().profile()
-            mediaRequest = (media, controller.connectionEpoch); sendingMedia = media
-            controller.mediaControl(media, profile: profile)
-        } catch { self.error(error) }
-    }
-    func locateLabel() {
-        guard idle, phase == .ready, controller.phase == .ready, documentKind == .label else { return }
-        do { controller.mediaControl(nil, profile: try connectionConfiguration().profile()) }
-        catch { self.error(error) }
-    }
-    func makePreview() {
-        guard idle else { return }
-        do {
-            let config = try configuration()
-            let ticket = preparation.begin(), selectedSource = source
-            let store = imageStore, state = preparation
-            previewing = true
-            rendering.async { [weak self] in
-                do {
-                    let pixels = try store.render(selectedSource, configuration: config,
-                        cancelled: { !state.isCurrent(ticket) })
-                    let snapshot = try DemoPreparedImage(configuration: config, pixels: pixels)
-                    DispatchQueue.main.async { [weak self] in
-                        guard let self, !self.destroyed, self.preparation.publish(snapshot, ticket: ticket) else { return }
-                        self.preview = self.previewImage(snapshot); self.previewing = false
-                        self.status = "预览已更新；发送将使用同一份 GRAY8"
-                        self.append("预览：\(config.description)")
-                    }
-                } catch {
-                    DispatchQueue.main.async { [weak self] in
-                        guard let self, !self.destroyed, self.preparation.isCurrent(ticket) else { return }
-                        self.previewing = false; self.error(error)
+        guard canConnect, let selected else { return }
+        let device = devices.first { $0.identifier == selected } ?? DiscoveredPrinter(identifier: selected)
+        appendLog("event=connect_requested")
+        inputError = nil; phase = .connecting; status = "正在连接…"
+        let callback: @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { [weak self] result in
+                guard let self, connectingRequest == result.requestID else { return }
+                connectingRequest = nil
+                guard phase != .closed else { return }
+                lastResult = .connection(.connect, result)
+                guard connection == result.requestID, phase == .connecting else { return }
+                if result.isSuccess {
+                    connectionInfo = result.value; mediaInitialized = false; phase = .ready
+                    status = "已连接；可设置纸张类型或直接打印，连接不发送纸张设置命令"
+                } else {
+                    connection = nil; connectionInfo = nil; phase = .disconnecting
+                    manager.disconnect { [weak self] cleanup in
+                        guard let self, phase == .disconnecting else { return }
+                        cleanupResult = .action(.disconnect, cleanup); phase = .offline
+                        status = "连接未成功；已清理，可手动重试"
                     }
                 }
             }
-        } catch { self.error(error) }
-    }
-    private func previewImage(_ snapshot: DemoPreparedImage) -> CGImage? {
-        guard let provider = CGDataProvider(data: snapshot.pixels as CFData) else { return nil }
-        let config = snapshot.configuration
-        return CGImage(width: config.width, height: config.height, bitsPerComponent: 8,
-            bitsPerPixel: 8, bytesPerRow: config.width, space: CGColorSpaceCreateDeviceGray(),
-            bitmapInfo: CGBitmapInfo(rawValue: 0), provider: provider, decode: nil,
-            shouldInterpolate: false, intent: .defaultIntent)
-    }
-    func requestImport() {
-        guard canImport, controller.phase == phase else { return }
-        do {
-            let config = try configuration()
-            fieldErrors = [:]
-            let request = ImportRequest(id: UUID(), configuration: config)
-            pendingImport = request
-            if phase == .ready {
-                status = "正在断开以导入图片…"
-                controller.disconnect(message: "已断开；请选择 PNG/JPEG 图片")
-            } else { importRequestID = request.id }
-        } catch { self.error(error) }
-    }
-    func importImage(_ result: Result<URL, Error>, requestID: UUID) {
-        guard !destroyed, foregroundActive, let request = pendingImport, request.id == requestID,
-              importRequestID == requestID, phase == .offline, controller.phase == .offline else { return }
-        pendingImport = nil; importRequestID = nil
-        guard case .success(let url) = result else {
-            status = "已取消导入；保留上一次有效图片，未发送"; return
+        let onDisconnected: @MainActor @Sendable (ManagerResult<Void>) -> Void = { [weak self] result in
+                guard let self, connection == result.requestID else { return }
+                connection = nil; connectionInfo = nil; mediaInitialized = false; phase = .offline
+                connectionLoss = .action(.disconnected, result); cancelImageFlow()
+                status = "连接意外断开；请手动重新连接"
+            }
+        if let model = connectionSettings.model {
+            connection = manager.connectBle(device: device, model: model, completion: callback, onDisconnected: onDisconnected)
+        } else {
+            connection = manager.connectBle(device: device, completion: callback, onDisconnected: onDisconnected)
         }
+        connectingRequest = connection
+    }
+    func applyPrinterModel() {
+        guard canWork else { return }
+        inputError = nil; phase = .working; status = "正在采用已收录型号"
+        active = manager.setPrinterModel(.ltM90) { [weak self] result in
+            guard let self, active == result.requestID, phase != .closed else { return }
+            active = nil; configurationResult = .connection(.configure, result)
+            guard phase == .working, connection != nil else { return }
+            phase = .ready
+            if result.isSuccess, let info = result.value {
+                connectionInfo = info; mediaInitialized = false; invalidatePreview()
+                status = "已采用 LT-M90；纸张设置需单独执行"
+            } else { status = "型号未采用；保留原配置" }
+        }
+    }
+    func initializeMedia() {
+        guard canWork, connectionInfo?.model != nil else { return }
+        let selectedMedia = media
+        mediaInitialized = false; inputError = nil; phase = .working; status = "正在设置纸张类型"
+        active = manager.setPaperType(selectedMedia) { [weak self] result in
+            guard let self, active == result.requestID, phase != .closed else { return }
+            active = nil; initializationResult = .action(.media, result)
+            guard phase == .working, connection != nil else { return }
+            phase = .ready
+            mediaInitialized = result.isSuccess && result.completion != .none && media == selectedMedia
+            status = mediaInitialized ? "纸张类型设置已发送；不代表设备确认" : "纸张类型设置未成功；可手动重试"
+        }
+    }
+    func printLabel() { submitPrint(imported: false) }
+    func printImage() { submitPrint(imported: true) }
+    private func submitPrint(imported: Bool) {
+        guard canPrint else { return }
         do {
-            let config = try configuration()
-            guard config == request.configuration else {
-                throw DemoValidationError(message: "画布参数已变化；请重新导入", field: "width")
+            let settings = try printSettings()
+            let bytes: Data
+            if imported {
+                guard let image = importedImage else { throw DemoInputError(1001) }
+                bytes = image.encodedData
+            } else {
+                bytes = try DemoPrintSample.testPNG(width: min(384, settings.widthDots), height: min(64, settings.heightDots))
             }
-            let ticket = preparation.begin()
-            let store = imageStore, state = preparation, rendering = rendering
-            previewing = true; status = "正在导入与准备图片…"
-            rendering.async { [weak self] in
-                var imported: DemoImageSource?
-                do {
-                    let next = try store.importImage(url, cancelled: { !state.isCurrent(ticket) })
-                    imported = next
-                    let pixels = try store.render(next, configuration: config,
-                        cancelled: { !state.isCurrent(ticket) })
-                    let snapshot = try DemoPreparedImage(configuration: config, pixels: pixels)
-                    DispatchQueue.main.async { [weak self] in
-                        guard let self, !self.destroyed, self.preparation.publish(snapshot, ticket: ticket) else {
-                            rendering.async { store.discard(next) }; return
-                        }
-                        let previous = self.source; self.source = next
-                        self.rendering.async { if let previous { store.discard(previous) } }
-                        self.preview = self.previewImage(snapshot); self.previewing = false
-                        self.imageSummary = "导入图片 · \(next.width)×\(next.height) · 等比居中白底"
-                        self.status = "图片已准备；请手动连接和发送"
-                        self.append("图片导入成功；纠正方向后=\(next.width)×\(next.height) / \(config.description)")
-                    }
-                } catch {
-                    if let imported { store.discard(imported) }
-                    DispatchQueue.main.async { [weak self] in
-                        guard let self, !self.destroyed, self.preparation.isCurrent(ticket) else { return }
-                        self.previewing = false
-                        self.status = "导入失败；保留上一次有效图片。请检查格式、容量和尺寸"
-                        self.append("图片导入失败；未替换有效图片，未提交任务")
-                    }
-                }
+            appendLog("event=print_requested imported=\(imported) width=\(settings.widthDots) height=\(settings.heightDots)")
+            inputError = nil; phase = .working; status = "打印请求已登记；无需先生成预览"
+            active = manager.printEncodedImage(bytes, widthMm: settings.widthMm, heightMm: settings.heightMm) { [weak self] result in
+                self?.finish(.action(.printLabel, result))
             }
-        } catch { self.error(error) }
+        } catch { rejectInput(error) }
     }
-    func useCalibration() {
-        guard editable, !isCalibration else { return }
-        let previous = source; source = nil; imageSummary = "内置校准图"
-        let store = imageStore
-        invalidatePreview()
-        rendering.async { if let previous { store.discard(previous) } }
-    }
-    func printLabel() {
-        guard let snapshot = currentPreparedImage() else { return }
-        if snapshot.configuration.kind == .receipt { appliedMedia = nil }
-        controller.printPrepared(snapshot)
+    func printSettings() throws -> DemoPrintSettings {
+        try DemoPrintSettings(widthMm: labelWidthMm, heightMm: labelHeightMm, model: connectionInfo?.model ?? .ltM90)
     }
     func sendRaw() {
+        guard canWork else { return }
         do {
-            guard phase == .ready, controller.phase == .ready, idle else { return }
-            let selectedCopies = number(copies)
-            guard (1...20).contains(selectedCopies) else { throw DemoValidationError(message: "每次测试限 1–20 份", field: "copies") }
-            guard rawHex.utf16.count <= 65536 else { throw DemoValidationError(message: "Raw 输入不得超过 65536 个字符", field: "raw") }
-            let tokens = rawHex.split(whereSeparator: { $0.isWhitespace })
-            guard !tokens.isEmpty, tokens.count <= 4096 else { throw DemoValidationError(message: "请输入 1–4096 个空格分隔的十六进制字节", field: "raw") }
-            let bytes = try tokens.map { token -> UInt8 in
-                let ascii = Array(token.utf8)
-                guard ascii.count == 2, ascii.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) }),
-                      let value = UInt8(token, radix: 16) else {
-                    throw DemoValidationError(message: "Raw 字节必须是两位十六进制，如 1B 40", field: "raw")
-                }
-                return value
+            let bytes = try DemoPrintSample.rawBytes(rawHex)
+            inputError = nil; mediaInitialized = false; phase = .working; status = "Raw 请求已登记；纸张设置可能改变"
+            active = manager.sendRaw(bytes) { [weak self] result in self?.finish(.action(.raw, result)) }
+        } catch { rejectInput(error) }
+    }
+    func setMedia() { initializeMedia() }
+    func feed() {
+        guard canWork else { return }
+        inputError = nil; phase = .working
+        active = manager.locateNextLabel { [weak self] result in self?.finish(.action(.feed, result)) }
+    }
+    func queryStatus() {
+        guard canWork else { return }
+        inputError = nil; phase = .working
+        active = manager.queryStatus { [weak self] result in self?.finish(.status(result)) }
+    }
+    func capabilities() {
+        guard canWork else { return }
+        inputError = nil; phase = .working
+        active = manager.capabilities { [weak self] result in self?.finish(.capabilities(result)) }
+    }
+    @discardableResult func requestImageImport(_ kind: DemoPickerKind = .files) -> UUID? {
+        guard canImport else { return nil }
+        let id = UUID(); imageCancellation = DemoImageCancellation(); imageRequest = id
+        pickerRequest = DemoPickerRequest(id: id, kind: kind); inputError = nil
+        status = "请选择 PNG/JPEG；保留空闲连接，不发送命令"
+        return id
+    }
+    func beginPickerLoad(_ id: UUID) {
+        guard imageRequest == id else { return }
+        pickerRequest = nil; imageLoading = true; status = "正在稳定导入图片…"
+    }
+    func makePickerImporter(_ id: UUID) -> @Sendable (URL) throws -> DemoImportedImage {
+        let store = imageStore, token = imageRequest == id ? imageCancellation : nil, slots = imageSlots
+        return { url in
+            guard let token else { throw DemoInputError(1005) }
+            try token.checkCancellation()
+            guard slots.wait(timeout: .now()) == .success else { throw DemoInputError(1008) }
+            defer { slots.signal() }
+            return try store.createImport(from: url, cancellation: token)
+        }
+    }
+    func receiveImageFile(_ result: Result<URL, Error>, requestID: UUID) {
+        guard imageRequest == requestID else { return }
+        switch result {
+        case .failure(let error): receiveImportedImage(.failure((error as? DemoInputError) ?? DemoInputError(1005)), requestID: requestID)
+        case .success(let url):
+            beginPickerLoad(requestID)
+            let importer = makePickerImporter(requestID)
+            imageWorkQueue.async { [weak self] in
+                let imported: Result<DemoImportedImage, DemoInputError>
+                do { imported = .success(try importer(url)) }
+                catch { imported = .failure((error as? DemoInputError) ?? DemoInputError(2003)) }
+                Task { @MainActor [weak self] in self?.receiveImportedImage(imported, requestID: requestID) }
             }
-            appliedMedia = nil
-            controller.sendRaw(Data(bytes), copies: UInt32(selectedCopies))
-        } catch { self.error(error) }
+        }
+    }
+    func receiveImportedImage(_ result: Result<DemoImportedImage, DemoInputError>, requestID: UUID) {
+        guard imageRequest == requestID, phase != .closed else { return }
+        pickerRequest = nil; imageRequest = nil; imageCancellation = nil; imageLoading = false
+        switch result {
+        case .success(let image): importedImage = image; invalidatePreview(); inputError = nil; status = "图片已导入；可直接打印或生成完整预览"
+        case .failure(let error):
+            if error.code != 1005 { inputError = error }
+            status = "导入已结束；保留上一有效图片"
+        }
+    }
+    func preparePreview() {
+        guard (canConnect || canWork), let image = importedImage else { return }
+        let settings: DemoPrintSettings
+        do { settings = try printSettings() } catch { rejectInput(error); return }
+        invalidatePreview()
+        let id = UUID(), token = DemoImageCancellation(), slots = imageSlots
+        imageCancellation = token; previewRequest = id; previewLoading = true; inputError = nil
+        imageWorkQueue.async { [weak self] in
+            let result: Result<DemoImagePreview, DemoInputError>
+            do {
+                try token.checkCancellation()
+                guard slots.wait(timeout: .now()) == .success else { throw DemoInputError(1008) }
+                defer { slots.signal() }
+                result = .success(try DemoPreviewRenderer.render(image: image, widthDots: settings.widthDots,
+                    heightDots: settings.heightDots, cancellation: token))
+            } catch { result = .failure((error as? DemoInputError) ?? DemoInputError(2003)) }
+            Task { @MainActor [weak self] in
+                guard let self, previewRequest == id, phase != .closed else { return }
+                previewRequest = nil; previewLoading = false; imageCancellation = nil
+                switch result {
+                case .success(let preview): imagePreview = preview; status = "完整图片预览已生成；无裁切，不代表纸面完成"
+                case .failure(let error): if error.code != 1005 { inputError = error }; status = "预览已结束；导入来源仍可使用"
+                }
+            }
+        }
+    }
+    func invalidatePreview() {
+        guard previewRequest != nil || imagePreview != nil else { return }
+        if previewRequest != nil { imageCancellation?.cancel(); imageCancellation = nil }
+        previewRequest = nil; previewLoading = false; imagePreview = nil
+    }
+    func clearImage() {
+        guard canConnect || canWork else { return }
+        invalidatePreview(); importedImage = nil; status = "已切回内置测试图"
+    }
+    func cancelImageFlow() {
+        imageCancellation?.cancel(); imageCancellation = nil
+        imageRequest = nil; pickerRequest = nil; imageLoading = false; previewRequest = nil; previewLoading = false
     }
     func cancel() {
-        guard !destroyed else { return }
-        if previewing {
-            _ = preparation.begin() // Invalidate only the ticket; retain the previous accepted image.
-            previewing = false; status = "图片准备已取消；保留上一有效图片"
-            append(status)
-        } else { controller.cancel() }
+        appendLog("event=cancel_requested")
+        if imageBusy { cancelImageFlow(); status = "已取消图片流程；保留上一有效图片"; return }
+        guard let request = phase == .connecting ? connection : active else { return }
+        manager.cancel(request); status = "已请求取消；等待真实终态，已发送数据不能撤回"
     }
-    private func cancelPendingImport() { pendingImport = nil; importRequestID = nil }
-    func disconnect() {
-        guard !destroyed else { return }
-        cancelPendingImport(); mediaRequest = nil; sendingMedia = nil; appliedMedia = nil
-        controller.disconnect()
-    }
-    private func savedConfiguration() throws -> DemoSavedConfiguration {
-        let saved = DemoSavedConfiguration(configuration: try configuration(),
-            service: m90Flow ? nil : service, characteristic: m90Flow ? nil : characteristic,
-            payload: number(payload), m90Flow: m90Flow, writeMode: m90Flow ? nil : mode, media: Int(media.rawValue))
-        _ = try saved.validated(); return saved
-    }
-    func saveConfiguration() {
-        guard editable else { return }
-        do {
-            let saved = try savedConfiguration(); localOperation = true
-            let store = configurationStore
-            rendering.async { [weak self] in
-                do {
-                    try store.save(saved)
-                    DispatchQueue.main.async { [weak self] in
-                        guard let self, !self.destroyed else { return }
-                        self.localOperation = false; self.status = "当前配置已保存；启动不会自动加载"; self.append(self.status)
-                    }
-                } catch { DispatchQueue.main.async { [weak self] in
-                    guard let self, !self.destroyed else { return }
-                    self.localOperation = false; self.localFailure("配置保存失败")
-                } }
-            }
-        } catch { self.error(error) }
-    }
-    func loadConfiguration() {
-        guard editable else { return }; localOperation = true
-        let store = configurationStore
-        rendering.async { [weak self] in
-            do {
-                let saved = try store.load(), config = try saved.validated()
-                DispatchQueue.main.async { [weak self] in
-                    guard let self, !self.destroyed else { return }
-                    self.localOperation = false
-                    guard self.phase == .offline else { return }
-                    self.dpi = String(config.dpi); self.deviceWidth = String(config.deviceWidth)
-                    self.width = String(config.width); self.height = String(config.height)
-                    self.xOffset = String(config.xOffsetDots); self.copies = String(config.copies)
-                    self.originStrategy = config.originStrategy
-                    self.originAdjustment = String(config.originAdjustmentDots)
-                    self.form = saved.formChoice ?? 0; self.documentKind = config.kind
-                    self.trailingBlank = String(config.trailingBlankDots)
-                    self.service = saved.service ?? ""; self.characteristic = saved.characteristic ?? ""
-                    self.payload = String(saved.payload); self.m90Flow = saved.m90Flow
-                    self.mode = saved.writeMode ?? 0; self.media = MediaMode(rawValue: UInt32(saved.media))!
-                    self.selected = nil; self.devices = []
-                    self.invalidatePreview(); self.status = "配置已加载；请重新预览并手动选择设备"
-                    self.append(self.status)
-                }
-            } catch { DispatchQueue.main.async { [weak self] in
-                guard let self, !self.destroyed else { return }
-                self.localOperation = false; self.localFailure("没有有效的保存配置；未应用参数")
-            } }
-        }
-    }
-    func clearConfiguration() {
-        guard editable else { return }; localOperation = true
-        let store = configurationStore
-        rendering.async { [weak self] in
-            do {
-                try store.clear()
-                DispatchQueue.main.async { [weak self] in
-                    guard let self, !self.destroyed else { return }
-                    self.localOperation = false; self.status = "保存配置已清除"; self.append(self.status)
-                }
-            } catch { DispatchQueue.main.async { [weak self] in
-                guard let self, !self.destroyed else { return }
-                self.localOperation = false; self.localFailure("配置清除失败")
-            } }
-        }
-    }
-    private func localFailure(_ message: String) { status = message; append(message) }
-    func exportLogs(_ completion: @escaping (String) -> Void) {
-        guard idle else { return }; localOperation = true
-        let version = generation
-        let compatibility = compatibilityRecord()
-        journal.snapshot { [weak self] result in
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !self.destroyed else { return }
-                self.localOperation = false
-                guard version == self.generation else { return }
-                switch result {
-                case .success(let text): completion(compatibility.exporting(text))
-                case .failure: self.localFailure("日志快照失败；保留内存记录")
-                }
-            }
-        }
-    }
-    private func compatibilityRecord() -> DemoCompatibilityRecord {
-        let os = ProcessInfo.processInfo.operatingSystemVersion
-        return DemoCompatibilityRecord(osVersion: "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)", transport: "bluetooth_ble")
-    }
-    func clearLogs() {
-        guard idle else { return }; localOperation = true
-        journal.clear { [weak self] result in
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !self.destroyed else { return }
-                self.localOperation = false
-                switch result {
-                case .success: self.logs = []; self.logWarning = nil; self.status = "本机日志已清除"
-                case .failure: self.localFailure("本机日志清除失败")
-                }
-            }
-        }
-    }
+    func foregroundEntry() { foreground = true }
     func background() {
-        guard !destroyed else { return }
-        foregroundActive = false; cancelPendingImport()
-        mediaRequest = nil; appliedMedia = nil; sendingMedia = nil
-        generation &+= 1; scanner.stop(); scanning = false; invalidatePreview()
-        if phase == .offline { status = "应用已进入后台；返回后请重新选择操作" }
-        heldController?.disconnect(message: "应用已进入后台，会话已断开；请手动重连")
+        foreground = false; cancelFilePresentation()
+        appendLog("event=background")
+        cancelImageFlow(); invalidatePreview(); disconnect()
     }
-    func foreground() { if !destroyed { foregroundActive = true } }
-    /// Permanent owner teardown only, never ordinary navigation between Demo pages.
-    func shutdown() {
-        guard !destroyed else { return }
-        destroyed = true; foregroundActive = false; cancelPendingImport()
-        generation &+= 1; scanner.stop(); scanning = false
-        preparation.invalidate(); preview = nil; previewing = false; localOperation = false
-        mediaRequest = nil; appliedMedia = nil; sendingMedia = nil
-        deviceState = nil; resourceState = nil; deviceDiagnostic = nil
-        phase = .closed; status = "演示会话已关闭"
-        heldController?.close(); heldController = nil
+    func disconnect() {
+        cancelSettingsWork()
+        cancelImageFlow()
+        guard phase != .closed, phase != .disconnecting else { return }
+        appendLog("event=disconnect_requested")
+        connection = nil; connectionInfo = nil; mediaInitialized = false; phase = .disconnecting; status = "正在断开并清理…"
+        manager.disconnect { [weak self] result in
+            guard let self, phase == .disconnecting else { return }
+            cleanupResult = .action(.disconnect, result); phase = .offline; status = "已断开；不会自动重连或重放"
+        }
     }
-    deinit {
-        scanner.stop(); preparation.invalidate(); heldController?.close()
+    func close() {
+        guard phase != .closed else { return }
+        cancelFilePresentation(); logClearRequest = nil; logBusy = false
+        appendLog("event=demo_closed"); journal?.close()
+        cancelImageFlow(); invalidatePreview(); importedImage = nil; manager.close { _ in }
+        connection = nil; connectionInfo = nil; scanRequest = nil; mediaInitialized = false; phase = .closed; scanning = false
+    }
+    deinit { imageCancellation?.cancel(); journal?.close(); manager.close { _ in } }
+    private func finish(_ result: DemoResult) {
+        guard active == result.evidence.requestID, phase != .closed else { return }
+        active = nil
+        if phase == .working { phase = connection == nil ? .offline : .ready }
+        lastResult = result; status = "请求已结束；DATA_SENT 只表示传输完成，请检查实际出纸"
+    }
+    private func rejectInput(_ error: Error) {
+        inputError = error as? DemoInputError ?? DemoInputError(1000); status = "输入或前置条件校验失败；尚未登记 SDK 请求"
+    }
+}
+
+// Demo-only persistence and diagnostics. These helpers never control the printer.
+extension DemoModel {
+    func savedSettingsSnapshot() throws -> DemoSavedSettings {
+        var value = DemoSavedSettings()
+        value.connectionMode = connectionSettings.mode.rawValue
+        value.labelWidthMm = labelWidthMm; value.labelHeightMm = labelHeightMm
+        switch media { case .gapLabel: value.paperType = "gapLabel"; case .blackMark: value.paperType = "blackMark"; case .continuous: value.paperType = "continuous" }
+        return try value.validated()
+    }
+
+    func saveSettings() {
+        guard canManageSettings, let store = configurationStore else { return }
+        do {
+            let value = try savedSettingsSnapshot(), request = UUID()
+            settingsRequest = request; settingsBusy = true; settingsStatus = "正在保存参数草稿…"
+            store.save(value) { [weak self] result in
+                Task { @MainActor [weak self] in
+                    guard let self, settingsRequest == request, phase != .closed else { return }
+                    settingsRequest = nil; settingsBusy = false
+                    switch result {
+                    case .success: settingsStatus = "参数已保存；不会保存设备、图片或运行中的任务"; appendLog("event=settings_saved")
+                    case .failure(let error): settingsStatus = error.message; appendLog("event=settings_save_failed")
+                    }
+                }
+            }
+        } catch {
+            settingsStatus = (error as? DemoConfigurationError)?.message ?? DemoConfigurationError.invalidFields.message
+            appendLog("event=settings_rejected")
+        }
+    }
+
+    func loadSettings() {
+        guard canManageSettings, let store = configurationStore else { return }
+        let request = UUID()
+        settingsRequest = request; settingsBusy = true; settingsStatus = "正在读取参数草稿…"
+        store.load { [weak self] result in
+            Task { @MainActor [weak self] in
+                guard let self, settingsRequest == request, phase != .closed else { return }
+                settingsRequest = nil; settingsBusy = false
+                guard foreground, canManageSettings else { return }
+                switch result {
+                case .success(let value):
+                    applySavedDraft(value)
+                    settingsStatus = "已加载草稿；请重新选择设备并连接，设备配置仍以连接结果为准"
+                    appendLog("event=settings_loaded draft_only=true")
+                case .failure(let error): settingsStatus = error.message; appendLog("event=settings_load_failed")
+                }
+            }
+        }
+    }
+
+    func clearSavedSettings() {
+        guard canManageSettings, let store = configurationStore else { return }
+        let request = UUID()
+        settingsRequest = request; settingsBusy = true; settingsStatus = "正在清除已保存参数…"
+        store.clear { [weak self] result in
+            Task { @MainActor [weak self] in
+                guard let self, settingsRequest == request, phase != .closed else { return }
+                settingsRequest = nil; settingsBusy = false
+                switch result {
+                case .success: settingsStatus = "已清除保存文件；当前表单保持不变"; appendLog("event=settings_cleared")
+                case .failure(let error): settingsStatus = error.message; appendLog("event=settings_clear_failed")
+                }
+            }
+        }
+    }
+
+    private func applySavedDraft(_ value: DemoSavedSettings) {
+        // The store validates the whole snapshot before any field is changed.
+        connectionSettings = DemoConnectionSettings(mode: DemoConnectionSettings.Mode(rawValue: value.connectionMode)!)
+        labelWidthMm = value.labelWidthMm; labelHeightMm = value.labelHeightMm
+        switch value.paperType { case "blackMark": media = .blackMark; case "continuous": media = .continuous; default: media = .gapLabel }
+        selected = nil; devices = []; connectionInfo = nil; mediaInitialized = false
+        invalidatePreview()
+    }
+
+    private func cancelSettingsWork() {
+        if settingsRequest != nil { settingsStatus = "参数操作已离开；加载结果不会应用到当前页面" }
+        settingsRequest = nil; settingsBusy = false
+    }
+
+    private func cancelFilePresentation() {
+        cancelSettingsWork(); logRequest = nil; logBusy = logClearRequest != nil
+        logExport = nil; presentedLogExport = nil
+    }
+
+    func prepareLogExport() {
+        guard foreground, phase != .closed, !logBusy, logExport == nil, let journal else { return }
+        let request = UUID(); logRequest = request; logBusy = true; logStatus = "正在准备脱敏日志…"
+        journal.snapshot { [weak self] result in
+            Task { @MainActor [weak self] in
+                guard let self, logRequest == request, phase != .closed else { return }
+                logRequest = nil; logBusy = false
+                switch result {
+                case .success(let text):
+                    presentedLogExport = request; logExport = DemoLogExport(id: request, text: text)
+                    logStatus = "日志已准备；请选择系统文件保存位置"
+                case .failure(let error): logStatus = error.message
+                }
+            }
+        }
+    }
+
+    func dismissLogExport(_ id: UUID) {
+        guard presentedLogExport == id else { return }
+        logExport = nil
+    }
+    func logExportCompleted(_ result: Result<URL, Error>, requestID: UUID) {
+        guard foreground, phase != .closed, presentedLogExport == requestID else { return }
+        presentedLogExport = nil; logExport = nil
+        switch result {
+        case .success: logStatus = "日志已导出"
+        case .failure: logStatus = "导出已取消或失败；原日志保持不变"
+        }
+    }
+
+    func clearLogs() {
+        guard foreground, phase != .closed, !logBusy, let journal else { return }
+        let request = UUID(), priorRecords = Set(logRecords)
+        logClearRequest = request; logBusy = true
+        journal.clear { [weak self] result in
+            Task { @MainActor [weak self] in
+                guard let self, logClearRequest == request, phase != .closed else { return }
+                logClearRequest = nil; logBusy = false
+                switch result {
+                case .success:
+                    // Preserve events appended after the clear was enqueued.
+                    logRecords.removeAll { priorRecords.contains($0) }; logStatus = "已清除日志"
+                case .failure(let error): logStatus = error.message
+                }
+            }
+        }
+    }
+
+    private func appendLog(_ message: String) {
+        let record = journal?.append(message) ?? message
+        guard !record.isEmpty else { return }
+        logRecords.append(record)
+        if logRecords.count > DemoLogJournal.maximumVisibleRecords {
+            logRecords.removeFirst(logRecords.count - DemoLogJournal.maximumVisibleRecords)
+        }
+    }
+
+    private func recordResult(_ result: DemoResult?) {
+        guard let result else { return }
+        let evidence = result.evidence
+        let operation: String
+        switch result {
+        case .action(let action, _), .connection(let action, _): operation = String(describing: action)
+        case .status: operation = "status"
+        case .capabilities: operation = "capabilities"
+        case .identity: operation = "sdk_info"
+        case .discovery: operation = "scan"
+        }
+        if requestNumbers[evidence.requestID] == nil {
+            if requestNumbers.count >= 256 { requestNumbers.removeAll(keepingCapacity: true) }
+            nextRequestNumber &+= 1; requestNumbers[evidence.requestID] = nextRequestNumber
+        }
+        // Never stringify SDK result values/messages: they can contain device or file details.
+        appendLog("operation=\(operation) request=\(requestNumbers[evidence.requestID]!) outcome=\(evidence.outcome) code=\(evidence.code) completion=\(evidence.completion) outputMayHaveOccurred=\(evidence.outputMayHaveOccurred)")
+        if case .identity(let result) = result, let value = result.value {
+            appendLog("sdk=\(value.distributionVersion) native=\(value.nativeVersion)")
+        }
     }
 }

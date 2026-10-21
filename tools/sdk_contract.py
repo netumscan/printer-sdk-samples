@@ -6,17 +6,23 @@ import re
 def abi_identity(lock):
     value = lock.get("c_abi", "")
     match = re.fullmatch(r"([1-9][0-9]*)/r([1-9][0-9]*)", value) if isinstance(value, str) else None
-    if match is None or tuple(map(int, match.groups())) not in {(2, 10), (3, 1)}:
+    if match is None or tuple(map(int, match.groups())) not in {(2, 10), (3, 1), (3, 2)}:
         raise ValueError("Unsupported samples C ABI identity")
     return tuple(map(int, match.groups()))
 
 
 def c_export_count(lock):
-    return 25 if abi_identity(lock)[0] == 3 else 49
+    identity = abi_identity(lock)
+    return 27 if identity == (3, 2) else 25 if identity[0] == 3 else 49
 
 
 def ios_test_count(lock):
-    return 6 if abi_identity(lock)[0] == 3 else 4
+    identity = abi_identity(lock)
+    if lock.get("version") == "0.3.0-preview.10":
+        if identity != (3, 2):
+            raise ValueError("Minimal mobile API requires ABI 3/r2")
+        return 18
+    return 15 if identity == (3, 2) else 10 if identity[0] == 3 else 4
 
 
 def jni_methods(lock):
@@ -54,4 +60,62 @@ def native_evidence(abi_version, abi_revision, native_version=None, distribution
     if abi_version == 3:
         result.update(native_version=native_version, distribution_version=distribution_version,
                       completion_callback_verified=True)
+        if abi_revision >= 2:
+            result.update(main_thread_callback_verified=True, exactly_once_callback_verified=True)
     return result
+
+
+def validate_ios_runtime_api(value, lock):
+    """Recheck .10's actual SDK identity and offline lifecycle; never relabel legacy ABI evidence."""
+    if lock.get("version") != "0.3.0-preview.10" or abi_identity(lock) != (3, 2):
+        raise ValueError("Minimal iOS runtime evidence requires exact .10 / ABI 3/r2")
+    if (not isinstance(value, dict) or set(value) != {"schema_version", "scope", "nonce", "sdk", "distribution",
+            "demo", "offline_lifecycle", "hardware_verified", "transport", "build_resource", "journal_sha256"}
+            or type(value.get("schema_version")) is not int or value["schema_version"] != 1
+            or value.get("scope") != "sdk_identity_and_offline_lifecycle"
+            or value.get("hardware_verified") is not False or value.get("transport") != "none"):
+        raise ValueError("Incomplete iOS minimal runtime scope")
+    for field, pattern in (("nonce", r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}"),
+                           ("journal_sha256", r"[0-9a-f]{64}")):
+        if not isinstance(value.get(field), str) or re.fullmatch(pattern, value[field]) is None:
+            raise ValueError("Invalid iOS runtime " + field)
+    resource = value.get("build_resource")
+    if (not isinstance(resource, dict) or set(resource) != {"schema_version", "identity"}
+            or type(resource.get("schema_version")) is not int or resource["schema_version"] != 1
+            or not isinstance(resource.get("identity"), dict)):
+        raise ValueError("Invalid iOS build resource")
+    identity = resource["identity"]
+    expected = {"sdk_distribution_version": lock["version"], "sdk_core_version": lock["native_sdk_version"],
+                "sdk_abi_version": 3, "sdk_abi_revision": 2,
+                "sdk_release_commit": lock["ios"]["revision"],
+                "sdk_artifact_sha256": lock["ios"]["xcframework_sha256"]}
+    if ({key: identity.get(key) for key in expected} != expected
+            or any(type(identity.get(key)) is not int for key in ("sdk_abi_version", "sdk_abi_revision"))):
+        raise ValueError("iOS build resource differs from the exact SDK lock")
+    fingerprint = identity.get("demo_source_fingerprint")
+    if (not isinstance(fingerprint, str) or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None
+            or identity.get("demo_build_version") != lock["version"] + "+samples." + fingerprint[:12]):
+        raise ValueError("Invalid iOS Demo source identity")
+    sdk = value.get("sdk")
+    if (not isinstance(sdk, dict) or set(sdk) != {"native_version", "distribution_version", "build_id"}
+            or sdk.get("native_version") != lock["native_sdk_version"]
+            or sdk.get("distribution_version") != lock["version"]
+            or (sdk.get("build_id") is not None and (not isinstance(sdk["build_id"], str)
+                or re.fullmatch(r"[0-9a-f]{64}", sdk["build_id"]) is None))):
+        raise ValueError("Actual SDKInfo differs from the exact runtime identity")
+    if value.get("distribution") != {"distribution_version": lock["version"],
+            "core_version": lock["native_sdk_version"], "release_commit": lock["ios"]["revision"],
+            "artifact_sha256": lock["ios"]["xcframework_sha256"]}:
+        raise ValueError("iOS runtime distribution metadata differs from the SDK lock")
+    if value.get("demo") != {"source_fingerprint": fingerprint, "build_version": identity["demo_build_version"]}:
+        raise ValueError("Running iOS Demo differs from its generated build resource")
+    lifecycle = value.get("offline_lifecycle")
+    expected_lifecycle = {"operations": ["sdkInfo", "disconnect", "disconnect", "sdkInfo", "close", "close", "sdkInfo"],
+        "codes": [0, 0, 0, 0, 0, 0, 1002], "callbacks_on_main_thread": True, "callbacks_asynchronous": True,
+        "exactly_once": True, "completion_none": True, "output_may_have_occurred": False}
+    if (lifecycle != expected_lifecycle or not isinstance(lifecycle, dict)
+            or any(type(code) is not int for code in lifecycle.get("codes", []))
+            or any(type(lifecycle.get(name)) is not bool for name in ("callbacks_on_main_thread",
+                "callbacks_asynchronous", "exactly_once", "completion_none", "output_may_have_occurred"))):
+        raise ValueError("iOS offline lifecycle did not execute the exact safe request sequence")
+    return value

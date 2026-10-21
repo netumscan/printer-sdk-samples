@@ -2,7 +2,6 @@
 package com.netumscan.printersdk.demo;
 
 import java.util.*;
-import com.netumscan.printersdk.PrinterProfile;
 
 /** Versioned app preferences, never a printer identity or an SDK profile catalog. */
 final class DemoSettings {
@@ -39,9 +38,9 @@ final class DemoSettings {
         if (kind == 1 && (mode != OriginPlacement.MANUAL || adjustment != 0 || x != 0))
             throw new IllegalArgumentException("小票不使用横向定位策略或校准偏移");
         int dpi = integer(copy, "dpi", 1, 1200);
-        PrinterProfile draft = kind == 1 ? PrinterProfile.escPos(dpi, width) :
-            PrinterProfile.cpcl(dpi, width, dpi / 25.4, mode == OriginPlacement.CENTERED
-                ? PrinterProfile.LabelAlignment.CENTERED : PrinterProfile.LabelAlignment.LEFT);
+        DemoGeometry draft = kind == 1 ? DemoGeometry.escPos(dpi, width) :
+            DemoGeometry.cpcl(dpi, width, dpi / 25.4, mode == OriginPlacement.CENTERED
+                ? DemoGeometry.LabelAlignment.CENTERED : DemoGeometry.LabelAlignment.LEFT);
         label = new LabelConfig(draft, canvas,
             integer(copy, "height", 128, 65535), integer(copy, "copies", 1, 20), form,
             mode == OriginPlacement.CENTERED ? 0 : x, adjustment,

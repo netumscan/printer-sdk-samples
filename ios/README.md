@@ -1,14 +1,14 @@
 # iOS samples
 
 See the shared [customer guide](../docs/README.md) for SDK permissions, lifecycle,
-FeatureSupport, errors, compatibility records and support boundaries.
+capabilities, errors, runtime identity and validation records and support boundaries.
 
 Open `PrinterSamples.xcodeproj` with Xcode 16 or newer (Swift 6+), then select a scheme:
 
 | Scheme | Source | Purpose |
 | --- | --- | --- |
 | `PrinterQuickStart` | `quick-start/` | Minimal explicit BLE scan, selection, connection, image submission, cancellation and operation status |
-| `PrinterFullDemo` | `full-demo/` | CPCL / ESC-POS, image import and preview, canvas settings, media controls, Raw diagnostics, local configuration and bounded logs |
+| `PrinterFullDemo` | `full-demo/` | PNG/JPEG import and preview, page dimensions, model/paper selection, label positioning, Raw, local configuration and bounded logs |
 
 Both apps require iOS 15+ and use the exact public dependency below.
 Quick Start and its tests use Swift 6.0 language mode; Full Demo retains
@@ -22,8 +22,8 @@ local package path is included here.
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.3.0-preview.2` |
-| Release commit | `599ab4f496cbdfdb53f2f75bcd072f3a79240e5a` |
+| Exact version | `0.3.0-preview.10` |
+| Release commit | `ed5aa42043d4adf32393c19a057b80510dfed294` |
 
 ## App configuration
 
@@ -41,22 +41,17 @@ Simulator builds and the automated verification need no developer account.
 1. Run `PrinterQuickStart`. Tap the scan button, allow Bluetooth access and wait
    for the finite scan to finish. Select the intended device explicitly.
 2. Confirm that the firmware supports the sample's M90 V1.2 BLE credit flow and
-   CPCL settings. Adjust DPI and maximum device width, then connect.
-3. Submit one generated grayscale test image. Observe the operation state and
-   bytes sent. Cancel explicitly or disconnect when finished.
+   the built-in LT-M90 model, then connect. The SDK manages communication and print geometry.
+3. Submit one generated PNG test image with page width and height in millimetres. Observe the completion result. Cancel explicitly or disconnect when finished.
 
-The displayed `203 DPI / 864 dots` values are a development preset, not device
-detection or certification. A discovered advertisement is only a BLE candidate.
+Selecting a model is a local configuration choice, not device certification. A discovered advertisement is only a BLE candidate.
 Blocking SDK calls run on worker queues; foreground UI actions choose when to
 connect and print. Moving to the background stops scanning and releases the
 session. Returning does not reconnect, replay settings or resubmit work.
 
 ## Full Demo
 
-The Full Demo starts with empty device and canvas fields. Choose a device and
-explicitly enter compatible settings, or apply the M90 development preset after
-confirming the target hardware. Connect, prepare an image and submit it manually.
-The image and preview use the same immutable grayscale snapshot.
+Choose a device and confirm its supported built-in model and actual paper type. Connect, import PNG/JPEG, set page width/height and print manually. Preview is optional. SDK image preparation shrinks proportionally and centres on white, without upscaling or cropping; printing does not implicitly FORM or cut.
 
 `更多` provides explicit configuration save/load/clear and Raw diagnostics. The
 log screen has a bounded local journal and explicit export/clear. No saved
@@ -82,10 +77,8 @@ Use a new output directory for each run. The verifier downloads the public
 Swift package and binary into fresh caches, checks the exact commit and ZIP
 checksum, compares unpacked bytes, and builds both apps for device arm64 and
 simulator arm64/x86_64. Each build checks the dynamic framework, its Bundle ID,
-25 C exports and privacy resource. 6 tests then run on an available iPhone
-simulator: ABI handshake/catalog, Swift configuration validation, Quick Start
-invalid configuration, and partial writes/Raw ordering through an in-memory
-transport. Both apps are launched afterward. No test scans BLE or contacts a
+27 C exports and privacy resource. 18 tests then run on an available iPhone
+simulator: current public values, invalid input, Quick Start request ownership, cancellation and offline cleanup. Both apps are launched afterward. No test scans BLE or contacts a
 printer. Reports, screenshots and the XCTest result bundle stay in `build/`.
 
 Optionally choose `--simulator-udid <simulator-id>`. If no simulator runtime is

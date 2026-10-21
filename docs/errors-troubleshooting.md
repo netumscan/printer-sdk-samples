@@ -1,19 +1,19 @@
 # 错误码与排障
 
-[返回指南](README.md) · 适用发布候选 `0.3.0-preview.2`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.10`
 
-参数/能力/资源校验可以在接纳前失败；此时处理同步错误或异常。已有 operation 则观察
-COMPLETED（4）、FAILED（5）、CANCELLED（6）终态，读取 snapshot/diagnostic/status。
-`get_result==0` 或 result getter 返回只表示成功读回终态，仍须检查任务状态和错误码。
+Manager 的参数、状态、准备、准入和执行失败统一通过异步完成回调报告。
+先检查 `ManagerResult.outcome` 和稳定 `code`，再读取辅助 `message`、完成证据与
+`outputMayHaveOccurred`；成功获得结果不等于已证明机械打印完成。数据对象构造器的校验错误由应用处理。
 
 | 错误码 | 含义 |
 | ---: | --- |
-| 0 | 接口调用成功；不是硬件完成证明。 |
+| 0 | 请求成功；不是硬件完成证明。 |
 | 1000 | INTERNAL_ERROR |
 | 1001 | INVALID_ARGUMENT |
-| 1002 | INVALID_STATE，包括提前读取结果或访问已关闭包装对象。 |
+| 1002 | INVALID_STATE，例如未连接、正在清理或已关闭 Manager。 |
 | 1003 | NOT_INITIALIZED |
-| 1004 | UNSUPPORTED_OPERATION；当前未验证的硬件查询在 IO 前返回此码。 |
+| 1004 | UNSUPPORTED_OPERATION；未验证的硬件查询不发送猜测指令。 |
 | 1005 | CANCELLED |
 | 1006 | ABI_MISMATCH；检查整套库与包装版本。 |
 | 1007 | BUFFER_TOO_SMALL |
@@ -25,14 +25,24 @@ COMPLETED（4）、FAILED（5）、CANCELLED（6）终态，读取 snapshot/diag
 | 2004 | TRANSPORT_NO_PROGRESS |
 | 3000 | PROTOCOL_INVALID_RESPONSE |
 
-diagnostic 提供有界消息、domain、可选原生码及关联信息；原生码仅用于诊断，不作为跨平台
-业务判断依据。device.diagnostic 是最新记录，不是历史日志；连接异常和 operation 结果
-应优先使用各自携带的诊断，避免被另一次调用覆盖。
+消息用于可读诊断，程序分支以稳定错误码为主。移动 API 不要求读取设备最新诊断、native 原生码、
+operation 快照或资源快照来决定任务结果，避免另一请求的状态覆盖本次判断。
 
-1008 可能来自单图、作业、Raw、份数、未终态工作数量或源载荷预算，也可能来自内存分配失败。
-先检查输入、资源快照和本次诊断，缩减输入或未完成工作；结果读取不预留接纳容量。
-已终态任务自动退出接纳预算，不需要轮询或释放完成结果才能继续提交。不要根据该错误
-自动重试或重放打印。接纳失败没有 operation，也不会收到该任务的完成回调。
+两端 Raw 入口按以下顺序拒绝，多个条件同时失败时取最先命中的一项：
 
-status 为可选结果；缺失表示没有有效硬件读回。掩码为零也不能解释为正常。连接中断后
-SDK 不会自动重放未完成任务，已发送字节可能产生副作用；取消不能撤回这些字节。
+1. 空数据（Android 包括 null）：1001。
+2. 数据超过 1MiB（1,048,576 字节）：1008；恰好等于上限允许继续检查。
+3. Manager 未连接、正在清理或已永久关闭：1002。
+4. Manager 已有 64 个未结束业务请求：1008。
+
+公开Raw固定一份；例如已关闭后传空数据仍返回1001。入口拒绝异步交付一次主线程结果，completion=NONE、
+outputMayHaveOccurred=false，不执行打印机 IO。前置检查不预留容量，最终入队仍原子复检；
+native 接纳还可能因自己的预算或分配失败拒绝。此顺序不改变 C SDK 的独立校验规则。
+
+1008 可能来自 Manager 未完成业务请求上限、单图、作业、Raw、native 源载荷预算或内存分配失败。
+缩减输入或未完成工作；已终态请求自动归还接纳容量，不靠轮询或重复释放结果解决。
+准入失败同样有本次请求的完成回调，不会产生应用需要释放的 operation。
+
+状态值为可选业务结果，缺失表示没有有效硬件读回；状态位未知不能解释为正常。
+`outputMayHaveOccurred=true` 表示可能已产生部分输出，取消不能撤回这些字节。
+SDK 不自动重连或重放，后续操作由应用结合用户确认显式发起。

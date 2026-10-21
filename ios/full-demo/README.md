@@ -12,16 +12,14 @@ Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.3.0-preview.2` |
-| Release commit | `599ab4f496cbdfdb53f2f75bcd072f3a79240e5a` |
+| Exact version | `0.3.0-preview.10` |
+| Release commit | `ed5aa42043d4adf32393c19a057b80510dfed294` |
 
 ## Running the sample
 
-This app demonstrates explicit BLE discovery/connection, CPCL and ESC-POS image
-jobs, image import/preview, canvas configuration, media actions, Raw diagnostics,
+This app demonstrates explicit BLE discovery/connection, PNG/JPEG image printing, import/preview, page dimensions, built-in model and paper type selection, label positioning, Raw diagnostics,
 operation cancellation, local configuration and bounded logs. Start by confirming
-device/firmware settings; fields are initially empty. An optional M90 development
-preset does not certify the device. No scan, connection, command or saved settings
+the actual device model and paper. Selecting the built-in M90 model does not certify hardware. Communication and rendering policies stay inside the SDK. No scan, connection, command or saved settings
 are replayed automatically.
 
 See the [iOS guide](../README.md) for setup, known firmware limitations, licensing

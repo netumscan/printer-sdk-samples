@@ -24,10 +24,10 @@ final class DemoUiState {
     }
     /** 本连接的一次介质请求；终态始终与发送时的类型和请求标识绑定。 */
     static final class MediaRequest {
-        final MediaMode mode;
+        final PaperType mode;
         final RequestId connectionId, requestId;
         final DemoResult<Void> result;
-        MediaRequest(MediaMode mode, RequestId connectionId, RequestId requestId, DemoResult<Void> result) {
+        MediaRequest(PaperType mode, RequestId connectionId, RequestId requestId, DemoResult<Void> result) {
             this.mode = mode; this.connectionId = connectionId; this.requestId = requestId; this.result = result;
         }
     }

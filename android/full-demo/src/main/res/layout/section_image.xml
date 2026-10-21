@@ -13,11 +13,11 @@
         <LinearLayout android:id="@+id/canvas_size_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
             <LinearLayout android:id="@+id/canvas_width_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                 <TextView style="@style/FieldLabel" android:text="@string/label_width_label" android:labelFor="@id/label_width" />
-                <EditText android:id="@+id/label_width" style="@style/Field" android:inputType="number" android:hint="@string/label_width_hint" android:nextFocusForward="@id/height" />
+                <EditText android:id="@+id/label_width" style="@style/Field" android:inputType="numberDecimal" android:hint="@string/label_width_hint" android:nextFocusForward="@id/height" />
             </LinearLayout>
             <LinearLayout android:id="@+id/canvas_height_field" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                 <TextView style="@style/FieldLabel" android:text="@string/height_label" android:labelFor="@id/height" />
-                <EditText android:id="@+id/height" style="@style/Field" android:inputType="number" android:hint="@string/height_hint" android:nextFocusForward="@id/copies" />
+                <EditText android:id="@+id/height" style="@style/Field" android:inputType="numberDecimal" android:hint="@string/height_hint" android:nextFocusForward="@id/copies" />
             </LinearLayout>
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:id="@+id/canvas_job_row">

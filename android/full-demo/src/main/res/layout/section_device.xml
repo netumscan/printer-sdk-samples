@@ -12,6 +12,10 @@
         </LinearLayout>
         <TextView style="@style/FieldLabel" android:text="@string/profile_label" />
         <TextView style="@style/ProfileSummary" android:text="@string/profile_pending" android:id="@+id/profile_summary" android:accessibilityLiveRegion="polite" android:saveEnabled="false" />
+        <TextView style="@style/FieldLabel" android:text="@string/printer_model_label" android:labelFor="@id/ble_profile" />
+        <LinearLayout android:id="@+id/ble_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <Spinner android:id="@+id/ble_profile" style="@style/Selector" />
+        </LinearLayout>
         <Button android:id="@+id/device_advanced_toggle" style="@style/DisclosureButton" android:text="@string/device_advanced_expand" />
         <LinearLayout style="@style/InsetPanel" android:id="@+id/device_advanced" android:visibility="gone">
             <!-- 旧 ID 的只读输出镜像；实际迁移草稿由 DemoPrintDraft 持有。 -->
@@ -25,10 +29,9 @@
             <LinearLayout android:id="@+id/transport_details" style="@style/InsetPanel" android:visibility="gone">
                 <TextView style="@style/FieldLabel" android:text="@string/address_label" android:labelFor="@id/address" />
                 <EditText android:id="@+id/address" style="@style/Field" android:inputType="textVisiblePassword" android:hint="@string/address_hint" android:saveEnabled="false" />
-                <LinearLayout android:id="@+id/ble_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                     <Button android:id="@+id/m90_preset" style="@style/SecondaryButton" android:text="@string/m90_preset" />
                     <TextView style="@style/FieldLabel" android:text="@string/ble_profile_label" android:labelFor="@id/ble_profile" />
-                    <Spinner android:id="@+id/ble_profile" style="@style/Selector" />
                     <LinearLayout android:id="@+id/ble_custom_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                         <TextView style="@style/FieldLabel" android:text="@string/service_label" android:labelFor="@id/service" />
                         <EditText android:id="@+id/service" style="@style/Field" android:inputType="textVisiblePassword" android:hint="@string/uuid_hint" />

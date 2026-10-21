@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: MIT
 package com.netumscan.printersdk.samples.quickstart;
 
+import android.graphics.Bitmap;
 import com.netumscan.printersdk.ConnectionInfo;
-import com.netumscan.printersdk.ConnectionOptions;
+import com.netumscan.printersdk.PrinterModel;
 import com.netumscan.printersdk.DiscoveredDevice;
-import com.netumscan.printersdk.ImageLoadContext;
-import com.netumscan.printersdk.ImageSource;
 import com.netumscan.printersdk.ManagerResult;
-import com.netumscan.printersdk.PixelImage;
-import com.netumscan.printersdk.PrintOptions;
 import com.netumscan.printersdk.PrinterManager;
-import com.netumscan.printersdk.PrinterProfile;
-import com.netumscan.printersdk.PrinterProfiles;
 import com.netumscan.printersdk.RequestId;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,7 +14,6 @@ import java.util.List;
 
 /** Main-thread sample state. One Manager owns discovery, requests and the device IO queue. */
 final class QuickStartModel {
-    static final int SCAN_MS = 10000, CONNECT_TIMEOUT_MS = 10000, PRINT_TIMEOUT_MS = 30000;
     static final int SAMPLE_WIDTH = 384, SAMPLE_HEIGHT = 64;
     private final PrinterManager manager;
     private Runnable changed;
@@ -61,15 +55,14 @@ final class QuickStartModel {
 
     boolean canConnect() {
         DiscoveredDevice selected = selectedDevice();
-        return canSelect() && selected != null && PrinterProfiles.resolveBleOptions(selected.name, null) != null;
+        return canSelect() && selected != null;
     }
 
     boolean canPrint() {
-        PrinterProfile profile = connectionInfo == null ? null : connectionInfo.printProfile;
+        PrinterModel model = connectionInfo == null ? null : connectionInfo.model;
         return foreground && !destroyed && connected && !disconnecting &&
             scanRequest == null && connectRequest == null && printRequest == null &&
-            profile != null && profile.protocol == PrinterProfile.Protocol.CPCL &&
-            profile.maxPrintWidthDots >= SAMPLE_WIDTH;
+            model == PrinterModel.LT_M90;
     }
 
     boolean canCancel() {
@@ -85,7 +78,7 @@ final class QuickStartModel {
     void scan() {
         if (!canSelect()) return;
         status = "正在扫描 BLE 设备，10 秒后显示结果…";
-        scanRequest = manager.scanBle(null, SCAN_MS, result -> {
+        scanRequest = manager.scanBle(result -> {
             if (scanRequest != result.requestId) return;
             scanRequest = null;
             lastScanResult = result;
@@ -109,9 +102,7 @@ final class QuickStartModel {
         for (DiscoveredDevice candidate : candidates) {
             if (!candidate.address.equals(address)) continue;
             selectedAddress = address;
-            status = PrinterProfiles.resolveBleOptions(candidate.name, null) == null ?
-                "该名称没有已知 BLE 配置，请使用 Full Demo 显式配置通信与打印参数" :
-                "已选择设备；请确认它是你的 LT-M90，再手动连接";
+            status = "已选择设备；请确认实物为 LT-M90，再手动连接（本例明确指定该型号）";
             notifyChanged();
             return;
         }
@@ -130,7 +121,7 @@ final class QuickStartModel {
         lastConnectionLoss = null;
         connectionAllowed = true;
         status = "正在连接所选设备…";
-        connectRequest = manager.connect(ConnectionOptions.ble(selected), CONNECT_TIMEOUT_MS, result -> {
+        connectRequest = manager.connectBle(selected, PrinterModel.LT_M90, result -> {
             if (connectRequest != result.requestId) return;
             connectRequest = null;
             lastConnectResult = result;
@@ -138,7 +129,7 @@ final class QuickStartModel {
                     foreground && !destroyed && !disconnecting) {
                 connected = true;
                 connectionInfo = result.value;
-                status = canPrint() ? "已连接；采用名称推荐配置。确认型号与纸张后，手动打印固定示例" :
+                status = canPrint() ? "已连接；采用明确选择的 LT-M90。确认纸张后，手动打印固定示例" :
                     "已连接，但当前打印配置不适用于此示例；请断开并使用 Full Demo";
             } else {
                 connected = false;
@@ -165,23 +156,19 @@ final class QuickStartModel {
 
     void print() {
         if (!canPrint()) return;
-        status = "正在准备并发送固定 GRAY8 条纹（384 × 64 dots，1 份，FORM 关闭）…";
-        // Manager retains the source before returning; release the application's reference now.
-        try (ImageSource source = ImageSource.deferred(context -> PixelImage.copyOf(
-                stripePixels(SAMPLE_WIDTH, SAMPLE_HEIGHT, context), SAMPLE_WIDTH, SAMPLE_HEIGHT, PixelImage.GRAY8))) {
-            PrintOptions options = PrintOptions.labelDots(SAMPLE_WIDTH, SAMPLE_HEIGHT)
-                .copies(1).nextLabel(false).maxPageHeightDots(SAMPLE_HEIGHT).timeoutMs(PRINT_TIMEOUT_MS)
-                .addImage(source, 0, 0).build();
-            printRequest = manager.print(options, result -> {
+        status = "正在准备并发送固定条纹（页面 48 × 8 mm，1 份，不追加标签定位）…";
+        Bitmap bitmap = stripeBitmap(SAMPLE_WIDTH, SAMPLE_HEIGHT);
+        try {
+            // Acceptance fixes the Bitmap snapshot before returning; the App can release its copy now.
+            printRequest = manager.printImage(bitmap, 48, 8, result -> {
                 if (printRequest != result.requestId) return;
                 printRequest = null;
-                // Preserve the SDK terminal separately from cancellation, cleanup and connection loss.
                 lastPrintResult = result;
                 if (!destroyed && !disconnecting)
                     status = connected ? "请求已结束；可手动再次打印或断开" : "未连接；请手动连接";
                 notifyChanged();
             });
-        }
+        } finally { bitmap.recycle(); }
         notifyChanged();
     }
 
@@ -233,15 +220,15 @@ final class QuickStartModel {
         });
     }
 
-    static byte[] stripePixels(int width, int height, ImageLoadContext context) {
-        byte[] pixels = new byte[width * height];
+    static Bitmap stripeBitmap(int width, int height) {
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        int[] row = new int[width];
         for (int y = 0; y < height; y++) {
-            context.throwIfCancelled();
             for (int x = 0; x < width; x++)
-                pixels[y * width + x] = (byte)(((x / 16 + y / 16) % 2 == 0) ? 0 : 255);
+                row[x] = ((x / 16 + y / 16) % 2 == 0) ? 0xff000000 : 0xffffffff;
+            bitmap.setPixels(row, 0, width, 0, y, width, 1);
         }
-        context.throwIfCancelled();
-        return pixels;
+        return bitmap;
     }
 
     static String terminalText(ManagerResult<?> result) {

@@ -2,7 +2,8 @@
 // Copyright (c) 2026 NETUM
 import CPrinterSDK
 import Foundation
-import PrinterSDK
+import CoreBluetooth
+@testable import PrinterSDK
 @testable import PrinterQuickStart
 import XCTest
 
@@ -19,97 +20,63 @@ private func memory(_ context: UnsafeMutableRawPointer?) -> MemoryTransport {
     Unmanaged<MemoryTransport>.fromOpaque(context!).takeUnretainedValue()
 }
 
-// The counter is shared by a detached preparation and the test's main actor.
-private final class AdmissionCounter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value = 0
-    func admit() -> Int { lock.lock(); defer { lock.unlock() }; value += 1; return value }
-    var count: Int { lock.lock(); defer { lock.unlock() }; return value }
-}
-
 final class PrinterSamplesTests: XCTestCase {
     @MainActor
-    func testCancellingSuspendedPreparationPreventsSubmission() async throws {
-        let entered = DispatchSemaphore(value: 0), resume = DispatchSemaphore(value: 0)
-        let admissions = AdmissionCounter()
-        let preparation = Task.detached {
-            try QuickStartModel.prepareAndSubmit({
-                entered.signal()
-                guard resume.wait(timeout: .now() + 5) == .success else { throw PrinterSDKError(1002) }
-                return Data([0x00])
-            }, submit: { _ in admissions.admit() })
+    func testModelCloseIsPermanentAndImmediatelyStopsManagerAdmission() async {
+        let manager = PrinterManager(), model = QuickStartModel(manager: manager)
+        model.close(); model.close(); model.selected = UUID(); model.connect()
+        let result: ManagerResult<SDKInfo> = await withCheckedContinuation { continuation in
+            manager.sdkInfo { continuation.resume(returning: $0) }
         }
-        defer { resume.signal(); preparation.cancel() }
-        XCTAssertEqual(entered.wait(timeout: .now() + 3), .success)
-        preparation.cancel() // User cancels while decoding/rendering is suspended.
-        resume.signal()
-        do { _ = try await preparation.value; XCTFail("Cancelled preparation must not submit") }
-        catch is CancellationError {}
-        XCTAssertEqual(admissions.count, 0, "Cancelled preparation must stop before the SDK admission boundary")
+        XCTAssertEqual(model.phase, .closed); XCTAssertEqual(result.code, 1002)
+        XCTAssertFalse(model.connected); XCTAssertFalse(model.printing)
     }
-
     @MainActor
-    func testDisconnectedSessionCanBeExplicitlyReleasedAndRecreated() async throws {
-        let model = QuickStartModel(), identifier = UUID()
-        let options = try M90Profile.bleOptions()
-        let profile = try CpclProfile(dpi: 203, widthDots: 384, maxLabelHeightDots: 65535, form: false)
-        let first = try model.installSession(identifier: identifier, options: options, profile: profile)
-        // A real native disconnected snapshot is delivered through the SDK observer.
-        // Simulate the prior UI-ready value without opening Bluetooth hardware.
-        model.connected = true
-        let deadline = Date(timeIntervalSinceNow: 3)
-        while model.connected && Date() < deadline { try await Task.sleep(nanoseconds: 1_000_000) }
-        XCTAssertFalse(model.connected)
-        XCTAssertTrue(model.hasSession, "The UI must retain an explicit release action after link loss")
-        model.disconnect()
-        while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 1_000_000) }
-        XCTAssertFalse(model.busy)
-        XCTAssertFalse(model.hasSession)
-        let replacement = try model.installSession(identifier: identifier, options: options, profile: profile)
-        XCTAssertFalse(first === replacement, "An explicit retry creates a new owned device after release")
-        XCTAssertTrue(model.hasSession)
-        model.disconnect()
-    }
-
-    func testPublishedABIAndCatalog() throws {
-        XCTAssertEqual(psdk_abi_version(), 3)
-        XCTAssertEqual(psdk_abi_revision(), 1)
-        let info = try PrinterSDK.info()
-        XCTAssertEqual(info.nativeVersion, "0.3.0")
-        XCTAssertEqual(info.distributionVersion, "0.3.0-preview.2")
-        XCTAssertEqual(info.abiVersion, 3)
-        XCTAssertEqual(info.abiRevision, 1)
-    }
-
-    func testPublicSwiftConfigurationValidation() throws {
-        let options = try M90Profile.bleOptions()
-        XCTAssertEqual(options.maxWriteBytes, 512)
-        XCTAssertFalse(options.withResponse)
-        XCTAssertNotNil(options.creditFlowControl)
-        XCTAssertThrowsError(try CpclProfile(dpi: 203, widthDots: 7, maxLabelHeightDots: 65535, form: false))
-        XCTAssertThrowsError(try M90Profile.bleOptions(maxWriteBytes: 0))
-        XCTAssertThrowsError(try ReceiptProfile(dpi: 203, widthDots: 0))
-    }
-
-    @MainActor
-    func testQuickStartRejectsInvalidConfigurationBeforeConnection() {
+    func testModelDisconnectWaitsForManagerCallback() async {
         let model = QuickStartModel()
-        XCTAssertFalse(model.connected)
-        XCTAssertFalse(model.scanning)
-        model.selected = UUID()
-        model.widthDots = "7"
-        model.connect()
-        XCTAssertFalse(model.busy)
-        XCTAssertFalse(model.connected)
-        XCTAssertTrue(model.status.contains("1001"))
-        XCTAssertTrue(QuickStartModel.terminalMessage(state: 4, completion: 1, errorCode: 0, bytesSent: 10)
-            .hasPrefix("DATA_SENT"))
-        XCTAssertFalse(QuickStartModel.terminalMessage(state: 5, completion: 1, errorCode: 0, bytesSent: 10)
-            .hasPrefix("DATA_SENT"))
-        XCTAssertFalse(QuickStartModel.terminalMessage(state: 4, completion: 0, errorCode: 0, bytesSent: 10)
-            .hasPrefix("DATA_SENT"))
-        XCTAssertFalse(QuickStartModel.terminalMessage(state: 4, completion: 1, errorCode: 2002, bytesSent: 10)
-            .hasPrefix("DATA_SENT"))
+        model.disconnect(); XCTAssertEqual(model.phase, .disconnecting)
+        for _ in 0..<300 where model.phase == .disconnecting { try? await Task.sleep(nanoseconds: 1_000_000) }
+        XCTAssertEqual(model.phase, .offline); XCTAssertFalse(model.connected)
+        model.close()
+    }
+    @MainActor
+    func testOfflinePrintButtonDoesNotCreateARequest() {
+        let model = QuickStartModel()
+        model.printSample(); model.cancel()
+        XCTAssertNil(model.lastResult); XCTAssertEqual(model.phase, .offline)
+        XCTAssertEqual(model.resultDescription, "尚无连接/打印结果"); model.close()
+    }
+    func testDevelopmentRuntimeIdentity() async {
+        let manager = PrinterManager()
+        let result: ManagerResult<SDKInfo> = await withCheckedContinuation { continuation in
+            manager.sdkInfo { continuation.resume(returning: $0) }
+        }
+        XCTAssertEqual(result.value?.abiVersion, 3); XCTAssertEqual(result.value?.abiRevision, 2)
+        XCTAssertEqual(result.value?.nativeVersion, "0.3.0")
+        await withCheckedContinuation { continuation in manager.close { _ in continuation.resume() } }
+    }
+    func testPublicModelAndPaperTypeAreMinimalBusinessValues() {
+        XCTAssertEqual(PrinterModel.allCases, [.ltM90])
+        XCTAssertEqual(PrinterModel.ltM90.rawValue, "LT-M90")
+        XCTAssertEqual(PaperType.allCases.count, 3)
+        let target = DiscoveredPrinter(identifier: UUID(), name: "saved printer")
+        XCTAssertEqual(target.name, "saved printer"); XCTAssertNil(target.signalStrength)
+    }
+    @MainActor
+    func testConnectRequiresAnExplicitSelectionFromDiscoveredCandidates() {
+        let model = QuickStartModel(); defer { model.close() }
+        let candidate = DiscoveredPrinter(identifier: UUID(), name: "LT-M90_A1b2", advertisedServices: [], rssi: -50)
+        model.devices = [candidate]; model.connect()
+        XCTAssertEqual(model.phase, .offline); XCTAssertNil(model.connectionResult)
+        model.selected = UUID(); model.connect()
+        XCTAssertEqual(model.phase, .offline); XCTAssertNil(model.connectionResult)
+    }
+    func testFixedImageIsGray8Checkerboard() {
+        let pixels = QuickStartModel.testImage(width: 384, height: 64)
+        XCTAssertEqual(pixels.count, 384 * 64)
+        XCTAssertEqual(Set(pixels), [0, 255])
+        XCTAssertEqual(pixels[0], 0); XCTAssertEqual(pixels[16], 255)
+        XCTAssertEqual(pixels[16 * 384], 255); XCTAssertEqual(pixels[16 * 384 + 16], 0)
     }
 
     func testPartialWritesAndRawQueueOrderWithoutHardware() throws {
@@ -213,5 +180,274 @@ final class PrinterSamplesTests: XCTestCase {
         XCTAssertEqual(psdk_operation_cancel(operationA), PSDK_OK)
         XCTAssertEqual(psdk_device_disconnect(device), PSDK_OK)
         XCTAssertEqual(psdk_device_disconnect(device), PSDK_OK)
+    }
+}
+
+// Test-only channel injection exercises the real Swift Manager/native executor.
+// No application adapter or SDK public testing API is introduced.
+private final class QuickStartMemoryChannel: BluetoothByteChannel, @unchecked Sendable {
+    private let lock = NSLock()
+    private var opened = false, interrupted = false, holdOpen = false
+    private var holdAfter: Int?
+    private var bytes = Data(), opens = 0, openTimeout: TimeInterval = 0
+    private var observer: ChannelConnectionObserver?
+    let opening = DispatchSemaphore(value: 0), blockedWrite = DispatchSemaphore(value: 0)
+    var isOpen: Bool { lock.lock(); defer { lock.unlock() }; return opened }
+    var sent: Data { lock.lock(); defer { lock.unlock() }; return bytes }
+    var openCount: Int { lock.lock(); defer { lock.unlock() }; return opens }
+    var connectionTimeout: TimeInterval { lock.lock(); defer { lock.unlock() }; return openTimeout }
+    func configure(holdOpen: Bool = false, holdWriteAfter: Int? = nil) {
+        lock.lock(); self.holdOpen = holdOpen; holdAfter = holdWriteAfter.map { bytes.count + $0 }; lock.unlock()
+    }
+    func open(_ control: IOControl) throws {
+        lock.lock(); interrupted = false; opens += 1; let held = holdOpen; openTimeout = control.timeout; lock.unlock()
+        opening.signal()
+        let deadline = ProcessInfo.processInfo.systemUptime + control.timeout
+        while held {
+            lock.lock(); let stopped = interrupted; lock.unlock()
+            if stopped || control.cancelled() { throw PrinterSDKError(1005) }
+            if ProcessInfo.processInfo.systemUptime >= deadline { throw PrinterSDKError(2001) }
+            Thread.sleep(forTimeInterval: 0.001)
+        }
+        lock.lock(); opened = true; lock.unlock()
+    }
+    func close() { lock.lock(); opened = false; interrupted = true; lock.unlock() }
+    func write(_ data: Data, _ control: IOControl) throws -> Int {
+        lock.lock(); let held = holdAfter.map { bytes.count >= $0 } ?? false; lock.unlock()
+        if held { blockedWrite.signal() }
+        let deadline = ProcessInfo.processInfo.systemUptime + control.timeout
+        while held {
+            if !isOpen || control.cancelled() { throw PrinterSDKError(1005) }
+            if ProcessInfo.processInfo.systemUptime >= deadline { throw PrinterSDKError(2001) }
+            Thread.sleep(forTimeInterval: 0.001)
+        }
+        lock.lock(); defer { lock.unlock() }
+        guard opened else { throw PrinterSDKError(2002) }
+        let count = min(3, data.count); bytes.append(data.prefix(count)); return count
+    }
+    func setConnectionObserver(_ observer: ChannelConnectionObserver?) {
+        lock.lock(); self.observer = observer; lock.unlock()
+    }
+    func lose() {
+        lock.lock(); let observer = observer; opened = false; interrupted = true; lock.unlock()
+        if let observer {
+            observer.lost(observer.epoch(), ErrorDiagnostic(sequence: 0, connectionGeneration: 0,
+                transportEpoch: 0, operationID: 0, sampledMonotonicMilliseconds: nil,
+                errorCode: 2002, source: .transport, nativeCode: nil, domain: "test", message: "memory connection lost"))
+        }
+    }
+}
+
+private final class QuickStartScanFixture: @unchecked Sendable {
+    private final class Central: BLEScanCentral, @unchecked Sendable {
+        var stateChanged: (@Sendable (BLEScanCentral, CBManagerState) -> Void)?
+        var discovered: (@Sendable (BLEScanCentral, DiscoveredPrinter) -> Void)?
+        func start(service: UUID?) {}
+        func stop() {}
+        func detach() { stateChanged = nil; discovered = nil }
+    }
+    private final class Deadline: BLEScanDeadline, Sendable { func cancel() {} }
+    private let queue = DispatchQueue(label: "PrinterQuickStartTests.scan")
+    private var centrals: [Central] = []
+    private var deadlines: [@Sendable () -> Void] = []
+    var count: Int { queue.sync { centrals.count } }
+    func scanner() -> BLEScanner {
+        BLEScanner(queue: queue, makeCentral: { _ in
+            let central = Central(); self.centrals.append(central); return central
+        }, scheduleDeadline: { _, _, action in self.deadlines.append(action); return Deadline() })
+    }
+    func complete(with device: DiscoveredPrinter) {
+        queue.sync {
+            let central = centrals.last!
+            central.stateChanged?(central, .poweredOn); central.discovered?(central, device); deadlines.last?()
+        }
+    }
+    // Simulate an already queued platform deadline after cancellation/detach.
+    func expire(_ index: Int) { queue.sync { deadlines[index]() } }
+}
+
+extension PrinterSamplesTests {
+    @MainActor
+    private func consumer(_ channel: QuickStartMemoryChannel) -> (QuickStartModel, PrinterManager) {
+        let manager = PrinterManager(makePrinter: { _, options in
+            XCTAssertEqual(options.service, UUID(uuidString: "0000FF00-0000-1000-8000-00805F9B34FB"))
+            XCTAssertEqual(options.maxWriteBytes, 512); XCTAssertFalse(options.withResponse)
+            XCTAssertNotNil(options.creditFlowControl)
+            return try MobilePrinter(channel: channel)
+        })
+        let model = QuickStartModel(manager: manager)
+        let device = DiscoveredPrinter(identifier: UUID(), name: "LT-M90_A1B2", advertisedServices: [], rssi: -50)
+        model.devices = [device]; model.selected = device.identifier
+        return (model, manager)
+    }
+    @MainActor
+    private func until(_ condition: () -> Bool, file: StaticString = #filePath, line: UInt = #line) async throws {
+        for _ in 0..<3000 {
+            if condition() { return }
+            try await Task.sleep(nanoseconds: 1_000_000)
+        }
+        XCTFail("Expected Quick Start consumer callback", file: file, line: line); throw PrinterSDKError(2001)
+    }
+    @MainActor
+    func testConsumerUnknownNameReportsUnsupportedWithoutOpeningTransport() async throws {
+        let channel = QuickStartMemoryChannel(), (model, _) = consumer(channel); defer { model.close() }
+        for name: String? in ["Unknown_A1B2", "LT-M90_A1B2 · 12345678", "LT-M90_A1B", "LT-M90_A1B2X", nil] {
+            let unknown = DiscoveredPrinter(identifier: UUID(), name: name)
+            model.devices = [unknown]; model.selected = unknown.identifier; model.connect()
+            try await until { model.canConnect }
+            XCTAssertEqual(model.phase, .offline); XCTAssertEqual(model.connectionResult?.code, 1004)
+            XCTAssertNil(model.lastResult); XCTAssertEqual(channel.openCount, 0); XCTAssertTrue(channel.sent.isEmpty)
+        }
+    }
+    @MainActor
+    func testConsumerFailedConnectKeepsOriginalFailureAndWaitsForDisconnectBeforeRetry() async throws {
+        let manager = PrinterManager(makePrinter: { _, _ in throw PrinterSDKError(2002) })
+        let model = QuickStartModel(manager: manager); defer { model.close() }
+        let candidate = DiscoveredPrinter(identifier: UUID(), name: "LT-M90_A1B2", advertisedServices: [], rssi: -50)
+        model.devices = [candidate]; model.selected = candidate.identifier
+        model.connect(); XCTAssertEqual(model.phase, .connecting); XCTAssertFalse(model.canConnect)
+        try await until { model.canConnect }
+        XCTAssertEqual(model.connectionResult?.outcome, .failure); XCTAssertEqual(model.connectionResult?.code, 2002)
+        XCTAssertEqual(model.cleanupResult?.code, 0); XCTAssertNil(model.lastResult)
+        let firstID = model.connectionResult?.requestID
+        model.connect(); XCTAssertFalse(model.canConnect)
+        try await until { model.canConnect && model.connectionResult?.requestID != firstID }
+        XCTAssertEqual(model.connectionResult?.code, 2002); XCTAssertEqual(model.cleanupResult?.code, 0)
+    }
+    @MainActor
+    func testConsumerAdoptsOriginalScannedNameAndPrintsFixedSingleCopyWithoutForm() async throws {
+        let channel = QuickStartMemoryChannel(), (model, _) = consumer(channel); defer { model.close() }
+        model.connect(); try await until { model.canPrint }
+        let info = try XCTUnwrap(model.connectionResult?.value)
+        XCTAssertEqual(info.deviceName, "LT-M90_A1B2")
+        XCTAssertEqual(info.configurationSource, .nameRecommendation)
+        XCTAssertEqual(info.printProfile?.dpi, 203); XCTAssertEqual(info.printProfile?.maxPrintWidthDots, 864)
+        XCTAssertEqual(info.printProfile?.labelAlignment, .centered)
+        // Later display/selection changes cannot replace the adopted connection profile.
+        model.devices = []; model.selected = nil; model.printSample()
+        try await until { model.lastAction == .print }
+        XCTAssertEqual(model.lastResult?.code, 0); XCTAssertEqual(model.lastResult?.completion, .dataSent)
+        let header = Data("! 0 200 200 64 1\r\nPAGE-WIDTH 864\r\nCG 48 64 240 0 ".utf8)
+        let footer = Data("\r\nPRINT\r\n".utf8)
+        XCTAssertTrue(channel.sent.starts(with: header)); XCTAssertTrue(channel.sent.suffix(footer.count) == footer)
+        XCTAssertNil(channel.sent.range(of: Data("FORM".utf8)))
+        XCTAssertEqual(channel.sent.count, header.count + 48 * 64 + footer.count)
+        XCTAssertEqual(channel.openCount, 1)
+    }
+    @MainActor
+    func testConsumerConnectPrintKeepsTypedConnectionAndOriginalDataSentResults() async throws {
+        let channel = QuickStartMemoryChannel(), (model, _) = consumer(channel); defer { model.close() }
+        model.connect(); try await until { model.canPrint }
+        XCTAssertEqual(model.lastAction, .connect); XCTAssertEqual(model.connectionResult?.code, 0)
+        let connectionID = model.connectionResult?.requestID
+        XCTAssertNil(model.lastResult)
+        XCTAssertGreaterThan(channel.connectionTimeout, 9); XCTAssertLessThanOrEqual(channel.connectionTimeout, 10)
+        model.printSample(); try await until { model.canPrint }
+        XCTAssertEqual(model.lastAction, .print); XCTAssertEqual(model.lastResult?.outcome, .success)
+        XCTAssertEqual(model.lastResult?.completion, .dataSent); XCTAssertEqual(model.lastResult?.outputMayHaveOccurred, true)
+        XCTAssertEqual(model.connectionResult?.requestID, connectionID)
+        XCTAssertEqual(channel.openCount, 1)
+    }
+    @MainActor
+    func testConsumerSendingCancelKeepsOutputEvidenceAndNeverReplays() async throws {
+        let channel = QuickStartMemoryChannel(), (model, _) = consumer(channel); defer { model.close() }
+        model.connect(); try await until { model.canPrint }
+        channel.configure(holdWriteAfter: 3); model.printSample()
+        try await until { channel.blockedWrite.wait(timeout: .now()) == .success }
+        model.cancel(); try await until { model.lastAction == .print }
+        XCTAssertEqual(model.lastResult?.outcome, .cancelled); XCTAssertEqual(model.lastResult?.code, 1005)
+        XCTAssertEqual(model.lastResult?.completion, CompletionLevel.none)
+        XCTAssertEqual(model.lastResult?.outputMayHaveOccurred, true); XCTAssertEqual(channel.sent.count, 3)
+        let terminalID = model.lastResult?.requestID
+        model.disconnect(); try await until { model.canConnect }
+        XCTAssertEqual(model.lastResult?.requestID, terminalID); XCTAssertEqual(model.cleanupResult?.code, 0)
+        channel.configure(); model.connect(); try await until { model.canPrint }
+        XCTAssertEqual(channel.sent.count, 3); XCTAssertEqual(channel.openCount, 2)
+    }
+    @MainActor
+    func testConsumerDisconnectCannotHidePriorTerminalBeforeManualReconnect() async throws {
+        let channel = QuickStartMemoryChannel(), (model, _) = consumer(channel); defer { model.close() }
+        for round in 0..<8 {
+            model.connect(); try await until { model.canPrint }
+            let before = channel.sent.count
+            channel.configure(holdWriteAfter: 3); model.printSample()
+            try await until { channel.blockedWrite.wait(timeout: .now()) == .success }
+            model.disconnect(); model.connect()
+            try await until {
+                let terminal = model.lastAction == .print && (model.lastResult?.code == 1005 || model.lastResult?.code == 2002)
+                if model.canConnect { XCTAssertTrue(terminal, "Consume the real terminal before allowing another connection") }
+                else if model.phase == .offline && !terminal { model.connect(); XCTAssertEqual(model.phase, .offline) }
+                return model.canConnect
+            }
+            XCTAssertEqual(model.cleanupResult?.code, 0); XCTAssertEqual(model.lastResult?.outputMayHaveOccurred, true)
+            XCTAssertNotEqual(model.cleanupResult?.requestID, model.lastResult?.requestID)
+            XCTAssertEqual(channel.sent.count, before + 3); XCTAssertEqual(channel.openCount, round + 1)
+            channel.configure()
+        }
+    }
+    @MainActor
+    func testConsumerConnectCancellationWaitsForCleanupThenAllowsManualRetry() async throws {
+        let channel = QuickStartMemoryChannel(), (model, _) = consumer(channel); defer { model.close() }
+        channel.configure(holdOpen: true); model.connect()
+        try await until { channel.opening.wait(timeout: .now()) == .success }
+        model.cancel(); model.connect(); try await until { model.canConnect }
+        XCTAssertEqual(model.lastAction, .connect); XCTAssertEqual(model.connectionResult?.outcome, .cancelled)
+        XCTAssertEqual(model.connectionResult?.code, 1005); XCTAssertEqual(model.cleanupResult?.code, 0)
+        XCTAssertEqual(channel.openCount, 1); XCTAssertTrue(channel.sent.isEmpty)
+        channel.configure()
+        let other = DiscoveredPrinter(identifier: UUID(), name: "LT-M90_C3D4", advertisedServices: [], rssi: -50)
+        model.devices = [other]; model.selected = other.identifier; model.connect(); try await until { model.canPrint }
+        XCTAssertEqual(channel.openCount, 2); XCTAssertTrue(channel.sent.isEmpty)
+    }
+    @MainActor
+    func testConsumerLossRetainsOriginalPrintTerminalAndSessionBoundDiagnostic() async throws {
+        let channel = QuickStartMemoryChannel(), (model, _) = consumer(channel); defer { model.close() }
+        model.connect(); try await until { model.canPrint }; let connectionID = model.connectionResult?.requestID
+        model.printSample(); try await until { model.canPrint }; let printID = model.lastResult?.requestID
+        let written = channel.sent
+        channel.lose(); try await until { model.phase == .offline }
+        XCTAssertEqual(model.disconnectionResult?.requestID, connectionID); XCTAssertEqual(model.disconnectionResult?.code, 2002)
+        XCTAssertEqual(model.disconnectionResult?.outcome, .failure)
+        XCTAssertEqual(model.lastResult?.requestID, printID); XCTAssertEqual(model.lastResult?.completion, .dataSent)
+        model.connect(); try await until { model.canPrint }
+        XCTAssertEqual(channel.openCount, 2); XCTAssertEqual(channel.sent, written)
+    }
+    @MainActor
+    func testConsumerScanCleanupKeepsTypedCancellationCandidatesAndIgnoresLateDeadline() async throws {
+        let channel = QuickStartMemoryChannel(), scan = QuickStartScanFixture()
+        let manager = PrinterManager(makePrinter: { _, _ in try MobilePrinter(channel: channel) }, makeScanner: { scan.scanner() })
+        let model = QuickStartModel(manager: manager); defer { model.close() }
+        let first = DiscoveredPrinter(identifier: UUID(uuidString: "11111111-0000-0000-0000-000000000000")!,
+            name: "LT-M90_A1B2", advertisedServices: ["FF00"], rssi: -50)
+        let other = DiscoveredPrinter(identifier: UUID(uuidString: "22222222-0000-0000-0000-000000000000")!,
+            name: "LT-M90_A1B2", advertisedServices: [], rssi: 127)
+        XCTAssertNotEqual(QuickStartModel.deviceTitle(first), QuickStartModel.deviceTitle(other))
+        model.scan(); try await until { scan.count == 1 }; scan.complete(with: first)
+        try await until { !model.scanning }; model.selected = first.identifier
+        XCTAssertEqual(model.scanResult?.value?.first?.identifier, first.identifier)
+        model.scan(); try await until { scan.count == 2 }; model.disconnect()
+        try await until { model.canConnect }
+        XCTAssertEqual(model.scanResult?.outcome, .cancelled); XCTAssertEqual(model.scanResult?.code, 1005)
+        XCTAssertEqual(model.cleanupResult?.code, 0); XCTAssertNil(model.lastResult)
+        XCTAssertEqual(model.devices.map(\.identifier), [first.identifier]); XCTAssertEqual(model.selected, first.identifier)
+        let cancelledID = model.scanResult?.requestID
+        scan.expire(0); scan.expire(1)
+        for _ in 0..<5 { await Task.yield() }
+        XCTAssertEqual(model.scanResult?.requestID, cancelledID); XCTAssertEqual(scan.count, 2)
+        XCTAssertEqual(channel.openCount, 0)
+    }
+    @MainActor
+    func testConsumerCloseDoesNotReactivateFromAnOutstandingPrintCallback() async throws {
+        let channel = QuickStartMemoryChannel(), (model, manager) = consumer(channel)
+        model.connect(); try await until { model.canPrint }; let priorID = model.connectionResult?.requestID
+        channel.configure(holdWriteAfter: 3); model.printSample()
+        try await until { channel.blockedWrite.wait(timeout: .now()) == .success }
+        model.close()
+        await withCheckedContinuation { continuation in manager.close { _ in continuation.resume() } }
+        for _ in 0..<5 { await Task.yield() }
+        model.connect(); model.printSample()
+        XCTAssertEqual(model.phase, .closed); XCTAssertFalse(model.canConnect); XCTAssertFalse(model.canPrint)
+        XCTAssertEqual(model.connectionResult?.requestID, priorID); XCTAssertNil(model.lastResult); XCTAssertFalse(channel.isOpen)
+        XCTAssertEqual(channel.openCount, 1); XCTAssertEqual(channel.sent.count, 3)
     }
 }
