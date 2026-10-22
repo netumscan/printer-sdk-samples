@@ -20,8 +20,10 @@ import stat
 import subprocess
 import sys
 import time
-
 sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sdk_contract import MINIMAL_API_VERSIONS
+
 MAX_FILE = 256 * 1024
 MAX_READ = 8 * 1024 * 1024
 MAX_TOTAL = 4 * 1024 * 1024
@@ -310,7 +312,7 @@ def collect(platform, source, command_output, output):
         verification = "failed"
     elif command.get("status") == "passed" and type(command.get("exit_code")) is int and command["exit_code"] == 0:
         version = validation.get("version") if platform == "android" else validation.get("sdk_version")
-        if version == "0.3.0-preview.10":
+        if version in MINIMAL_API_VERSIONS:
             valid = validation.get("runtime_api_verified") is True and validation.get("runtime_compatibility_verified") is False
             if platform == "android":
                 runtime = validation.get("runtime", {})

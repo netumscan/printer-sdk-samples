@@ -9,6 +9,7 @@ final class DemoFormatter {
     static String status(DemoUiState state) {
         if (state.inputError != null) return state.inputError;
         if (state.cancelling) return "取消中；已发送数据无法撤回";
+        if (state.preparing) return "正在后台准备图片；可取消未接纳的图片";
         if (state.discovering) return "正在搜索设备…";
         switch (state.phase) {
         case CONNECTING: return "正在连接…";

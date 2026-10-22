@@ -2,7 +2,7 @@
 
 SDK 权限、生命周期、capabilities、错误码和诊断字段见[客户指南](../docs/README.md)。
 
-两个独立 App 固定从 Maven Central 获取 `com.netumscan:printer-sdk-android:0.3.0-preview.10`，不依赖本地 SDK 源码或 AAR。
+两个独立 App 固定从 Maven Central 获取 `com.netumscan:printer-sdk-android:0.3.0-preview.11`，不依赖本地 SDK 源码或 AAR。
 
 | 示例 | 用途 | applicationId |
 | --- | --- | --- |

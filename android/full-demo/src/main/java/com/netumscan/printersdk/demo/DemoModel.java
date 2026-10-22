@@ -6,6 +6,15 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import android.os.Handler;
+import android.os.Looper;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Demo 的 SDK 控制入口：在主线程维护应用状态，直接调用公共 PrinterManager。
@@ -14,6 +23,12 @@ import java.util.List;
  */
 final class DemoModel implements AutoCloseable {
     private final PrinterManager manager;
+    interface SampleFactory { DemoPrintData create(DemoPixelSamples.Example example, LabelConfig config, ImageCancellation cancelled); }
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final ExecutorService imageWorker;
+    private final boolean ownsImageWorker;
+    private final SampleFactory samples;
+    private ImagePreparation preparation;
     private Runnable changed;
     enum RequestGroup { DEVICE, INDEPENDENT, LIFECYCLE }
     private final java.util.Map<RequestId, RequestGroup> pending = new java.util.IdentityHashMap<>();
@@ -57,8 +72,16 @@ final class DemoModel implements AutoCloseable {
     private long nextPrintSequence;
     private DemoUiState state;
 
-    DemoModel(PrinterManager manager) {
-        this.manager = manager;
+    DemoModel(PrinterManager manager) { this(manager, imageWorker(), DemoPixelSamples::create, true); }
+    DemoModel(PrinterManager manager, ExecutorService worker) { this(manager, worker, DemoPixelSamples::create, false); }
+    DemoModel(PrinterManager manager, SampleFactory samples) { this(manager, imageWorker(), samples, true); }
+    private static ExecutorService imageWorker() {
+        return new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1), task -> {
+            Thread thread = new Thread(task, "PrinterDemo.compose"); thread.setDaemon(true); return thread;
+        });
+    }
+    private DemoModel(PrinterManager manager, ExecutorService worker, SampleFactory samples, boolean ownsWorker) {
+        this.manager = manager; imageWorker = worker; this.samples = samples; ownsImageWorker = ownsWorker;
         publish();
         RequestId identity = manager.sdkInfo(result -> {
             pending.remove(result.requestId);
@@ -100,7 +123,7 @@ final class DemoModel implements AutoCloseable {
         PrinterManager.DisconnectedListener disconnected = result -> {
             // SDK 已停止 IO、清理旧连接并安排请求终态，无需再调用一次 disconnect。
             if (closed || version != connectionVersion || disconnecting) return;
-            ++connectionVersion;
+            ++connectionVersion; cancelPreparation();
             connection = null; connected = false; mediaRequest = null;
             configured = false; printProfile = null; connectionInfo = null;
             disconnectedResult = new DemoResult<>(DemoResult.Kind.DISCONNECTED, result); record(disconnectedResult);
@@ -145,42 +168,81 @@ final class DemoModel implements AutoCloseable {
     private static DemoGeometry geometry(ConnectionInfo info) {
         return info != null && info.model == PrinterModel.LT_M90 ? DemoGeometry.ltM90() : null;
     }
-    /** App 缓存编码字节；SDK 接纳时固定输入，预览与打印互相独立。 */
-    void print(DemoImageSource source, LabelConfig config) {
-        if (!state.canSubmitPrint()) return;
-        if (source == null) throw new IllegalArgumentException("请选择图片来源");
-        validatePrintConfig(config);
-        try (DemoPrintData print = source.printData(config)) {
-            submitPrint(print, "当前图片", true);
-        }
-    }
+    /** App-owned preparation uses one bounded worker; only the Manager owns printer IO scheduling. */
+    void print(DemoImageSource source, LabelConfig config) { prepareImages(source, config, null, 1); }
     void printSample(DemoPixelSamples.Example example, LabelConfig config) {
-        if (!state.canSubmitPrint()) return;
-        validatePrintConfig(config);
-        try (DemoPrintData print = DemoPixelSamples.create(example, config)) {
-            submitPrint(print, "像素示例：" + example, true);
-        }
+        if (example == null) throw new IllegalArgumentException("请选择像素示例");
+        prepareImages(null, config, example, 1);
     }
-    /** 先构建整批，再连续调用 SDK；App 不创建发送队列。 */
+    /** Construct, snapshot through the ordinary SDK API, and release each page before making the next. */
     void printBatch(DemoImageSource source, LabelConfig config, DemoPixelSamples.Example example) {
-        if (!state.canSubmitPrints(BATCH_SIZE)) return;
+        prepareImages(source, config, example, BATCH_SIZE);
+    }
+    private void prepareImages(DemoImageSource source, LabelConfig config, DemoPixelSamples.Example example, int count) {
+        if (preparation != null || !state.canSubmitPrints(count)) return;
         validatePrintConfig(config);
-        if (example == null && source == null) throw new IllegalArgumentException("请选择图片来源");
-        DemoPrintData[] batch = new DemoPrintData[BATCH_SIZE];
-        int submitted = 0;
-        try {
-            for (int i = 0; i < BATCH_SIZE; i++) batch[i] = example == null
-                ? source.printData(config) : DemoPixelSamples.create(example, config);
-            for (int i = 0; i < BATCH_SIZE; i++) {
-                submitPrint(batch[i], (example == null ? "当前图片" : "像素示例：" + example)
-                    + " · 批量 " + (i + 1) + "/" + BATCH_SIZE, false);
-                submitted++;
-            }
-        } finally {
-            for (DemoPrintData print : batch) if (print != null) print.close();
-            if (submitted > 0) publish();
+        if (example != null) DemoPixelSamples.validate(example, config);
+        else if (source == null) throw new IllegalArgumentException("请选择图片来源");
+        ImagePreparation task = new ImagePreparation(source == null ? null : source.acquire(), config, example, count);
+        preparation = task; begin(DemoResult.Kind.PRINT); publish();
+        try { imageWorker.execute(task); }
+        catch (RejectedExecutionException failure) {
+            task.releaseSource(); preparation = null; inputError = "图片准备繁忙；未提交打印"; publish();
         }
     }
+    private final class ImagePreparation implements Runnable {
+        private final DemoImageSource source;
+        private final LabelConfig config;
+        private final DemoPixelSamples.Example example;
+        private final int count;
+        private final long version = connectionVersion;
+        private volatile boolean cancelled;
+        ImagePreparation(DemoImageSource source, LabelConfig config, DemoPixelSamples.Example example, int count) {
+            this.source = source; this.config = config; this.example = example; this.count = count;
+        }
+        private boolean cancelled() { return cancelled || Thread.currentThread().isInterrupted(); }
+        void releaseSource() { if (source != null) source.close(); }
+        @Override public void run() {
+            boolean failed = false;
+            try {
+                for (int index = 0; index < count && !cancelled(); index++) {
+                    DemoPrintData data = example == null ? source.printData(config, this::cancelled) :
+                        samples.create(example, config, this::cancelled);
+                    CountDownLatch consumed = new CountDownLatch(1);
+                    final int page = index;
+                    // Ownership crosses to main only after post succeeds. The worker waits for
+                    // that one page to be snapshotted/released, never for printer IO or its result.
+                    if (!main.post(() -> {
+                        try (DemoPrintData held = data) {
+                            if (preparation != this || cancelled || closed || !foreground || disconnecting ||
+                                    !connected || version != connectionVersion) return;
+                            String description = example == null ? "当前图片" : "像素示例：" + example;
+                            submitPrint(held, description + (count == 1 ? "" : " · 批量 " + (page + 1) + "/" + count), true);
+                        } catch (RuntimeException | OutOfMemoryError failure) {
+                            cancelled = true; inputError = "图片提交失败；未接纳的图片不再提交"; publish();
+                        } finally { consumed.countDown(); }
+                    })) { data.close(); throw new CancellationException(); }
+                    boolean interrupted = false;
+                    for (;;) try { consumed.await(); break; }
+                    catch (InterruptedException interruption) { interrupted = true; cancelled = true; }
+                    if (interrupted) Thread.currentThread().interrupt();
+                }
+            } catch (CancellationException ignored) { /* An unsubmitted page has no SDK request or terminal to invent. */ }
+            catch (RuntimeException | OutOfMemoryError failure) { failed = true; }
+            finally {
+                releaseSource();
+                final boolean reportFailure = failed;
+                main.post(() -> {
+                    if (preparation != this) return;
+                    preparation = null; if (active == null) cancelling = false;
+                    if (reportFailure && !cancelled && !closed && foreground)
+                        inputError = "图片准备失败；未接纳的图片不再提交";
+                    publish();
+                });
+            }
+        }
+    }
+    private void cancelPreparation() { if (preparation != null) preparation.cancelled = true; }
     /** 同一个像素入口供 App 生成的灰度图及无 Android Bitmap 的真实回归检查使用。 */
     void printPixels(LabelConfig config, byte[] pixels) {
         if (!state.canSubmitPrint()) return;
@@ -228,6 +290,11 @@ final class DemoModel implements AutoCloseable {
     /** 取消只表达停止意图，仍等待真实终态；已经发送到打印机的数据无法撤回。 */
     void cancel() {
         if (!state.canCancel()) return;
+        if (preparation != null) {
+            cancelPreparation(); cancelling = true;
+            inputError = "图片准备已取消；未接纳的图片不会提交";
+            publish();
+        }
         if (active != null) {
             manager.cancel(active); cancelling = true; inputError = null;
             publish();
@@ -255,6 +322,7 @@ final class DemoModel implements AutoCloseable {
     /** 断开期间保持清理屏障，完成后才允许换机或重新连接，不自动重放旧任务。 */
     void disconnect() {
         if (closed || disconnecting) return;
+        cancelPreparation();
         disconnecting = true; ++connectionVersion; connection = null; inputError = null; mediaRequest = null;
         configured = false; printProfile = null; connectionInfo = null;
         publish();
@@ -375,6 +443,7 @@ final class DemoModel implements AutoCloseable {
     @Override public void close() {
         if (closed) return;
         closed = true; foreground = false; changed = null; mediaRequest = null;
+        cancelPreparation(); if (ownsImageWorker) imageWorker.shutdown();
         connected = false; configured = false; printProfile = null; connectionInfo = null;
         RequestId cleanup = manager.close(result -> {
             pending.remove(result.requestId);
@@ -409,11 +478,11 @@ final class DemoModel implements AutoCloseable {
         }
         DemoUiState.Phase phase = closed ? DemoUiState.Phase.CLOSED : disconnecting ? DemoUiState.Phase.DISCONNECTING :
             activeKind == DemoResult.Kind.CONNECT && active != null ? DemoUiState.Phase.CONNECTING : active != null ? DemoUiState.Phase.WORKING :
-            pendingPrint ? DemoUiState.Phase.WORKING : connected ? DemoUiState.Phase.READY : DemoUiState.Phase.OFFLINE;
+            pendingPrint || (preparation != null && connected) ? DemoUiState.Phase.WORKING : connected ? DemoUiState.Phase.READY : DemoUiState.Phase.OFFLINE;
         state = new DemoUiState(phase, foreground, discovery != null, cancelling || cancellingPrint, inputError, selectedID, candidates,
             activeKind, latestResult, lastRequest, statusResult, capabilitiesResult, identityResult, discoveryResult, disconnectedResult, cleanupResult,
             mediaRequest, connected, connected && configured && !closed && !disconnecting && active == null, printRequests,
-            connectionInfo);
+            connectionInfo, preparation != null);
         if (changed != null) changed.run();
     }
     private void begin(DemoResult.Kind kind) { inputError = null; cancelling = false; activeKind = kind; }

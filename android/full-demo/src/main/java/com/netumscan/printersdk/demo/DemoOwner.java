@@ -52,7 +52,6 @@ final class DemoOwner implements AutoCloseable {
 
     DemoOwner(PrinterManager manager) { this(manager, null); }
     DemoOwner(PrinterManager manager, Context context) {
-        model = new DemoModel(manager);
         if (context == null) {
             application = null;
             images = null; settings = null; journal = null; utilities = null; main = null;
@@ -66,6 +65,7 @@ final class DemoOwner implements AutoCloseable {
                 Thread thread = new Thread(task, "PrinterDemo.files"); thread.setDaemon(true); return thread;
             });
         }
+        model = utilities == null ? new DemoModel(manager) : new DemoModel(manager, utilities);
     }
     void attach(Runnable listener) { if (!closed) changed = listener; }
     void notifyChanged() { if (!closed && changed != null) changed.run(); }

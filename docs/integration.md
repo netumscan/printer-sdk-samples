@@ -1,6 +1,6 @@
 # Android/iOS App接入
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.10` · native `0.3.0` · ABI `3/r2`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.11` · native `0.3.0` · ABI `3/r2`
 
 Android最低API21、Java8；iOS最低iOS15。实际发布后使用同版精确Maven／SwiftPM依赖，核对分发身份与制品摘要；候选或开发契约不表示线上已发布。App负责权限、设备选择和配对，iOS配置NSBluetoothAlwaysUsageDescription。
 
@@ -125,4 +125,4 @@ Flutter通过MethodChannel传Uint8List，Android接byte[]，iOS接FlutterStandar
 
 取消、失败和断开可能已有部分输出，读取outputMayHaveOccurred；DATA_SENT不等于机械完成。disconnect完成后才能正常换机，close永久停止独占会话。共享所有者的页面解绑不关闭设备；恢复前台不重连或补印。
 
-UIImage入口支持可取得CGImage的非动画图片；CI-only、矢量／系统符号等无CGImage来源及动画图片返回1001。App可先渲染为CGImage-backed UIImage，或提供PNG/JPEG Data。UIImage源像素快照按bytesPerRow×height限制为16MiB，编码Data上限32MiB；大图优先使用Data，由SDK后台按目标采样。快照复制期间不得并发修改输入，返回后可修改或释放原数据。iOS只有保存UUID、没有有效名称且未显式选择型号时，连接返回1004。
+UIImage 入口支持可取得 CGImage 的非动画图片；CI-only、矢量／系统符号等无 CGImage 来源及动画图片返回 1001。检查和像素读取在后台执行。源像素 bytesPerRow×height 上限 16 MiB，接纳时按此上限保守预留输入额度；编码 Data 上限 32 MiB，大图优先使用 Data 按目标采样。SDK 强持有不可变 UIImage，返回后可释放或重新赋值调用方引用；自定义 CGDataProvider 的底层数据须在 provider 生命周期内保持不变。Bitmap、byte[]／Data 仍在返回前复制，复制期间不得并发修改，返回后可修改或释放原数据。iOS 只有保存 UUID、没有有效名称且未显式选择型号时，连接返回 1004。

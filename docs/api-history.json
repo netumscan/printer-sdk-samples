@@ -2339,7 +2339,7 @@
           }
         },
         "schema": 1,
-        "snapshot": "docs/api/candidates/0.3.0-preview.10/printer_sdk.h"
+        "snapshot": "docs/api/candidates/0.3.0-preview.11/printer_sdk.h"
       }
     },
     "manifest": {
@@ -2348,8 +2348,8 @@
         "version": 3
       },
       "c_abi": {
-        "baseline": "docs/api/candidates/0.3.0-preview.10/BASELINE.json",
-        "baseline_sha256": "e7203fe7d4e15df15567f439efe53e2ef2d457b18a12eab8e5a6413366a32816"
+        "baseline": "docs/api/candidates/0.3.0-preview.11/BASELINE.json",
+        "baseline_sha256": "472eb4dc0da30cb42c922b7da59320416c0ff33d197f978a102f7554006d68d1"
       },
       "contract_status": "candidate",
       "historical_baseline_version": "0.2.0-preview.3",
@@ -2380,21 +2380,21 @@
       ],
       "mobile": {
         "android": {
-          "annotations": "docs/api/candidates/0.3.0-preview.10/android.json",
+          "annotations": "docs/api/candidates/0.3.0-preview.11/android.json",
           "annotations_sha256": "676a3763c5ce5349e8e55fbd18341b2a96017430cc6f1c2fc40eb44dbb39f023",
-          "baseline": "docs/api/candidates/0.3.0-preview.10/android-java.txt",
+          "baseline": "docs/api/candidates/0.3.0-preview.11/android-java.txt",
           "baseline_sha256": "b42d80dff97b0dd790219ae23107f9946bca030b301aef865ef93694c093e980"
         },
         "apple": {
-          "annotations": "docs/api/candidates/0.3.0-preview.10/apple.json",
-          "annotations_sha256": "3721dc3381043f5bb8df4e7d735b3d37f4171ac8ef333fa9a69385e0ebfdb5fd",
-          "baseline": "docs/api/candidates/0.3.0-preview.10/apple-swift.txt",
+          "annotations": "docs/api/candidates/0.3.0-preview.11/apple.json",
+          "annotations_sha256": "3b128f944f44123b7e31ca8e4ca0c7e25596ceb08328bd7bf7d715e4793569dc",
+          "baseline": "docs/api/candidates/0.3.0-preview.11/apple-swift.txt",
           "baseline_sha256": "8aaed8263549d0d9ea0abc7c14918fdf38492531e97e975143c2d1c583533377"
         }
       },
       "native_sdk_version": "0.3.0",
       "schema": 3,
-      "sdk_version": "0.3.0-preview.10"
+      "sdk_version": "0.3.0-preview.11"
     }
   },
   "contract_status": "candidate",
@@ -2509,5 +2509,5 @@
     }
   ],
   "schema": 2,
-  "sdk_version": "0.3.0-preview.10"
+  "sdk_version": "0.3.0-preview.11"
 }

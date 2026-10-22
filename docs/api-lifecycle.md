@@ -1,12 +1,12 @@
 # API与生命周期
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.10`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.11`
 
 Android使用PrinterManager(Context)，iOS使用无参构造；每实例拥有一个设备连接。所有异步操作立即返回RequestId／RequestID，主线程交付一次ManagerResult。参数、状态、准备、接纳或执行失败均走同一结果；不要同步等待主线程回调。
 
 调用方保存请求标识并按终态移除。结果保留outcome、code、message、completion、outputMayHaveOccurred和可选value。DATA_SENT只表示数据交付；未知状态保持未知。意外断连单独通知所属连接，主动disconnect使用自己的完成回调。
 
-SDK拥有图片输入快照，解码和准备在有界后台执行。所有设备IO共用同一native FIFO，Raw不旁路。取消是控制信号，取消终态不表示准备读者已退出；实际退出前资源仍计费，迟到结果不输出。超时由内部策略管理，不在开始发送时重新计时。
+SDK 拥有独立输入副本或强持有不可变 UIImage，解码和准备在有界后台执行。所有设备IO共用同一native FIFO，Raw不旁路。取消是控制信号，取消终态不表示准备读者已退出；实际退出前资源仍计费，迟到结果不输出。超时由内部策略管理，不在开始发送时重新计时。
 
 | 动作 | 效果 |
 | --- | --- |

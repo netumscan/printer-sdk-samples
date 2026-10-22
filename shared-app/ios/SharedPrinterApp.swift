@@ -26,6 +26,7 @@ final class SharedPrinterApp {
     private var errorCode: Int32?
     private var pages: [UUID: @MainActor (ViewState) -> Void] = [:]
     private var endpoint: DiscoveredPrinter?
+    private var endpointModel: PrinterModel?
     private var foreground = true
     init(manager: PrinterManager = PrinterManager()) { self.manager = manager }
     var viewState: ViewState {
@@ -42,11 +43,12 @@ final class SharedPrinterApp {
         for (id, render) in Array(pages) where pages[id] != nil { render(value) }
     }
     @discardableResult
-    func connect(_ device: DiscoveredPrinter,
+    func connect(_ device: DiscoveredPrinter, model: PrinterModel? = nil,
                  completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { _ in }) -> RequestID {
         endpoint = device
+        endpointModel = model
         if phase == .disconnected { phase = .connecting; errorCode = nil; publish() }
-        return manager.connectBle(device: device, completion: { [weak self] result in
+        let completed: @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { [weak self] result in
             if let self, phase != .closed {
                 if result.isSuccess { phase = .connected }
                 else if phase == .connecting { phase = .disconnected }
@@ -54,15 +56,21 @@ final class SharedPrinterApp {
                 publish()
             }
             completion(result)
-        }, onDisconnected: { [weak self] result in
+        }
+        let disconnected: @MainActor @Sendable (ManagerResult<Void>) -> Void = { [weak self] result in
             guard let self, phase != .closed else { return }
             phase = .disconnected; errorCode = result.code; publish()
-        })
+        }
+        if let model {
+            return manager.connectBle(device: device, model: model, completion: completed, onDisconnected: disconnected)
+        }
+        return manager.connectBle(device: device, completion: completed, onDisconnected: disconnected)
     }
     // Explicit retry reconnects only; it never resubmits a previous print.
     func retryConnection(completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void) {
         guard let endpoint else { return }
-        disconnect { [weak self] _ in self?.connect(endpoint, completion: completion) }
+        let model = endpointModel
+        disconnect { [weak self] _ in self?.connect(endpoint, model: model, completion: completion) }
     }
     @discardableResult
     func printLabel(pngJpeg: Data, widthMm: Double, heightMm: Double) -> RequestID {

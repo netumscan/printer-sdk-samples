@@ -45,6 +45,12 @@ public final class SharedPrinterApp implements AutoCloseable {
     public ManagerResult<?> lastConfiguration() { return lastConfiguration; }
     public int pendingCount() { synchronized (lock) { return pending.size(); } }
     public RequestId connect() {
+        return connect(null);
+    }
+    /** The selected model is configuration, not a replacement device name. */
+    public RequestId connect(PrinterModel model) {
+        if (model != null) return lowEnergy ? manager.connectBle(device, model, this::connectionResult, this::connectionResult)
+                                           : manager.connectSpp(device, model, this::connectionResult, this::connectionResult);
         return lowEnergy ? manager.connectBle(device, this::connectionResult, this::connectionResult)
                          : manager.connectSpp(device, this::connectionResult, this::connectionResult);
     }

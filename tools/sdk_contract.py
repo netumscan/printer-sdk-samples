@@ -2,6 +2,8 @@
 """Reviewed sample verification boundaries, selected by the exact SDK lock."""
 import re
 
+MINIMAL_API_VERSIONS = frozenset({"0.3.0-preview.10", "0.3.0-preview.11"})
+
 
 def abi_identity(lock):
     value = lock.get("c_abi", "")
@@ -18,7 +20,7 @@ def c_export_count(lock):
 
 def ios_test_count(lock):
     identity = abi_identity(lock)
-    if lock.get("version") == "0.3.0-preview.10":
+    if lock.get("version") in MINIMAL_API_VERSIONS:
         if identity != (3, 2):
             raise ValueError("Minimal mobile API requires ABI 3/r2")
         return 18
@@ -66,9 +68,9 @@ def native_evidence(abi_version, abi_revision, native_version=None, distribution
 
 
 def validate_ios_runtime_api(value, lock):
-    """Recheck .10's actual SDK identity and offline lifecycle; never relabel legacy ABI evidence."""
-    if lock.get("version") != "0.3.0-preview.10" or abi_identity(lock) != (3, 2):
-        raise ValueError("Minimal iOS runtime evidence requires exact .10 / ABI 3/r2")
+    """Recheck reviewed minimal API identities; never relabel legacy ABI evidence."""
+    if lock.get("version") not in MINIMAL_API_VERSIONS or abi_identity(lock) != (3, 2):
+        raise ValueError("Minimal iOS runtime evidence requires a reviewed exact version / ABI 3/r2")
     if (not isinstance(value, dict) or set(value) != {"schema_version", "scope", "nonce", "sdk", "distribution",
             "demo", "offline_lifecycle", "hardware_verified", "transport", "build_resource", "journal_sha256"}
             or type(value.get("schema_version")) is not int or value["schema_version"] != 1

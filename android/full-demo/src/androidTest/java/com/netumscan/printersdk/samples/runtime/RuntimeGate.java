@@ -123,7 +123,7 @@ public final class RuntimeGate extends Instrumentation {
         Fake fake=new Fake();PrinterManager manager=memoryManager(fake);SdkInfo info;
         try {
             Reply<SdkInfo> identity=new Reply<>();manager.sdkInfo(identity);info=identity.await().value;
-            require(nativeAbi(info,"abiVersion")==3&&nativeAbi(info,"abiRevision")>=2&&"0.3.0".equals(info.nativeVersion)&&"0.3.0-preview.10".equals(info.distributionVersion),"Loaded SDK identity differs");
+            require(nativeAbi(info,"abiVersion")==3&&nativeAbi(info,"abiRevision")>=2&&"0.3.0".equals(info.nativeVersion)&&"0.3.0-preview.11".equals(info.distributionVersion),"Loaded SDK identity differs");
             Reply<ConnectionInfo> connection=new Reply<>();manager.connectSpp(new DiscoveredDevice("AA:BB:CC:DD:EE:01","LT-M90_AB12"),connection,null);require(connection.await().code==0,"Connect failed");
             Reply<Void> first=new Reply<>(),second=new Reply<>();manager.sendRaw(new byte[]{1,2,3,4,5,6,7,8,9},first);
             require(fake.firstWrite.await(5,TimeUnit.SECONDS),"First write missing");manager.sendRaw(new byte[]{10,11,12,13,14},second);fake.release.countDown();
@@ -172,7 +172,7 @@ public final class RuntimeGate extends Instrumentation {
             Reply<SdkInfo> identity = new Reply<>(); owner[0].sdkInfo(identity);
             SdkInfo loaded = identity.await().value;
             require(loaded != null && nativeAbi(loaded,"abiVersion") == 3 && nativeAbi(loaded,"abiRevision") >= 2 &&
-                    "0.3.0".equals(loaded.nativeVersion) && "0.3.0-preview.10".equals(loaded.distributionVersion),
+                    "0.3.0".equals(loaded.nativeVersion) && "0.3.0-preview.11".equals(loaded.distributionVersion),
                     "Demo Manager runtime identity differs");
             runOnMainSync(current::finish); waitForIdleSync();
             Reply<Void> cleanup = new Reply<>(); owner[0].close(cleanup);
