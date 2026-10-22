@@ -1,6 +1,6 @@
 # iOS Swift API 参考
 
-发布候选版本 **0.3.0-preview.10**；原生 SDK **0.3.0**；C ABI **3/r2**。
+发布候选版本 **0.3.0-preview.11**；原生 SDK **0.3.0**；C ABI **3/r2**。
 
 本页逐项覆盖审定的编译器公共 API 基线，共 **88** 个文档条目。
 声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。
@@ -1292,7 +1292,7 @@ init()
 @discardableResult func printImage(_ image: UIImage, widthMm: Double, heightMm: Double, completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void) -> RequestID
 ```
 
-Android接收Bitmap，iOS接收具有CGImage且非动画的UIImage。返回前取得独立像素快照，调用方不得在快照期间并发修改/回收输入；返回后可自行管理原图。方向校正、白底灰度、缩放在有界后台进行，二值化/协议按条带处理。widthMm与heightMm必须为正有限毫米值，并受已采用型号宽高和资源限制。固定一份、阈值128、不反色；等比缩小并居中补白，不放大不裁切。页面尺寸不取图片DPI/density；不附加FORM、切纸或下一标签定位。 无效输入报告1001、资源超限1008。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
+iOS接收CGImage支持的非动画UIImage，仅强持有不可变图片；返回后调用方可释放或重新赋值自己的引用，自定义CGDataProvider底层数据在provider生命周期内须保持不变。图片属性、支持性和16MiB源大小校验、惰性像素读取、方向校正、白底灰度及缩放全部在有界后台执行；接纳前按16MiB保守计费，取消或关闭后的实际读者退出前不释放额度和图片。二值化及协议按条带处理。widthMm与heightMm必须为正有限毫米值，并受已采用型号宽高和资源限制。固定一份、阈值128、不反色；等比缩小并居中补白，不放大不裁切。页面尺寸不取图片DPI/density；不附加FORM、切纸或下一标签定位。 无效输入报告1001、资源超限1008。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
 
 文档 ID：`apple:symbol:s:10PrinterSDK0A7ManagerC10printImage_7widthMm06heightG010completionAA9RequestIDVSo7UIImageC_S2dyAA0C6ResultVyytGYbScMYcctF`
 

@@ -21,7 +21,7 @@
     <string name="transport_label">连接方式</string>
     <string name="no_device">尚未选择设备</string>
     <string name="paired_devices">选择已配对设备</string>
-    <string name="scan_ble">扫描 BLE（10 秒）</string>
+    <string name="scan_ble">扫描 BLE（5 秒）</string>
     <string name="stop_discovery">停止扫描</string>
     <string name="bluetooth_settings">打开系统蓝牙设置</string>
     <string name="transport_details">手动地址与 BLE 参数 ▾</string>

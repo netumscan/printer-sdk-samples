@@ -32,7 +32,7 @@ final class DemoUiState {
         }
     }
     final Phase phase;
-    final boolean foreground, discovering, cancelling, connected;
+    final boolean foreground, discovering, cancelling, connected, preparing;
     /** SDK 为当前连接实际采用的配置；离线时为空，未知配置不会补造型号或参数。 */
     final ConnectionInfo connectionInfo;
     private final boolean printingAllowed;
@@ -76,6 +76,18 @@ final class DemoUiState {
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests,
             ConnectionInfo connectionInfo) {
+        this(phase, foreground, discovering, cancelling, inputError, selectedID, candidates, activeKind, latestResult,
+            lastRequest, statusResult, capabilitiesResult, identityResult, discoveryResult, disconnectedResult, cleanupResult,
+            mediaRequest, connected, printingAllowed, printRequests, connectionInfo, false);
+    }
+    DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
+            String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
+            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
+            DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
+            DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
+            MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests,
+            ConnectionInfo connectionInfo, boolean preparing) {
+        this.preparing = preparing;
         this.phase = phase; this.foreground = foreground; this.discovering = discovering; this.cancelling = cancelling;
         this.connected = connected; this.printingAllowed = printingAllowed;
         this.connectionInfo = connectionInfo;
@@ -87,7 +99,7 @@ final class DemoUiState {
         this.mediaRequest = mediaRequest;
         this.printRequests = Collections.unmodifiableList(new ArrayList<>(printRequests));
     }
-    boolean canConnect() { return foreground && phase == Phase.OFFLINE; }
+    boolean canConnect() { return foreground && !preparing && phase == Phase.OFFLINE; }
     boolean canWork() { return foreground && phase == Phase.READY; }
     int pendingPrintCount() {
         int pending = 0;
@@ -96,12 +108,12 @@ final class DemoUiState {
     }
     boolean canSubmitPrint() { return canSubmitPrints(1); }
     boolean canSubmitPrints(int count) {
-        return foreground && printingAllowed && count > 0 && count <= MAX_PENDING_PRINTS &&
+        return foreground && !preparing && printingAllowed && count > 0 && count <= MAX_PENDING_PRINTS &&
             pendingPrintCount() <= MAX_PENDING_PRINTS - count;
     }
     boolean canCancel() { return foreground && (phase == Phase.CONNECTING || phase == Phase.WORKING); }
     boolean canDisconnect() { return foreground && (phase == Phase.CONNECTING || phase == Phase.READY || phase == Phase.WORKING || discovering); }
-    boolean canDiscover() { return foreground && phase == Phase.OFFLINE; }
+    boolean canDiscover() { return foreground && !preparing && phase == Phase.OFFLINE; }
     boolean canEditConnection() { return canConnect(); }
     boolean canEditDocument() { return foreground && (phase == Phase.OFFLINE || phase == Phase.READY); }
     boolean canSelectCandidate() { return canEditConnection() && !candidates.isEmpty(); }

@@ -1,11 +1,11 @@
 # 支持与安全
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.10`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.11`
 
 报告问题时记录以下身份及可复现步骤：
 
 ```text
-SDK distribution version: 0.3.0-preview.10
+SDK distribution version: 0.3.0-preview.11
 Native SDK: 0.3.0
 C ABI: 3/r2
 Contract status: read from the exact distribution manifest

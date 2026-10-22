@@ -1,8 +1,10 @@
 # 迁移到最小移动API
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.10`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.11`
 
-本版为Android／iOS源码不兼容迁移，调用方需要重新编译。native 0.3.0／C ABI3/r2保持，旧制品、标签和冻结公共契约保留。
+从 `.10` 升级本版无需调整方法和参数，更新精确依赖后重新构建。UIImage 使用原生不可变图片持有语义，全部属性与像素读取在后台；自定义 provider 的底层数据须保持不变，Data 仍在返回前深复制。native 0.3.0／C ABI3/r2、旧制品、标签和冻结公共契约保持。
+
+以下步骤用于迁移更早的旧移动 API：
 
 1. 由业务所有者创建PrinterManager。使用DiscoveredDevice／DiscoveredPrinter连接，必要时显式指定已收录PrinterModel。删除ConnectionOptions、BleOptions及调用方自定通信参数。
 2. 删除公开Profile、ImageSource、PixelImage、ImageLoader、ImageLoadContext、ImageRender、PrintOptions、PreparedPrint和preparation闭包。Android直接传Bitmap或PNG/JPEG byte[]；iOS直接传UIImage或PNG/JPEG Data，另传页面widthMm／heightMm。
@@ -11,6 +13,6 @@
 5. 保留RequestId／RequestID和一次主线程回调。结果使用稳定错误码、completion与outputMayHaveOccurred；不再读取公开位掩码、队列、epoch、原生句柄或ABI字段。
 6. Flutter统一传完整PNG/JPEG Uint8List，原生插件只转交，保留每个请求唯一回复与detach抑制迟到回调。旧rawRgba数据需要明确编码PNG后再传。
 
-图片入参在调用期间保持稳定，返回后SDK持有独立快照；取消后仍在退出的读者由SDK管理。App保留自己的文件授权、缓存、日志、UI绑定与后台策略。正常换机等待disconnect，独占所有者结束时close；不自动重连或重放。
+Bitmap、byte[]／Data 在复制期间保持稳定，返回后 SDK 持有独立副本；UIImage 由 SDK 强持有不可变对象，调用方可释放其引用，自定义 provider 底层数据须保持不变；取消后仍在退出的读者由SDK管理。App保留自己的文件授权、缓存、日志、UI绑定与后台策略。正常换机等待disconnect，独占所有者结束时close；不自动重连或重放。
 
 完整公开参数见[Java API](android-java-api.md)与[Swift API](ios-swift-api.md)，示例见[接入](integration.md)。

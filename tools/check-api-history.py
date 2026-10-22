@@ -64,7 +64,12 @@ HISTORICAL_ANDROID = {"baseline_sha256": "dbbab332f2d1280ef680de940b1ccad9848b65
                       "classes_sha256": "a38917a334569a217a3a3564038b50e18dfeb2af24e390522f3c0dc25a159ac9",
                       "types": 14, "members": 101}
 MAX_OBJECT_BYTES = 2 * 1024 * 1024
-CANDIDATE_CONTRACTS = {"0.3.0-preview.10": {
+CANDIDATE_CONTRACTS = {"0.3.0-preview.11": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
+    "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 27,
+    "manifest_sha256": "8102940af9332cea1eba49821f4c5c53d5a95f79c2e567bac7ebc61866fee0f5",
+    "c_baseline_sha256": "18c74ea352a5f8c2f7a6a525da0aff3c04eb44a3bbca837144cca190dbd027cf",
+}, "0.3.0-preview.10": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
     "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 27,
     "manifest_sha256": "b2e8ddeb574b23ab7b820c140230347afa7184318bb47f358f5a12807183ea0f",

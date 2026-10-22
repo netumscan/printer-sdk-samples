@@ -77,7 +77,7 @@ final class QuickStartModel {
 
     void scan() {
         if (!canSelect()) return;
-        status = "正在扫描 BLE 设备，10 秒后显示结果…";
+        status = "正在扫描 BLE 设备，5 秒后显示结果…";
         scanRequest = manager.scanBle(result -> {
             if (scanRequest != result.requestId) return;
             scanRequest = null;

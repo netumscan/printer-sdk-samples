@@ -15,7 +15,7 @@ from pathlib import Path
 import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from sdk_contract import c_export_count, ios_test_count, validate_ios_runtime_api
+from sdk_contract import MINIMAL_API_VERSIONS, c_export_count, ios_test_count, validate_ios_runtime_api
 
 IOS = Path(__file__).resolve().parent
 SDK_LOCK = json.loads((IOS.parent / "sdk-lock.json").read_text())
@@ -70,7 +70,7 @@ def verify_runtime_compatibility(container, app, previous_journal=b""):
 
 
 def minimal_api_version(lock):
-    return lock.get("version") == "0.3.0-preview.10"
+    return lock.get("version") in MINIMAL_API_VERSIONS
 
 
 def select_simulator(devices, explicit_udid=None):

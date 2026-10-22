@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import struct
 import zlib
+from sdk_contract import MINIMAL_API_VERSIONS
 
 PREFIX = "flutter/"
 LOCAL_FLUTTER = "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage"
@@ -22,7 +23,7 @@ def sha(value):
 
 def validate_lock(lock):
     version = lock.get("version")
-    if version != "0.3.0-preview.10" or lock.get("native_sdk_version") != "0.3.0" or lock.get("c_abi") != "3/r2" or lock.get("hardware_verified") is not False:
+    if version not in MINIMAL_API_VERSIONS or lock.get("native_sdk_version") != "0.3.0" or lock.get("c_abi") != "3/r2" or lock.get("hardware_verified") is not False:
         raise ValueError("Invalid Flutter SDK lock")
     android, ios = lock.get("android", {}), lock.get("ios", {})
     if (android.get("coordinate") != "com.netumscan:printer-sdk-android:" + version

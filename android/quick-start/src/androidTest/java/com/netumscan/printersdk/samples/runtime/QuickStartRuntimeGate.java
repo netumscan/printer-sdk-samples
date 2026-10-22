@@ -64,7 +64,7 @@ public final class QuickStartRuntimeGate extends Instrumentation {
             final SdkInfo[] loaded = new SdkInfo[1];
             owner[0].sdkInfo(value -> { loaded[0] = value.value; identity.countDown(); });
             if (!identity.await(8, TimeUnit.SECONDS) || loaded[0] == null || !Integer.valueOf(3).equals(field(loaded[0], "abiVersion")) ||
-                    !Integer.valueOf(2).equals(field(loaded[0], "abiRevision")) || !"0.3.0-preview.10".equals(loaded[0].distributionVersion) ||
+                    !Integer.valueOf(2).equals(field(loaded[0], "abiRevision")) || !"0.3.0-preview.11".equals(loaded[0].distributionVersion) ||
                     !"0.3.0".equals(loaded[0].nativeVersion))
                 throw new AssertionError("Quick Start Manager runtime identity differs");
             runOnMainSync(current::finish); waitForIdleSync();

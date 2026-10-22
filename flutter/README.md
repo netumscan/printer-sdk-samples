@@ -1,6 +1,6 @@
 # Flutter Quick Start
 
-NETUM Printer SDK `0.3.0-preview.10` 的 Android／iOS 快速示例。Android 精确依赖 Maven Central，iOS 精确依赖公开 Swift Package；克隆本示例仓库即可构建，无需 SDK 私有源码。
+NETUM Printer SDK `0.3.0-preview.11` 的 Android／iOS 快速示例。Android 精确依赖 Maven Central，iOS 精确依赖公开 Swift Package；克隆本示例仓库即可构建，无需 SDK 私有源码。
 
 ## 运行
 

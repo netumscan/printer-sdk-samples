@@ -2,9 +2,7 @@
 package com.netumscan.printersdk.demo;
 
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import java.util.concurrent.CancellationException;
 
 /** App composes the page before passing one Bitmap to the ordinary SDK entry point. */
@@ -18,32 +16,37 @@ final class DemoPixelSamples {
             throw new IllegalArgumentException("像素示例至少需要 32 × 64 dots 页面");
     }
     static DemoPrintData create(Example example, LabelConfig config) {
+        return create(example, config, () -> false);
+    }
+    static DemoPrintData create(Example example, LabelConfig config, ImageCancellation cancelled) {
         validate(example, config);
+        if (cancelled.getAsBoolean()) throw new CancellationException();
         Bitmap page = Bitmap.createBitmap(config.labelWidthDots, config.height, Bitmap.Config.ARGB_8888);
         try {
-            Canvas canvas = new Canvas(page); canvas.drawColor(Color.WHITE);
-            Paint paint = new Paint();
+            int[] row = new int[config.labelWidthDots];
             int tiles = example == Example.DITHERING ? 4 : example == Example.MULTI_IMAGE ? 3 : 1;
             int gap = tiles == 1 ? 0 : 8;
             int tileHeight = Math.max(1, (config.height - gap * (tiles - 1)) / tiles);
-            for (int tile = 0; tile < tiles; tile++) {
-                int yOffset = tile * (tileHeight + gap);
-                for (int x = 0; x < config.labelWidthDots; x++) {
-                    int level = x * 255 / Math.max(1, config.labelWidthDots - 1);
-                    for (int y = 0; y < tileHeight; y++) {
-                        int color;
-                        if (example == Example.DITHERING) {
-                            int threshold = tile == 0 ? 128 : bayer(x, y, tile);
-                            int gray = level < threshold ? 0 : 255;
-                            color = Color.rgb(gray, gray, gray);
-                        } else if (example == Example.RGBA) {
-                            int alpha = x < config.labelWidthDots / 3 ? 0 : x < config.labelWidthDots * 2 / 3 ? 128 : 255;
-                            color = Color.argb(alpha, 0, 0, 0);
-                        } else color = Color.rgb(level, y * 255 / Math.max(1, tileHeight - 1), 255 - level);
-                        paint.setColor(color); canvas.drawPoint(x, yOffset + y, paint);
-                    }
+            for (int y = 0; y < config.height; y++) {
+                if (cancelled.getAsBoolean()) throw new CancellationException();
+                int tile = y / (tileHeight + gap), tileY = y % (tileHeight + gap);
+                for (int x = 0; x < row.length; x++) {
+                    if (tile >= tiles || tileY >= tileHeight) { row[x] = Color.WHITE; continue; }
+                    int level = x * 255 / Math.max(1, row.length - 1);
+                    if (example == Example.DITHERING) {
+                        int threshold = tile == 0 ? 128 : bayer(x, tileY, tile);
+                        int gray = level < threshold ? 0 : 255;
+                        row[x] = Color.rgb(gray, gray, gray);
+                    } else if (example == Example.RGBA) {
+                        // Match the previous white Canvas composition, including straight alpha.
+                        int alpha = x < row.length / 3 ? 0 : x < row.length * 2 / 3 ? 128 : 255;
+                        int gray = 255 - alpha;
+                        row[x] = Color.rgb(gray, gray, gray);
+                    } else row[x] = Color.rgb(level, tileY * 255 / Math.max(1, tileHeight - 1), 255 - level);
                 }
+                page.setPixels(row, 0, row.length, 0, y, row.length, 1);
             }
+            if (cancelled.getAsBoolean()) throw new CancellationException();
             return DemoPrintData.bitmap(config, page);
         } catch (RuntimeException | Error failure) { page.recycle(); throw failure; }
     }

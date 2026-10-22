@@ -22,8 +22,8 @@ local package path is included here.
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.3.0-preview.10` |
-| Release commit | `ed5aa42043d4adf32393c19a057b80510dfed294` |
+| Exact version | `0.3.0-preview.11` |
+| Release commit | `8af6232e0f3e3d743bcb68af16e04f98df459bab` |
 
 ## App configuration
 

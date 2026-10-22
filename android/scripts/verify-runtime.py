@@ -12,7 +12,7 @@ import sys
 import uuid
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
-from sdk_contract import abi_identity, native_evidence
+from sdk_contract import MINIMAL_API_VERSIONS, abi_identity, native_evidence
 
 sys.dont_write_bytecode = True
 FULL = "com.netum.printersdk.demo"
@@ -26,7 +26,7 @@ MINIMAL_CHECKS = (CHECKS - {"fresh_compatibility_journal"}) | {"manager_cleanup"
 
 
 def minimal_api(lock):
-    return lock.get("version") == "0.3.0-preview.10"
+    return lock.get("version") in MINIMAL_API_VERSIONS
 
 
 def digest(path):

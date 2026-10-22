@@ -83,7 +83,11 @@ hardware.
 The separate **Flutter** workflow pins Flutter 3.41.9 to upstream commit
 `00b0c91f06209d9e4a41f71b7a512d6eb3b9c694`. Its `flutter-android` and
 `flutter-ios` jobs use the public [Flutter Quick Start](flutter/README.md), its
-committed Dart dependency lock, and exact SDK 0.3.0-preview.10 pins.
+committed Dart dependency lock, and exact SDK 0.3.0-preview.11 pins.
+
+The unified sample synchronization requires both workflows on the same candidate
+commit before updating main, then verifies both workflows again on that exact
+main commit. Native and Flutter results remain separate in the sync receipt.
 
 Both jobs run static analysis and the 18 Dart/widget tests. Android builds a
 debug APK, validates the AAR SHA-256 from `flutter/sdk-lock.json`, and compares

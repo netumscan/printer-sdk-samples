@@ -1,6 +1,6 @@
 # 错误码与排障
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.10`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.11`
 
 Manager 的参数、状态、准备、准入和执行失败统一通过异步完成回调报告。
 先检查 `ManagerResult.outcome` 和稳定 `code`，再读取辅助 `message`、完成证据与

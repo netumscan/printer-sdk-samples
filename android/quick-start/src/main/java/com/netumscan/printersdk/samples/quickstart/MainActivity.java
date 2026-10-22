@@ -41,7 +41,7 @@ public final class MainActivity extends Activity {
         text(content, "开启打印机和手机蓝牙：扫描 → 选择 → 连接 → 打印 → 断开。" +
             "本例连接时明确选择 LT-M90 型号；请先确认实物型号，其他型号不要使用本例。");
         text(content, "固定示例：Bitmap 条纹，页面 48 × 8 mm、1 份、不追加标签定位；连接与打印不会自动设置纸张。");
-        scan = button(content, "1. 扫描 BLE 设备（10 秒）", view -> {
+        scan = button(content, "1. 扫描 BLE 设备（5 秒）", view -> {
             if (!permissionPending && model.canSelect()) withPermission(true, model::scan);
         });
         deviceList = new LinearLayout(this);

@@ -54,9 +54,11 @@ final class DemoImageSource implements AutoCloseable {
                 ImageImport.decode(reading.shared.file, config, cancelled);
         }
     }
-    DemoPrintData printData(LabelConfig config) {
+    DemoPrintData printData(LabelConfig config) { return printData(config, () -> false); }
+    DemoPrintData printData(LabelConfig config, ImageCancellation cancelled) {
         try (DemoImageSource reading = acquire()) {
-            return reading.shared.encoded == null ? DemoPrintData.bitmap(config, TestLabel.bitmap(config)) :
+            if (cancelled.getAsBoolean()) throw new CancellationException();
+            return reading.shared.encoded == null ? DemoPrintData.bitmap(config, TestLabel.bitmap(config, cancelled)) :
                 DemoPrintData.encoded(config, reading.shared.encoded);
         }
     }

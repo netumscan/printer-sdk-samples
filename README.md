@@ -1,6 +1,6 @@
 # printer-sdk-samples
 
-NETUM 打印机 SDK 的 MIT 许可应用示例。Android、iOS 与 Flutter 均固定接入在线 SDK **0.3.0-preview.10**。克隆本仓库即可构建，无需访问 SDK 私有开发仓库。
+NETUM 打印机 SDK 的 MIT 许可应用示例。Android、iOS 与 Flutter 均固定接入在线 SDK **0.3.0-preview.11**。克隆本仓库即可构建，无需访问 SDK 私有开发仓库。
 
 | 平台 | 最小接入 | 完整示例 |
 | --- | --- | --- |
@@ -32,8 +32,8 @@ Windows 使用 `android\gradlew.bat -p android` 加相同任务。原生 iOS 使
 
 ## 当前 SDK 与行为
 
-- Android：`com.netumscan:printer-sdk-android:0.3.0-preview.10`，来自 Maven Central。
-- iOS：公开 `https://github.com/netumscan/printer-sdk-ios`，Exact Version `0.3.0-preview.10`。
+- Android：`com.netumscan:printer-sdk-android:0.3.0-preview.11`，来自 Maven Central。
+- iOS：公开 `https://github.com/netumscan/printer-sdk-ios`，Exact Version `0.3.0-preview.11`。
 - 身份与制品摘要见根 [sdk-lock.json](sdk-lock.json)；Flutter 的 [独立锁](flutter/sdk-lock.json) 与根锁一致。
 - 传图片与页面毫米宽高；SDK 管理型号通信、点密度和流式编码。设置纸型与定位均为独立请求，打印不隐式 FORM 或切纸。
 - Android 支持 BLE／SPP，iOS 支持 BLE；未知型号不猜参数。`DATA_SENT` 仅表示数据交付，取消或失败后可能已有部分输出，不自动重连、续打或重放。
