@@ -15,7 +15,6 @@
     <Button android:id="@+id/diagnostics_toggle" style="@style/DisclosureButton" android:text="@string/diagnostics_expand" />
     <LinearLayout style="@style/InsetPanel" android:id="@+id/diagnostics_panel" android:visibility="gone">
         <TextView android:id="@+id/identity" style="@style/HelpText" android:saveEnabled="false" />
-        <Button android:id="@+id/query_status" style="@style/SecondaryButton" android:text="@string/query_status" />
         <Button android:id="@+id/capabilities" style="@style/SecondaryButton" android:text="@string/query_capabilities" />
         <TextView android:id="@+id/last_result" style="@style/HelpText" android:textIsSelectable="true" android:saveEnabled="false" />
         <TextView android:id="@+id/connection_result" style="@style/HelpText" android:textIsSelectable="true" android:saveEnabled="false" />

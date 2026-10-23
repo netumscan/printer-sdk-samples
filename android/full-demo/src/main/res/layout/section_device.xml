@@ -12,6 +12,7 @@
         </LinearLayout>
         <TextView style="@style/FieldLabel" android:text="@string/profile_label" />
         <TextView style="@style/ProfileSummary" android:text="@string/profile_pending" android:id="@+id/profile_summary" android:accessibilityLiveRegion="polite" android:saveEnabled="false" />
+        <TextView android:id="@+id/printer_info" style="@style/HelpText" android:text="@string/printer_info_pending" android:accessibilityLiveRegion="polite" android:saveEnabled="false" />
         <TextView style="@style/FieldLabel" android:text="@string/printer_model_label" android:labelFor="@id/ble_profile" />
         <LinearLayout android:id="@+id/ble_fields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
             <Spinner android:id="@+id/ble_profile" style="@style/Selector" />

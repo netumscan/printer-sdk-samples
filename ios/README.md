@@ -1,6 +1,6 @@
 # iOS samples
 
-See the current [iOS customer guide](SDK_GUIDE.md) for SDK permissions, lifecycle,
+See the shared [customer guide](../docs/README.md) for SDK permissions, lifecycle,
 capabilities, errors, runtime identity and validation records and support boundaries.
 
 Open `PrinterSamples.xcodeproj` with Xcode 16 or newer (Swift 6+), then select a scheme:
@@ -14,7 +14,7 @@ Both apps require iOS 15+ and use the exact public dependency below.
 Quick Start and its tests use Swift 6.0 language mode; Full Demo retains
 Swift 5 language mode with the same SDK. The shared APP owner supports Swift 6 strict concurrency without a preconcurrency import.
 The committed `Package.resolved` uses the same version and release commit;
-root `ios-sdk-lock.json` also records the binary checksum. No SDK implementation or
+root `sdk-lock.json` also records the binary checksum. No SDK implementation or
 local package path is included here.
 
 ## Current SDK dependency
@@ -90,5 +90,3 @@ closed commercial software** under its own license; MIT does not apply to the SD
 Swift wrapper, binary, headers or resources. See the root license boundary notice.
 `hardware_verified=false`: these checks establish integration, not physical
 Bluetooth, firmware or paper acceptance.
-
-Current iOS setup and CocoaPods / SwiftPM migration: [XLPrinterSDK guide](SDK_GUIDE.md).

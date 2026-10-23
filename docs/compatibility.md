@@ -1,22 +1,11 @@
 # 兼容性与分发身份
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.11`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.16`
 
-当前 Manager 公共调用签名与 `.10` 一致，升级时更新成套精确依赖并重新构建。更早的旧移动 API 需要迁移；不能继续公开使用旧的设备、
-operation、image/job、订阅或 scanner 控制对象。应用使用同一版本的 Java/Swift 包装和 native 库。
+当前移动API相对 `.11` 增加设备信息与统一状态监听，并将 queryStatus 替换为 getStatus；调用方需要重新编译并按[迁移](migration.md)接入。应用成套使用同一版本的Java／Swift包装和native库。
 
-本轮移动 API 收敛没有改变 native `0.3.0` / C ABI `3/r2`：生产仍为一个 `printer_sdk.h`、
-27 个动态 C 导出、23 个 Android JNI 导出及 25 个具体结构。C SDK 的独立消费者继续使用已冻结的
-句柄与 snapshot/result 契约；移动端隐藏内部类型不等于删除 C 符号。
-自然对齐结构不得 packed，header inline 初始化器不在动态导出表中。
+native `0.3.0`／C ABI `3/r3`：生产使用单一printer_sdk.h、28个动态C导出、23个Android JNI导出和27个具体结构；header inline初始化器不在动态导出表中。r3保留r1/r2入口和自然对齐布局，利用原execute union的预留空间加入INFO描述，并增加psdk_operation_get_printer_info；需要新INFO功能时要求major==3、revision>=3。C ABI3与ABI2不兼容；不得混用不同身份的头、库、包装和句柄。
 
-C ABI3 与 ABI2 不兼容；ABI3/r1 的既有结构布局和 25 个入口仍由 r2 保留，r2 额外提供两个
-携带调用诊断的入口。需要 r2 行为的 native 消费者检查 major==3、revision>=2。
-移动 API、C ABI、SDK 分发版本和硬件验证是独立概念，不能只凭其中一个推断兼容。
+本次冻结当前r3，不增加r4，不调整现有ConnectionInfo。移动API、C ABI、SDK分发版本和硬件验证分别核对。
 
-`0.3.0-preview.11` 的状态以随包契约为准。开发身份不是发布候选；冻结候选也不等于已上传制品。
-公开历史的 anchors/proofs/seals、旧候选、旧开发快照和 SDK lock 保持独立，不能为新 API 重写旧 pins。
-旧在线 Samples 和 consumer 模板按原版本冻结，不会自动升级到新 Manager。
-
-`manager.sdkInfo` 异步提供 native/distribution 版本及可选 buildID；ABI身份由分发契约记录，移动结果不公开ABI字段。
-buildID 未知时明确显示未知；它不能替代 SHA-256 或独立消费者验证，软件测试不提升 hardware_verified。
+`0.3.0-preview.16` 的状态以随包契约为准。冻结候选不等于制品已上传，实际发布以精确制品及在线收据确认。公开历史的anchors／proofs／seals、旧候选、旧开发快照和旧SDK lock保持独立，不能为新API重写旧pins。旧在线Samples和消费者使用各自精确版本，回退选择完整旧版本及匹配依赖锁；不移动旧标签，不覆盖旧二进制，不自动重放失败打印。

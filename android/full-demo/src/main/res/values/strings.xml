@@ -1,4 +1,6 @@
 <resources>
+    <string name="live_status_unknown">未连接 · 盖纸状态未知</string>
+    <string name="sdk_version_unknown">SDK 版本未知</string>
     <string name="trailing_blank_default">0</string>
     <string name="origin_adjustment_default" translatable="false">0</string>
     <string name="m90_preset">使用 M90 BLE 通信预设</string>
@@ -105,6 +107,8 @@
     <string name="builtin_image">切回内置校准图</string>
     <string name="sdk_results_section">SDK 信息与请求结果</string>
     <string name="query_status">查询状态</string>
+    <string name="query_status_help">主动查询一次设备状态；开盖、缺纸显示也会随设备上报更新。未知不等于正常。</string>
+    <string name="printer_info_pending">连接后自动读取一次设备信息</string>
     <string name="query_capabilities">查询 SDK 能力</string>
     <string name="sdk_info">SDK 信息</string>
     <string name="clear_log">清除本机日志</string>

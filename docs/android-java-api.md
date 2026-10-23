@@ -1,13 +1,13 @@
 # Android Java API 参考
 
-发布候选版本 **0.3.0-preview.11**；原生 SDK **0.3.0**；C ABI **3/r2**。
+发布候选版本 **0.3.0-preview.16**；原生 SDK **0.3.0**；C ABI **3/r3**。
 
-本页逐项覆盖审定的编译器公共 API 基线，共 **87** 个文档条目。
+本页逐项覆盖审定的编译器公共 API 基线，共 **110** 个文档条目。
 声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。
 机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行
 `python3 tools/check-api-reference.py` 可检查覆盖范围、审定 SHA-256 和本页字节一致性。
 
-基线 SHA-256：`b42d80dff97b0dd790219ae23107f9946bca030b301aef865ef93694c093e980`
+基线 SHA-256：`49d9629dfc0027c4800486a48808472b39ff9c75645bea7a35f4c0f4a3a49d45`
 
 运行约束与错误处理见 [API 与生命周期](api-lifecycle.md) 和 [错误码与排障](errors-troubleshooting.md)。
 本页是未发布的发布候选契约，不代表发布制品或公开历史证明。硬件验收仍暂缓，`hardware_verified=false`。
@@ -22,9 +22,11 @@
 - [PaperType](#api-ba5c99041265566e5203)
 - [PrinterCapabilities](#api-a36171733f6c01585161)
 - [PrinterCapabilities.Support](#api-b817fe4ca0353d12c928)
+- [PrinterInfo](#api-385a52379133ee5da261)
 - [PrinterManager](#api-bfc786be5b911ef74d19)
 - [PrinterManager.Callback](#api-a8eff59edaee0576f508)
 - [PrinterManager.DisconnectedListener](#api-9149b393dfb876ce6b8e)
+- [PrinterManager.StatusListener](#api-0b24d9490cea0664a2f6)
 - [PrinterModel](#api-59800c82d4445d8c7af4)
 - [RequestId](#api-764c5a4147cfdf641cc3)
 - [SdkInfo](#api-e68d6e49886d528a891c)
@@ -37,13 +39,13 @@ Java 签名保留编译器记录的二进制嵌套名 `$`；源码导入和类�
 
 ## ConnectionInfo
 
-连接成功或型号更新后采用的本地配置。
+连接结果及本连接可选的设备报告。
 
 ```java
 public final class com.netumscan.printersdk.ConnectionInfo
 ```
 
-只读的设备目标和可选型号；型号来自原发现名称推荐或显式选择，不代表打印机已认证其硬件身份。未采用型号时保持空值。
+包含设备目标、已采用的可选型号和本次自动查询得到的可选printerInfo。型号来自本地配置，printerInfo来自设备回读，二者不能互相替代。信息未知或可选查询失败为空；重新连接重新查询，不继承旧设备信息。
 
 文档 ID：`android:type:com.netumscan.printersdk.ConnectionInfo`
 
@@ -64,6 +66,24 @@ public final com.netumscan.printersdk.DiscoveredDevice device;
 JVM descriptor：`Lcom/netumscan/printersdk/DiscoveredDevice;`
 
 编译器注解：`@androidx.annotation.NonNull`。
+
+<a id="api-509fbea1a475aacbc372"></a>
+
+### public final com.netumscan.printersdk.PrinterInfo printerInfo
+
+本次连接自动读回的可选设备信息。
+
+```java
+public final com.netumscan.printersdk.PrinterInfo printerInfo;
+```
+
+已采用且支持信息方言的型号在通信建立后，通过原设备FIFO自动查询一次，额外预算最多1000ms。回读超时、坏包或不支持时为空，保持可用连接与打印；真实通信故障和显式取消仍按原连接语义处理。不写入型号Profile，不沿用上次连接结果，修改型号不重复查询。
+
+文档 ID：`android:member:com.netumscan.printersdk.ConnectionInfo:a0fd2d9c593e5f95`
+
+JVM descriptor：`Lcom/netumscan/printersdk/PrinterInfo;`
+
+编译器注解：`@androidx.annotation.Nullable`。
 
 <a id="api-8e9818ed0b503b4ed9af"></a>
 
@@ -195,7 +215,7 @@ public final class com.netumscan.printersdk.ManagerResult<T>
 public final T value;
 ```
 
-连接、能力、状态、身份和发现请求成功时使用对应类型；打印等无返回值操作、失败和取消为空。
+连接、能力、身份和发现请求成功时使用对应类型；getStatus、打印等Void操作以及失败／取消为空。状态值经setStatusListener通知，不在getStatus结果中重复返回。
 
 文档 ID：`android:member:com.netumscan.printersdk.ManagerResult:60258455367224f8`
 
@@ -715,15 +735,33 @@ JVM descriptor：`Lcom/netumscan/printersdk/PrinterCapabilities$Support;`
 
 ### public final com.netumscan.printersdk.PrinterCapabilities$Support statusQuery
 
-硬件状态请求的支持程度。
+主动getStatus查询的支持程度。
 
 ```java
 public final com.netumscan.printersdk.PrinterCapabilities$Support statusQuery;
 ```
 
-支持必须有协议和读取响应依据，具备读取函数不自动等于可查询状态。UNKNOWN/unknown仍表示未知。
+描述已实现的主动设备事务，不把读取函数或被动缓存当查询。LT-M90适配后端选择GS a 00；执行仍受连接、型号和INFO软失败后的查询失效策略约束。与独立statusReporting不可互推，未知保持UNKNOWN／unknown。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterCapabilities:0f9aeb00f9942b9d`
+
+JVM descriptor：`Lcom/netumscan/printersdk/PrinterCapabilities$Support;`
+
+编译器注解：`@androidx.annotation.NonNull`。
+
+<a id="api-ecdc134266dd674dd6d9"></a>
+
+### public final com.netumscan.printersdk.PrinterCapabilities$Support statusReporting
+
+设备主动状态上报的支持程度。
+
+```java
+public final com.netumscan.printersdk.PrinterCapabilities$Support statusReporting;
+```
+
+独立于主动查询statusQuery。已适配后端在无有效被动样本时为UNKNOWN／unknown，有效err:上报后为SUPPORTED／supported；查询裸回复不提升此证据。Android LT-M90 BLE／SPP与iOS BLE有后端，未适配后端为UNSUPPORTED／unsupported；断开／换型号清除旧证据。2026-10-23同一台LT-M90的Android BLE／SPP、iOS BLE已完成正常盖纸变化和Demo刷新验收；范围限于当前设备与固件，其他固件及真机强制故障仍未验证。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterCapabilities:dd16bbe10be803bb`
 
 JVM descriptor：`Lcom/netumscan/printersdk/PrinterCapabilities$Support;`
 
@@ -871,6 +909,324 @@ public static final com.netumscan.printersdk.PrinterCapabilities$Support UNSUPPO
 
 JVM descriptor：`Lcom/netumscan/printersdk/PrinterCapabilities$Support;`
 
+<a id="api-385a52379133ee5da261"></a>
+
+## PrinterInfo
+
+打印机信息查询的不可变设备观察值。
+
+```java
+public final class com.netumscan.printersdk.PrinterInfo
+```
+
+名称、电量、温度和能力标记来自JXIG候选回包，未知值为空。所有结果保留protocolVerified=false；不改变已采用型号，不将文档版本当作固件、UID当作序列号，也不推断实际打印完成。
+
+文档 ID：`android:type:com.netumscan.printersdk.PrinterInfo`
+
+<a id="api-9072c080fe6af46c32b6"></a>
+
+### public final boolean protocolVerified
+
+候选报文格式是否通过硬件验证。
+
+```java
+public final boolean protocolVerified;
+```
+
+当前始终为假；通过候选长度与校验检查不等于实际LT-M90报文及字段含义已验证，也不等于打印完成。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:9c00e28814c75a4f`
+
+JVM descriptor：`Z`
+
+<a id="api-ab66b58cb3eb1506fd8b"></a>
+
+### public final java.lang.Boolean externalPower
+
+可选的外部电源供电标记。
+
+```java
+public final java.lang.Boolean externalPower;
+```
+
+0xff映射为真，已知电池电量映射为假；其他值为空，不以缺少电量数据推断电源状态。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:7f0038b2836d53b3`
+
+JVM descriptor：`Ljava/lang/Boolean;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-270252ee42d2f3beed0c"></a>
+
+### public final java.lang.Boolean hasError
+
+可选的粗粒度打印机异常标记。
+
+```java
+public final java.lang.Boolean hasError;
+```
+
+0映射为假、1映射为真，其他值为空；不能区分缺纸、开盖等故障，也不能用于判定机械打印完成。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:de7f86089003b4fd`
+
+JVM descriptor：`Ljava/lang/Boolean;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-2f179641ecfa4a3d7525"></a>
+
+### public final java.lang.Boolean supportsCompression
+
+可选的设备压缩支持标记。
+
+```java
+public final java.lang.Boolean supportsCompression;
+```
+
+只将0和1映射为假和真；其他值为空。没有对应压缩算法协议，标记不启用压缩打印。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:40c1c3199038f3e8`
+
+JVM descriptor：`Ljava/lang/Boolean;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-b87a117288c0f33c039f"></a>
+
+### public final java.lang.Boolean supportsNfc
+
+可选的设备NFC能力标记。
+
+```java
+public final java.lang.Boolean supportsNfc;
+```
+
+只将0和1映射为假和真；其他值为空。NFC剩余数量存在类型与长度冲突，本轮不公开数量或纸张尺寸。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:410408a740c72262`
+
+JVM descriptor：`Ljava/lang/Boolean;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-b688aa66753a43af56af"></a>
+
+### public final java.lang.Boolean supportsRtc
+
+可选的设备RTC能力标记。
+
+```java
+public final java.lang.Boolean supportsRtc;
+```
+
+只将0和1映射为假和真；其他值为空。标记不代表本轮提供设置时间指令，也不是功能已完成硬件验收的证明。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:ecefac9007a0ac43`
+
+JVM descriptor：`Ljava/lang/Boolean;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-6d1376ea4ac17be87317"></a>
+
+### public final java.lang.Integer batteryPercent
+
+可选的电池电量百分比。
+
+```java
+public final java.lang.Integer batteryPercent;
+```
+
+仅接受文档的1至100；0或其他未知值为空。电源供电标记0xff通过externalPower单独表示，不转换为百分比。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:c34aa53eab60caf4`
+
+JVM descriptor：`Ljava/lang/Integer;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-71fb81c1413920bc4568"></a>
+
+### public final java.lang.Integer densityLevel
+
+可选的设备浓度等级读回。
+
+```java
+public final java.lang.Integer densityLevel;
+```
+
+保留文档的0至15，其他值为空；本轮仅查询，不提供浓度设置或持久化操作。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:4e080bcb7850ae3a`
+
+JVM descriptor：`Ljava/lang/Integer;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-9373e695a7066170e81d"></a>
+
+### public final java.lang.Integer maxPrintWidthDots
+
+打印机回报的一行最大点数。
+
+```java
+public final java.lang.Integer maxPrintWidthDots;
+```
+
+非零值以点为单位保留，零值视为未知；信息查询不会自动修改已采用型号的打印宽度。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:5380602019fc78e2`
+
+JVM descriptor：`Ljava/lang/Integer;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-c4886fde13f81910786e"></a>
+
+### public final java.lang.Integer paperTypeCode
+
+可选的设备纸张类型原始代码。
+
+```java
+public final java.lang.Integer paperTypeCode;
+```
+
+候选值0为连续纸、1为标签纸、2为黑标纸、3为纹身纸；其他值为空。它不自动设置纸型或扩展公共PaperType枚举。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:75aae68e85b514d3`
+
+JVM descriptor：`Ljava/lang/Integer;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-b0910aa7160074c86827"></a>
+
+### public final java.lang.Integer printheadTemperatureCelsius
+
+可选的打印头温度。
+
+```java
+public final java.lang.Integer printheadTemperatureCelsius;
+```
+
+按有符号字节解释为摄氏度，仅保留文档的-40至85范围；超出范围为未知，不代替过热故障查询。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:86b87a057f8ee019`
+
+JVM descriptor：`Ljava/lang/Integer;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-7ffad078c820d32899d5"></a>
+
+### public final java.lang.Integer reportedDpi
+
+打印机回报的文档DPI类型。
+
+```java
+public final java.lang.Integer reportedDpi;
+```
+
+候选映射为200、300或600；未知类型为空。它不替代LT-M90型号使用的精确8 dots/mm几何依据。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:92e16bec10b22c02`
+
+JVM descriptor：`Ljava/lang/Integer;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-b7826473dd50c547abcf"></a>
+
+### public final java.lang.Integer speedLevel
+
+可选的设备速度等级读回。
+
+```java
+public final java.lang.Integer speedLevel;
+```
+
+候选保留0至4，其他值为空；文档对具体机型为三档或五档尚无确定解释，不从此值建立可写设置能力。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:612b505ea6bcf749`
+
+JVM descriptor：`Ljava/lang/Integer;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-540206932f4eb2500bec"></a>
+
+### public final java.lang.Long reportedVersion
+
+文档中的原始版本数值。
+
+```java
+public final java.lang.Long reportedVersion;
+```
+
+按候选小端格式解释为0至65535的无符号值；文档没有确认其是固件版本，不据此推导固件身份。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:d76e0229bb81a1ea`
+
+JVM descriptor：`Ljava/lang/Long;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-7ccbd73039e837058dbe"></a>
+
+### public final java.lang.String deviceName
+
+打印机回报的设备名称。
+
+```java
+public final java.lang.String deviceName;
+```
+
+仅接收可打印ASCII文本；它不是已认证型号，也不会改变当前采用的打印型号或几何配置。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:f4705af91bfff61e`
+
+JVM descriptor：`Ljava/lang/String;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-b79772214186faa143e5"></a>
+
+### public final java.lang.String manufacturer
+
+打印机回报的厂商名称。
+
+```java
+public final java.lang.String manufacturer;
+```
+
+仅接收字段中的可打印ASCII文本；编码未知或字段为空时为未知，不使用发现名称代填。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:10193fcc2f1cedb0`
+
+JVM descriptor：`Ljava/lang/String;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-faa183000b12e2aaec5c"></a>
+
+### public final java.lang.String uidHex
+
+打印机回报的12字节UID。
+
+```java
+public final java.lang.String uidHex;
+```
+
+以完整24位小写十六进制保留，包括零字节；UID不被认定为产品序列号，未知时为空。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterInfo:48ea453d32b0eb29`
+
+JVM descriptor：`Ljava/lang/String;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
 <a id="api-bfc786be5b911ef74d19"></a>
 
 ## PrinterManager
@@ -975,7 +1331,7 @@ JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netum
 public com.netumscan.printersdk.RequestId connectBle(com.netumscan.printersdk.DiscoveredDevice, com.netumscan.printersdk.PrinterManager$Callback<com.netumscan.printersdk.ConnectionInfo>, com.netumscan.printersdk.PrinterManager$DisconnectedListener);
 ```
 
-设备值和回调不可为null，onDisconnected可为null；内部连接超时10秒，每Manager至多一台设备，已有会话/清理时拒绝。按原发现名推荐收录型号，未知名失败1004并要求显式选择，不能猜服务UUID。连接成功返回ConnectionInfo；之后意外丢失至多交付一次独立断连通知，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
+设备值和回调不可为null，onDisconnected可为null；内部连接超时10秒，每Manager至多一台设备，已有会话/清理时拒绝。按原发现名推荐收录型号，未知名失败1004并要求显式选择，不能猜服务UUID。连接成功返回ConnectionInfo；之后意外丢失至多交付一次独立断连通知，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。 当前版本在通信open成功后结束open计时，已采用支持方言的型号通过原FIFO附加最多1000ms自动设备信息查询；连接结果的printerInfo可为空，可选回读失败不使可用连接失败。不支持型号不探测，没有自动重试。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:57134b41c845fc1d`
 
@@ -999,7 +1355,7 @@ JVM descriptor：`(Lcom/netumscan/printersdk/DiscoveredDevice;Lcom/netumscan/pri
 public com.netumscan.printersdk.RequestId connectBle(com.netumscan.printersdk.DiscoveredDevice, com.netumscan.printersdk.PrinterModel, com.netumscan.printersdk.PrinterManager$Callback<com.netumscan.printersdk.ConnectionInfo>, com.netumscan.printersdk.PrinterManager$DisconnectedListener);
 ```
 
-设备值和回调不可为null，onDisconnected可为null；内部连接超时10秒，每Manager至多一台设备，已有会话/清理时拒绝。显式型号优先，使用收录型号的通信及打印参数；选择不是硬件认证。连接成功返回ConnectionInfo；之后意外丢失至多交付一次独立断连通知，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
+设备值和回调不可为null，onDisconnected可为null；内部连接超时10秒，每Manager至多一台设备，已有会话/清理时拒绝。显式型号优先，使用收录型号的通信及打印参数；选择不是硬件认证。连接成功返回ConnectionInfo；之后意外丢失至多交付一次独立断连通知，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。 当前版本在通信open成功后结束open计时，已采用支持方言的型号通过原FIFO附加最多1000ms自动设备信息查询；连接结果的printerInfo可为空，可选回读失败不使可用连接失败。不支持型号不探测，没有自动重试。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:597230c146479782`
 
@@ -1025,7 +1381,7 @@ JVM descriptor：`(Lcom/netumscan/printersdk/DiscoveredDevice;Lcom/netumscan/pri
 public com.netumscan.printersdk.RequestId connectSpp(com.netumscan.printersdk.DiscoveredDevice, com.netumscan.printersdk.PrinterManager$Callback<com.netumscan.printersdk.ConnectionInfo>, com.netumscan.printersdk.PrinterManager$DisconnectedListener);
 ```
 
-设备值和回调不可为null，onDisconnected可为null；内部连接超时10秒，每Manager至多一台设备，已有会话/清理时拒绝。按原发现名推荐型号；未知名称仍可建立仅通信连接和Raw，结构化打印前需连接后setPrinterModel。连接成功返回ConnectionInfo；之后意外丢失至多交付一次独立断连通知，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
+设备值和回调不可为null，onDisconnected可为null；内部连接超时10秒，每Manager至多一台设备，已有会话/清理时拒绝。按原发现名推荐型号；未知名称仍可建立仅通信连接和Raw，结构化打印前需连接后setPrinterModel。连接成功返回ConnectionInfo；之后意外丢失至多交付一次独立断连通知，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。 当前版本在通信open成功后结束open计时，已采用支持方言的型号通过原FIFO附加最多1000ms自动设备信息查询；连接结果的printerInfo可为空，可选回读失败不使可用连接失败。不支持型号不探测，没有自动重试。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:34be794cdc369ff9`
 
@@ -1049,7 +1405,7 @@ JVM descriptor：`(Lcom/netumscan/printersdk/DiscoveredDevice;Lcom/netumscan/pri
 public com.netumscan.printersdk.RequestId connectSpp(com.netumscan.printersdk.DiscoveredDevice, com.netumscan.printersdk.PrinterModel, com.netumscan.printersdk.PrinterManager$Callback<com.netumscan.printersdk.ConnectionInfo>, com.netumscan.printersdk.PrinterManager$DisconnectedListener);
 ```
 
-设备值和回调不可为null，onDisconnected可为null；内部连接超时10秒，每Manager至多一台设备，已有会话/清理时拒绝。显式型号优先，使用收录型号的通信及打印参数；选择不是硬件认证。连接成功返回ConnectionInfo；之后意外丢失至多交付一次独立断连通知，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
+设备值和回调不可为null，onDisconnected可为null；内部连接超时10秒，每Manager至多一台设备，已有会话/清理时拒绝。显式型号优先，使用收录型号的通信及打印参数；选择不是硬件认证。连接成功返回ConnectionInfo；之后意外丢失至多交付一次独立断连通知，显式清理不触发。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。 当前版本在通信open成功后结束open计时，已采用支持方言的型号通过原FIFO附加最多1000ms自动设备信息查询；连接结果的printerInfo可为空，可选回读失败不使可用连接失败。不支持型号不探测，没有自动重试。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:8aab29eea10c2e4b`
 
@@ -1078,6 +1434,26 @@ public com.netumscan.printersdk.RequestId disconnect(com.netumscan.printersdk.Pr
 取消未完成请求、停止发现并回收当前连接；终态与清理完成按既有顺序交付。可重复调用，完成后Manager可再次连接；不会触发本次连接的意外断连回调。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:9b3300e7a5bc65cd`
+
+JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
+
+编译器注解：`@androidx.annotation.NonNull`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+<a id="api-42fda6af1914e9958487"></a>
+
+### public com.netumscan.printersdk.RequestId getStatus(com.netumscan.printersdk.PrinterManager$Callback<java.lang.Void>)
+
+主动请求本次设备状态，状态值统一经监听通知。
+
+```java
+public com.netumscan.printersdk.RequestId getStatus(com.netumscan.printersdk.PrinterManager$Callback<java.lang.Void>);
+```
+
+已采用LT-M90的受支持BLE／SPP后端经原DeviceIoExecutor/FIFO发送GS a 00，等待并校验裸4字节回复；立即返回请求标识，主线程异步唯一回调ManagerResult<Void>，value为空、completion=NONE、outputMayHaveOccurred=false。无监听仍完成并更新缓存，同值查询仍各有请求结果。被动err:记录不能完成本次查询；STATUS实际写入后超时、取消或坏包关闭链路隔离迟到回复，不自动重连。INFO软失败后本连接后续wire查询仍被拒绝。iOS仅BLE，硬件证据来自单机Android。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:b51172119a07555a`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
 
@@ -1148,26 +1524,6 @@ JVM descriptor：`(Landroid/graphics/Bitmap;DDLcom/netumscan/printersdk/PrinterM
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 参数 3（从 0 起）注解：`@androidx.annotation.NonNull`。
-
-<a id="api-5f4e02a67aa5447d9503"></a>
-
-### public com.netumscan.printersdk.RequestId queryStatus(com.netumscan.printersdk.PrinterManager$Callback<com.netumscan.printersdk.StatusResult>)
-
-查询当前型号支持的硬件状态。
-
-```java
-public com.netumscan.printersdk.RequestId queryStatus(com.netumscan.printersdk.PrinterManager$Callback<com.netumscan.printersdk.StatusResult>);
-```
-
-需要有效连接与已采用型号；在设备FIFO中完成请求/响应，超时经最终回调报告。不支持报告1004，失败不给假正常值；成功的四项状态仍分别可能未知。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
-
-文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:2a893ee6c1f2bf16`
-
-JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$Callback;)Lcom/netumscan/printersdk/RequestId;`
-
-编译器注解：`@androidx.annotation.NonNull`。
-
-参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
 <a id="api-3d3b4989ecd68e4791da"></a>
 
@@ -1263,7 +1619,7 @@ JVM descriptor：`(Lcom/netumscan/printersdk/PaperType;Lcom/netumscan/printersdk
 public com.netumscan.printersdk.RequestId setPrinterModel(com.netumscan.printersdk.PrinterModel, com.netumscan.printersdk.PrinterManager$Callback<com.netumscan.printersdk.ConnectionInfo>);
 ```
 
-只修改本地默认通信/打印配置，不发送纸型命令或自动重连。必须已连接且业务空闲；忙碌失败1002、失败保留旧配置，成功返回ConnectionInfo并失效先前纸型证据。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。
+只修改本地默认通信/打印配置，不发送纸型命令或自动重连。必须已连接且业务空闲；忙碌失败1002、失败保留旧配置，成功返回ConnectionInfo并失效先前纸型证据。立即返回不透明请求身份，结果在主线程异步回调且仅一次；没有自动重试、重连或重放。 保留本连接自动读取的信息，不重新查询；设备报告不修改采用的型号配置。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:466250fe96845361`
 
@@ -1290,6 +1646,24 @@ public void cancel(com.netumscan.printersdk.RequestId);
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:80c2dece04d1d2f6`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/RequestId;)V`
+
+参数 0（从 0 起）注解：`@androidx.annotation.Nullable`。
+
+<a id="api-176847e674f949a47369"></a>
+
+### public void setStatusListener(com.netumscan.printersdk.PrinterManager$StatusListener)
+
+替换或解除当前Manager的单一状态监听。
+
+```java
+public void setStatusListener(com.netumscan.printersdk.PrinterManager$StatusListener);
+```
+
+传null／nil解除，不取消已发getStatus；同步修改监听槽，所有状态异步主线程锁外交付。注册先收到当前快照，离线或无样本为四项未知，不因此查询。连接初始化样本在connect成功回调执行后才发布；断开先重置未知并保留监听，close重置后释放且不再回调。按四公开值去重、有界合并最新值，连接／型号／监听代次使旧待发事件失效。关闭中只接受解除，已关闭注册无保留。监听不是逐次动作日志，也不是查询请求完成通知。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:2ae4a9d0859fed5d`
+
+JVM descriptor：`(Lcom/netumscan/printersdk/PrinterManager$StatusListener;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.Nullable`。
 
@@ -1360,6 +1734,42 @@ public abstract void onDisconnected(com.netumscan.printersdk.ManagerResult<java.
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager$DisconnectedListener:bec808a8d85c7ee3`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
+
+编译器注解：`@androidx.annotation.MainThread`。
+
+参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
+
+<a id="api-0b24d9490cea0664a2f6"></a>
+
+## PrinterManager.StatusListener
+
+主线程接收当前连接的最新状态快照。
+
+```java
+public interface com.netumscan.printersdk.PrinterManager$StatusListener
+```
+
+传null／nil解除，不取消已发getStatus；同步修改监听槽，所有状态异步主线程锁外交付。注册先收到当前快照，离线或无样本为四项未知，不因此查询。连接初始化样本在connect成功回调执行后才发布；断开先重置未知并保留监听，close重置后释放且不再回调。按四公开值去重、有界合并最新值，连接／型号／监听代次使旧待发事件失效。关闭中只接受解除，已关闭注册无保留。监听不是逐次动作日志，也不是查询请求完成通知。 StatusResult仅coverOpen、paperOut有实测解析依据；paperNearEnd、cutterError保留未知。
+
+文档 ID：`android:type:com.netumscan.printersdk.PrinterManager$StatusListener`
+
+编译器注解：`@java.lang.FunctionalInterface`。
+
+<a id="api-b088d31696b4ac6f038e"></a>
+
+### public abstract void onStatusChanged(com.netumscan.printersdk.StatusResult)
+
+主线程接收当前连接的最新状态快照。
+
+```java
+public abstract void onStatusChanged(com.netumscan.printersdk.StatusResult);
+```
+
+传null／nil解除，不取消已发getStatus；同步修改监听槽，所有状态异步主线程锁外交付。注册先收到当前快照，离线或无样本为四项未知，不因此查询。连接初始化样本在connect成功回调执行后才发布；断开先重置未知并保留监听，close重置后释放且不再回调。按四公开值去重、有界合并最新值，连接／型号／监听代次使旧待发事件失效。关闭中只接受解除，已关闭注册无保留。监听不是逐次动作日志，也不是查询请求完成通知。 StatusResult仅coverOpen、paperOut有实测解析依据；paperNearEnd、cutterError保留未知。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterManager$StatusListener:c29f013b0bab9ed7`
+
+JVM descriptor：`(Lcom/netumscan/printersdk/StatusResult;)V`
 
 编译器注解：`@androidx.annotation.MainThread`。
 
@@ -1545,7 +1955,7 @@ JVM descriptor：`Ljava/lang/String;`
 public final class com.netumscan.printersdk.StatusResult
 ```
 
-仅报告缺纸、开盖、纸将尽和切刀错误四项可空布尔值。空值表示该项未知，不是正常；没有受支持响应时查询失败，不能由本地忙闲状态合成结果。
+缺纸、开盖、纸将尽和切刀错误四项可空布尔值。监听注册或无有效样本时四项未知；LT-M90只使coverOpen、paperOut已知，另两项仍未知。查询回复与主动上报统一更新连接缓存，不能从本地发送完成推断机械就绪。
 
 文档 ID：`android:type:com.netumscan.printersdk.StatusResult`
 

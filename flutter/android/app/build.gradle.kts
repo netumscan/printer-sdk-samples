@@ -30,7 +30,7 @@ android {
 }
 
 dependencies {
-    implementation("com.netumscan:printer-sdk-android:0.3.0-preview.11")
+    implementation("com.netumscan:printer-sdk-android:0.3.0-preview.16")
 }
 
 flutter {

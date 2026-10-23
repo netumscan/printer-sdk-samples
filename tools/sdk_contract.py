@@ -8,7 +8,7 @@ MINIMAL_API_ABI = {"0.3.0-preview.10": (3, 2), "0.3.0-preview.11": (3, 2),
                    "0.3.0-preview.14": (3, 3), "0.3.0-preview.15": (3, 3),
                    "0.3.0-preview.16": (3, 3)}
 MINIMAL_API_VERSIONS = frozenset(MINIMAL_API_ABI)
-UNIFIED_FLUTTER_VERSIONS = frozenset({"0.3.0-preview.11", "0.3.0-preview.14"})
+UNIFIED_FLUTTER_VERSIONS = frozenset({"0.3.0-preview.11", "0.3.0-preview.14", "0.3.0-preview.16"})
 IOS_OVERLAY_VERSIONS = frozenset({"0.3.0-preview.15", "0.3.0-preview.16"})
 
 
@@ -86,6 +86,21 @@ def jni_callbacks(lock):
     result = {"open": "(JI)I", "write": "([BJI)I", "isOpen": "()Z", "close": "()V"}
     if abi_identity(lock)[0] == 3:
         result.update(read="([BJI)I", errorDiagnostic="()[J", attachObserver="(J)V", disposeObserver="()V")
+    return result
+
+
+def jni_constructors(lock):
+    identity = abi_identity(lock)
+    if identity[0] != 3:
+        return {}
+    result = {"Diagnostic": "([JLjava/lang/String;Ljava/lang/String;)V",
+              "SdkInfo": "(IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+              "PrintOperation$Result": "([JLcom/netumscan/printersdk/Diagnostic;[J)V"}
+    if identity == (3, 3):
+        result.update({
+            "PrintOperation$Result": "([JLcom/netumscan/printersdk/Diagnostic;[JLcom/netumscan/printersdk/PrinterInfo;)V",
+            "PrinterInfo": "([JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+        })
     return result
 
 

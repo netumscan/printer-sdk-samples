@@ -1,6 +1,6 @@
 # Flutter Quick Start
 
-NETUM Printer SDK 的快速示例：Android `0.3.0-preview.11`，iOS `0.3.0-preview.16`（`XLPrinterSDK`）。Android 精确依赖 Maven Central，iOS 精确依赖公开 Swift Package；克隆本示例仓库即可构建，无需 SDK 私有源码。
+NETUM Printer SDK `0.3.0-preview.16` 的 Android／iOS 快速示例。Android 精确依赖 Maven Central，iOS 精确依赖公开 Swift Package；克隆本示例仓库即可构建，无需 SDK 私有源码。
 
 ## 运行
 
@@ -47,7 +47,7 @@ final result = await request.result;
 
 ## 精确 SDK 依赖与许可
 
-[历史锁](sdk-lock.json) 与根 [sdk-lock.json](../sdk-lock.json) 保留 Android `.11` 的 Maven／AAR 身份及原 iOS 历史；当前 iOS `.16` 的 SwiftPM exact version／revision、XCFramework SHA-256 由 [iOS 平台锁](../ios-sdk-lock.json) 固定。示例代码与资源采用 [MIT](LICENSE)；下载的 SDK 保持其原许可，见 [许可边界](../LICENSING.md)。
+[独立锁](sdk-lock.json) 固定 Maven 坐标、AAR SHA-256、SwiftPM exact version／revision、XCFramework SHA-256，并与根 [sdk-lock.json](../sdk-lock.json) 一致。示例代码与资源采用 [MIT](LICENSE)；下载的 SDK 保持其原许可，见 [许可边界](../LICENSING.md)。
 
 本目录的工程和桥接源码由开发仓库规范 Flutter demo 导出，文件摘要见根 `samples-manifest.json` 的 `flutter_demo`。不要把缓存、已下载 SDK、APK、framework、个人路径或签名文件提交进示例仓库。
 
@@ -78,5 +78,3 @@ xcodebuild -project flutter/ios/Runner.xcodeproj -scheme Runner \
 18 项 Flutter 测试覆盖参数、typed bytes、取消终态、后台竞态、无自动重连／重播、非法尺寸和窄屏布局；5 项 iOS RunnerTests 覆盖原生桥接边界及真实 engine detach。CI 入口见 [验证说明](../VERIFICATION.md)。软件检查不替代实体蓝牙、纸面、固件或手机峰值内存验收，`hardware_verified=false`。
 
 更多说明见 [SDK 接入](../docs/integration.md)、[API 与生命周期](../docs/api-lifecycle.md)、[设备与纸张](../docs/configuration.md)。
-
-The historical Flutter lock retains Android .11; iOS uses [its platform lock](../ios-sdk-lock.json) and [current integration guide](../ios/SDK_GUIDE.md).

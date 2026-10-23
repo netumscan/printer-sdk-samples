@@ -64,7 +64,22 @@ HISTORICAL_ANDROID = {"baseline_sha256": "dbbab332f2d1280ef680de940b1ccad9848b65
                       "classes_sha256": "a38917a334569a217a3a3564038b50e18dfeb2af24e390522f3c0dc25a159ac9",
                       "types": 14, "members": 101}
 MAX_OBJECT_BYTES = 2 * 1024 * 1024
-CANDIDATE_CONTRACTS = {"0.3.0-preview.11": {
+CANDIDATE_CONTRACTS = {"0.3.0-preview.16": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3},
+    "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 28, "c_structure_count": 27,
+    "manifest_sha256": "ac10259e06181d0aee4076e32f165d3edc0e770d9a6adbba85999a0c2acf8eb4",
+    "c_baseline_sha256": "e5fcb56a857a3e54139c31909bcbb37c1d3e736422b7ccfd108efef52ee60cb8",
+}, "0.3.0-preview.15": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3},
+    "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 28, "c_structure_count": 27,
+    "manifest_sha256": "98a76c5ebbf4bc7339d4a798fa322d764bce2a22f0a93c030cf3ff9e0abd160d",
+    "c_baseline_sha256": "77b3b81fc59e20f129da65d24208fda359350228fd54e9c3f2ccf4735a778dc1",
+}, "0.3.0-preview.14": {
+    "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3},
+    "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 28, "c_structure_count": 27,
+    "manifest_sha256": "3aebb7933026bea47073d3d65e7d385a1f8523a670d67b41dcf0a83ce362fec1",
+    "c_baseline_sha256": "edf59346322a475cb0437f436e2e37aa9e1123d8da3e827df594de694dcc0d11",
+}, "0.3.0-preview.11": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
     "historical_baseline_version": "0.2.0-preview.3", "c_export_count": 27,
     "manifest_sha256": "8102940af9332cea1eba49821f4c5c53d5a95f79c2e567bac7ebc61866fee0f5",
@@ -362,8 +377,9 @@ def verify_candidate_bundle(history, reference):
              if tokens[i:i + 2] == ["PSDK_INLINE_INIT", "("] and tokens[i + 2].startswith("psdk_")
              and tokens[i + 3] == ")"]
     require(len(exports) == len(set(exports)) == policy.get("c_export_count", 25) and sorted(exports) == c_manifest["exports"]
-            and len(structs) == len(set(structs)) == 25
-            and len(inits) == len(set(inits)) == 25 and sorted(inits) == c_manifest["inline_initializers"],
+            and len(structs) == len(set(structs)) == policy.get("c_structure_count", 25)
+            and len(inits) == len(set(inits)) == policy.get("c_structure_count", 25)
+            and sorted(inits) == c_manifest["inline_initializers"],
             "Candidate C inventory differs")
     require(isinstance(reference, dict) and reference.get("sdk_version") == version
             and reference.get("contract_status") == "candidate"

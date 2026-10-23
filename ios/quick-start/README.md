@@ -1,6 +1,6 @@
 # iOS Quick Start
 
-See the current [iOS customer guide](../SDK_GUIDE.md) for SDK permissions and API lifecycle.
+See the shared [customer guide](../../docs/README.md) for SDK permissions and API lifecycle.
 
 Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
 `PrinterQuickStart` scheme and run on iOS 15+. Xcode 16+ resolves the exact public
@@ -24,5 +24,3 @@ not reconnect or replay. `DATA_SENT` does not establish actual paper output.
 See the [iOS guide](../README.md) for setup, licensing and complete online
 verification. This sample is MIT; the downloaded SDK remains closed commercial
 software under its own license. `hardware_verified=false`.
-
-Current iOS setup and CocoaPods / SwiftPM migration: [XLPrinterSDK guide](../SDK_GUIDE.md).

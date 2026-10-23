@@ -42,6 +42,8 @@ public final class MainActivity extends Activity {
     private AlertDialog devicePicker, previewDialog, utilityDialog;
     private ImageView previewImage;
     private PopupMenu configMenu;
+    private Toast statusRecoveryToast;
+    private long statusToastSample;
     private int hintTarget;
     private DemoGeometry displayedProfile;
     private DemoPrintDraft printDraft = new DemoPrintDraft();
@@ -196,7 +198,7 @@ public final class MainActivity extends Activity {
     }
 
     private void bindDiagnostics() {
-        findViewById(R.id.query_status).setOnClickListener(view -> { owner.notice = null; model.queryStatus(); });
+        findViewById(R.id.query_status).setOnClickListener(view -> { owner.notice = null; model.getStatus(); });
         findViewById(R.id.capabilities).setOnClickListener(view -> { owner.notice = null; model.capabilities(); });
         findViewById(R.id.send_raw).setOnClickListener(view -> withInput(() -> {
             RawCommand command = RawCommand.parse(edit(R.id.raw_hex).getText().toString(), 1);
@@ -298,6 +300,13 @@ public final class MainActivity extends Activity {
         if (!started || isDestroyed()) return;
         if (owner.takeLogsCleared()) logView.clear();
         owner.recordResults(); render();
+        String recovery = owner.takeStatusRecoveryNotice();
+        if (recovery != null) {
+            cancelStatusRecoveryToast();
+            statusRecoveryToast = Toast.makeText(this, recovery, Toast.LENGTH_SHORT);
+            statusToastSample = model.statusSampleSequence();
+            statusRecoveryToast.show();
+        }
         if (owner.pendingSettings != null) {
             DemoSettings settings = owner.pendingSettings; owner.pendingSettings = null;
             applySettings(settings); message("配置已加载，请重新选择设备");
@@ -421,6 +430,8 @@ public final class MainActivity extends Activity {
         findViewById(R.id.cancel).setVisibility(cancel ? View.VISIBLE : View.GONE);
         findViewById(R.id.action_bar).setVisibility((showingLogs || showingRaw) && !cancel ? View.GONE : View.VISIBLE);
         for (int id : new int[]{R.id.send_raw, R.id.query_status, R.id.capabilities}) findViewById(id).setEnabled(idle && state.canWork());
+        ((TextView)findViewById(R.id.printer_info)).setText(DemoFormatter.printerInfo(state));
+        renderPrinterStatus(state);
         findViewById(R.id.apply_media).setEnabled(idle && state.canWork() && profile != null && !receipt());
         findViewById(R.id.apply_media).setVisibility(receipt() ? View.GONE : View.VISIBLE);
         findViewById(R.id.locate_label).setEnabled(idle && state.canWork() && profile != null && !receipt());
@@ -463,6 +474,27 @@ public final class MainActivity extends Activity {
         findViewById(R.id.ble_fields).setVisibility(View.VISIBLE);
         findViewById(R.id.ble_profile).setEnabled(editDevice);
         updateCanvasLayout(); updateMenu(); if (showingLogs) logView.render(started, owner.journal.degraded());
+    }
+    private void renderPrinterStatus(DemoUiState state) {
+        DemoUiState.PrinterStatusLevel level = state.printerStatusLevel();
+        boolean alert = level == DemoUiState.PrinterStatusLevel.ALERT;
+        boolean normal = level == DemoUiState.PrinterStatusLevel.NORMAL;
+        if (statusRecoveryToast != null && statusToastSample != model.statusSampleSequence()) cancelStatusRecoveryToast();
+        int foreground = resourceColor(alert ? R.color.error_text : normal ? R.color.status_normal_text : R.color.help_text);
+        findViewById(R.id.printer_status_panel).setBackgroundColor(resourceColor(alert ? R.color.status_alert_surface :
+            normal ? R.color.status_normal_surface : R.color.status_unknown_surface));
+        TextView symbol = findViewById(R.id.status_symbol);
+        symbol.setText(alert ? "!" : normal ? "✓" : "?"); symbol.setTextColor(foreground);
+        TextView status = findViewById(R.id.live_status);
+        status.setText(DemoFormatter.liveStatus(state)); status.setTextColor(foreground);
+        ((TextView)findViewById(R.id.sdk_version)).setText(DemoFormatter.sdkVersion(state.identityResult));
+    }
+    @SuppressWarnings("deprecation")
+    private int resourceColor(int resource) {
+        return Build.VERSION.SDK_INT >= 23 ? getColor(resource) : getResources().getColor(resource);
+    }
+    private void cancelStatusRecoveryToast() {
+        if (statusRecoveryToast != null) { statusRecoveryToast.cancel(); statusRecoveryToast = null; }
     }
     private void updateCanvasLayout() {
         View panel = findViewById(R.id.canvas_panel);
@@ -796,6 +828,7 @@ public final class MainActivity extends Activity {
     }
     /** 配置重建或受控选图保留 Owner；普通后台断开设备并取消图片准备。 */
     @Override protected void onStop() {
+        cancelStatusRecoveryToast();
         logView.onStop(showingLogs);
         if(isChangingConfigurations() && requestedPreview) owner.images.cancel();
         started=false; afterPermission=null; requestedDiscovery=false; requestedPreview=false;
@@ -810,6 +843,7 @@ public final class MainActivity extends Activity {
     @Override public Object onRetainNonConfigurationInstance() { return owner; }
     /** 先解除界面对位图和回调的引用；是否最终关闭资源由 Owner 根据重建状态决定。 */
     @Override protected void onDestroy() {
+        cancelStatusRecoveryToast();
         logView.close();
         if(unregisterBack!=null) unregisterBack.run();
         ((ImageView)findViewById(R.id.thumbnail)).setImageDrawable(null);

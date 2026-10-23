@@ -10,6 +10,38 @@ import java.util.List;
 final class DemoUiState {
     static final int MAX_PENDING_PRINTS = 8;
     enum Phase { OFFLINE, CONNECTING, READY, WORKING, DISCONNECTING, CLOSED }
+    enum PrinterStatusLevel { UNKNOWN, NORMAL, ALERT }
+    /** 按字段识别连续已知的恢复，并将提示绑定到产生它的状态，避免补放过时事件。 */
+    static final class StatusTransitions {
+        private Boolean previousCover, previousPaper;
+        private long sampleSequence, recoverySequence, recoverySample;
+        private String recoveryNotice;
+        void update(boolean connected, StatusResult sample) {
+            Boolean cover = !connected || sample == null ? null : sample.coverOpen;
+            Boolean paper = !connected || sample == null ? null : sample.paperOut;
+            if (java.util.Objects.equals(cover, previousCover) && java.util.Objects.equals(paper, previousPaper)) return;
+            ++sampleSequence;
+            boolean coverRecovered = Boolean.TRUE.equals(previousCover) && Boolean.FALSE.equals(cover);
+            boolean paperRecovered = Boolean.TRUE.equals(previousPaper) && Boolean.FALSE.equals(paper);
+            if (coverRecovered || paperRecovered) {
+                ++recoverySequence; recoverySample = sampleSequence;
+                recoveryNotice = Boolean.FALSE.equals(cover) && Boolean.FALSE.equals(paper)
+                    ? "盖纸状态已恢复：上盖已关闭，纸张在位"
+                    : coverRecovered ? "上盖已关闭；" + (Boolean.TRUE.equals(paper) ? "仍缺纸" : "纸张状态未知")
+                    : "纸张已恢复；" + (Boolean.TRUE.equals(cover) ? "上盖仍打开" : "上盖状态未知");
+            }
+            previousCover = cover; previousPaper = paper;
+        }
+        long recoverySequence() { return recoverySequence; }
+        long sampleSequence() { return sampleSequence; }
+        String recoveryNotice() { return recoverySample == sampleSequence ? recoveryNotice : null; }
+    }
+    static PrinterStatusLevel printerStatusLevel(boolean connected, StatusResult sample) {
+        if (!connected || sample == null) return PrinterStatusLevel.UNKNOWN;
+        if (Boolean.TRUE.equals(sample.coverOpen) || Boolean.TRUE.equals(sample.paperOut)) return PrinterStatusLevel.ALERT;
+        return Boolean.FALSE.equals(sample.coverOpen) && Boolean.FALSE.equals(sample.paperOut)
+            ? PrinterStatusLevel.NORMAL : PrinterStatusLevel.UNKNOWN;
+    }
     /** 应用登记的打印请求；没有结果只表示等待 SDK 终态，不推断设备队列或走纸状态。 */
     static final class PrintRequest {
         final long sequence;
@@ -42,7 +74,8 @@ final class DemoUiState {
     final DemoResult<?> latestResult;
     final DemoResult<?> lastRequest;
     final DemoResult<Void> disconnectedResult, cleanupResult;
-    final DemoResult<StatusResult> statusResult;
+    final DemoResult<Void> statusResult;
+    final StatusResult liveStatus;
     final DemoResult<PrinterCapabilities> capabilitiesResult;
     final DemoResult<SdkInfo> identityResult;
     final DemoResult<List<DiscoveredDevice>> discoveryResult;
@@ -51,7 +84,7 @@ final class DemoUiState {
 
     DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
             String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
-            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
+            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
             DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest) {
@@ -61,7 +94,7 @@ final class DemoUiState {
     }
     DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
             String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
-            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
+            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
             DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests) {
@@ -71,7 +104,7 @@ final class DemoUiState {
     }
     DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
             String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
-            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
+            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
             DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests,
@@ -82,11 +115,23 @@ final class DemoUiState {
     }
     DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
             String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
-            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
+            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
             DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests,
             ConnectionInfo connectionInfo, boolean preparing) {
+        this(phase, foreground, discovering, cancelling, inputError, selectedID, candidates, activeKind, latestResult,
+            lastRequest, statusResult, capabilitiesResult, identityResult, discoveryResult, disconnectedResult, cleanupResult,
+            mediaRequest, connected, printingAllowed, printRequests, connectionInfo, preparing, null);
+    }
+    DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
+            String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
+            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
+            DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
+            DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
+            MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests,
+            ConnectionInfo connectionInfo, boolean preparing, StatusResult liveStatus) {
+        this.liveStatus = liveStatus;
         this.preparing = preparing;
         this.phase = phase; this.foreground = foreground; this.discovering = discovering; this.cancelling = cancelling;
         this.connected = connected; this.printingAllowed = printingAllowed;
@@ -100,6 +145,7 @@ final class DemoUiState {
         this.printRequests = Collections.unmodifiableList(new ArrayList<>(printRequests));
     }
     boolean canConnect() { return foreground && !preparing && phase == Phase.OFFLINE; }
+    PrinterStatusLevel printerStatusLevel() { return printerStatusLevel(connected, liveStatus); }
     boolean canWork() { return foreground && phase == Phase.READY; }
     int pendingPrintCount() {
         int pending = 0;

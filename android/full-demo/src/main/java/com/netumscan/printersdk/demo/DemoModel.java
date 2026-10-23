@@ -42,6 +42,8 @@ final class DemoModel implements AutoCloseable {
     private RequestId active, discovery, connection;
     private DemoResult.Kind activeKind;
     private boolean connected, disconnecting, foreground, closed, cancelling;
+    private boolean connectionBle;
+    private StatusResult liveStatus;
     private String inputError, selectedID;
     private List<DiscoveredDevice> candidates = Collections.emptyList();
     private DemoResult<?> latestResult;
@@ -61,7 +63,7 @@ final class DemoModel implements AutoCloseable {
     private boolean configured;
     private long connectionVersion;
     private PaperType selectedMedia = PaperType.GAP_LABEL;
-    private DemoResult<StatusResult> statusResult;
+    private DemoResult<Void> statusResult;
     private DemoResult<PrinterCapabilities> capabilitiesResult;
     private DemoResult<SdkInfo> identityResult;
     private DemoResult<List<DiscoveredDevice>> discoveryResult;
@@ -71,6 +73,7 @@ final class DemoModel implements AutoCloseable {
     private final List<DemoUiState.PrintRequest> printRequests = new ArrayList<>();
     private long nextPrintSequence;
     private DemoUiState state;
+    private final DemoUiState.StatusTransitions statusTransitions = new DemoUiState.StatusTransitions();
 
     DemoModel(PrinterManager manager) { this(manager, imageWorker(), DemoPixelSamples::create, true); }
     DemoModel(PrinterManager manager, ExecutorService worker) { this(manager, worker, DemoPixelSamples::create, false); }
@@ -83,6 +86,9 @@ final class DemoModel implements AutoCloseable {
     private DemoModel(PrinterManager manager, ExecutorService worker, SampleFactory samples, boolean ownsWorker) {
         this.manager = manager; imageWorker = worker; this.samples = samples; ownsImageWorker = ownsWorker;
         publish();
+        manager.setStatusListener(status -> {
+            if (connected && foreground && !disconnecting && !closed) { liveStatus = status; publish(); }
+        });
         RequestId identity = manager.sdkInfo(result -> {
             pending.remove(result.requestId);
             identityResult = new DemoResult<>(DemoResult.Kind.IDENTITY, result); record(identityResult);
@@ -92,6 +98,9 @@ final class DemoModel implements AutoCloseable {
         track(identity, RequestGroup.INDEPENDENT);
     }
     DemoUiState state() { return state; }
+    long statusRecoverySequence() { return statusTransitions.recoverySequence(); }
+    long statusSampleSequence() { return statusTransitions.sampleSequence(); }
+    String statusRecoveryNotice() { return statusTransitions.recoveryNotice(); }
     void attach(Runnable listener) { if (!closed) { changed = listener; listener.run(); } }
     // 旧 Activity 的生命周期回调只能解绑自己的监听，不能移除重建后新界面的监听。
     void detach(Runnable listener) { if (changed == listener) changed = null; }
@@ -99,6 +108,7 @@ final class DemoModel implements AutoCloseable {
     /** 连接绑定默认打印配置，后续打印不重复传入 DPI 和最大宽度。 */
     void connect(DiscoveredDevice target, boolean ble, PrinterModel model, PaperType media) {
         if (!state.canConnect()) return;
+        connectionBle = ble;
         selectedMedia = media;
         mediaRequest = null; configured = false; printProfile = null; connectionInfo = null;
         final long version = ++connectionVersion;
@@ -372,11 +382,11 @@ final class DemoModel implements AutoCloseable {
         publish();
     }
     /** 查询协议独立于图片几何；不支持或未知的结果原样保留，不能解释成硬件正常。 */
-    void queryStatus() {
+    void getStatus() {
         if (!state.canWork()) return;
         begin(DemoResult.Kind.STATUS);
-        active = manager.queryStatus(result -> {
-            DemoResult<StatusResult> completed = new DemoResult<>(DemoResult.Kind.STATUS, result); record(completed);
+        active = manager.getStatus(result -> {
+            DemoResult<Void> completed = new DemoResult<>(DemoResult.Kind.STATUS, result); record(completed);
             if (!takeResult(result)) { publish(); return; }
             statusResult = completed; latestResult = statusResult;
             publish();
@@ -438,9 +448,10 @@ final class DemoModel implements AutoCloseable {
     }
     void foreground() { if (!closed) { foreground = true; publish(); } }
     // 真正进入后台时主动断开；返回前台只恢复交互许可，不恢复连接或打印。
-    void background() { foreground = false; disconnect(); }
+    void background() { foreground = false; publish(); disconnect(); }
     /** 永久结束本 Model，先停止向界面回调，再交给 Manager 异步释放设备资源。 */
     @Override public void close() {
+        manager.setStatusListener(null);
         if (closed) return;
         closed = true; foreground = false; changed = null; mediaRequest = null;
         cancelPreparation(); if (ownsImageWorker) imageWorker.shutdown();
@@ -472,6 +483,9 @@ final class DemoModel implements AutoCloseable {
     }
     /** 生成只读展示快照；界面状态不等于打印机的实际硬件状态。 */
     private void publish() {
+        boolean observesStatus = connected && foreground && !disconnecting && !closed;
+        if (!observesStatus) liveStatus = null;
+        statusTransitions.update(observesStatus, liveStatus);
         boolean pendingPrint = false, cancellingPrint = false;
         for (DemoUiState.PrintRequest request : printRequests) if (request.result == null) {
             pendingPrint = true; cancellingPrint |= request.cancelling;
@@ -482,7 +496,7 @@ final class DemoModel implements AutoCloseable {
         state = new DemoUiState(phase, foreground, discovery != null, cancelling || cancellingPrint, inputError, selectedID, candidates,
             activeKind, latestResult, lastRequest, statusResult, capabilitiesResult, identityResult, discoveryResult, disconnectedResult, cleanupResult,
             mediaRequest, connected, connected && configured && !closed && !disconnecting && active == null, printRequests,
-            connectionInfo, preparation != null);
+            connectionInfo, preparation != null, liveStatus);
         if (changed != null) changed.run();
     }
     private void begin(DemoResult.Kind kind) { inputError = null; cancelling = false; activeKind = kind; }

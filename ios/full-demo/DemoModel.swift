@@ -22,6 +22,7 @@ final class DemoModel: ObservableObject {
     @Published private(set) var connectionInfo: ConnectionInfo?
     @Published private(set) var printerInfo: PrinterInfo?
     @Published private(set) var realtimeStatus: StatusResult?
+    @Published private(set) var statusRecoveryNotice: DemoStatusNotice?
     @Published private(set) var mediaInitialized = false
     @Published private(set) var lastResult: DemoResult? { didSet { recordResult(lastResult) } }
     @Published private(set) var cleanupResult: DemoResult? { didSet { recordResult(cleanupResult) } }
@@ -66,6 +67,9 @@ final class DemoModel: ObservableObject {
     private var active: RequestID?
     private var scanRequest: RequestID?
     private var infoRequest: RequestID?
+    private var statusNoticeTask: Task<Void, Never>?
+    private var nextStatusNoticeID: UInt64 = 0
+    private let statusNoticeLifetimeNanoseconds: UInt64
     private var imageBusy: Bool { imageRequest != nil || previewLoading }
     var canConnect: Bool { phase == .offline && !scanning && active == nil && connectingRequest == nil && !imageBusy && !settingsBusy }
     var canManageSettings: Bool { foreground && canConnect && configurationStore != nil }
@@ -88,9 +92,11 @@ final class DemoModel: ObservableObject {
     }
     init(manager: PrinterManager = PrinterManager(), imageStore: DemoImageStore = DemoImageStore(),
          imageWorkQueue: DispatchQueue = DispatchQueue(label: "PrinterDemo.images", attributes: .concurrent),
-         configurationStore: DemoConfigurationStore? = nil, journal: DemoLogJournal? = nil) {
+         configurationStore: DemoConfigurationStore? = nil, journal: DemoLogJournal? = nil,
+         statusNoticeLifetimeNanoseconds: UInt64 = 3_000_000_000) {
         self.manager = manager; self.imageStore = imageStore; self.imageWorkQueue = imageWorkQueue
         self.configurationStore = configurationStore; self.journal = journal
+        self.statusNoticeLifetimeNanoseconds = statusNoticeLifetimeNanoseconds
         appendLog("event=demo_started data_sent_is_not_printed=true automatic_replay=false")
     }
     func loadInfo() {
@@ -359,7 +365,7 @@ final class DemoModel: ObservableObject {
         cancelImageFlow(); invalidatePreview(); importedImage = nil; manager.close { _ in }
         connection = nil; connectionInfo = nil; printerInfo = nil; scanRequest = nil; mediaInitialized = false; phase = .closed; scanning = false
     }
-    deinit { manager.setStatusListener(nil); imageCancellation?.cancel(); journal?.close(); manager.close { _ in } }
+    deinit { statusNoticeTask?.cancel(); manager.setStatusListener(nil); imageCancellation?.cancel(); journal?.close(); manager.close { _ in } }
     private func finish(_ result: DemoResult) {
         guard active == result.evidence.requestID, phase != .closed else { return }
         active = nil
@@ -376,11 +382,36 @@ final class DemoModel: ObservableObject {
         manager.setStatusListener { [weak self] value in
             guard let self, foreground, connection != nil,
                   phase == .ready || phase == .working else { return }
+            let previous = realtimeStatus
             realtimeStatus = value
+            if let message = DemoResultText.statusRecovery(previous: previous, current: value) {
+                showStatusRecoveryNotice(message)
+            } else if value.coverOpen == nil || value.paperOut == nil ||
+                        (value.coverOpen == true && previous?.coverOpen != true) ||
+                        (value.paperOut == true && previous?.paperOut != true) {
+                clearStatusRecoveryNotice()
+            }
         }
     }
     private func stopStatusListening() {
-        manager.setStatusListener(nil); realtimeStatus = nil
+        manager.setStatusListener(nil); realtimeStatus = nil; clearStatusRecoveryNotice()
+    }
+    private func showStatusRecoveryNotice(_ message: String) {
+        statusNoticeTask?.cancel()
+        nextStatusNoticeID &+= 1
+        let id = nextStatusNoticeID, lifetime = statusNoticeLifetimeNanoseconds
+        statusRecoveryNotice = DemoStatusNotice(id: id, message: message)
+        statusNoticeTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: lifetime) } catch { return }
+            self?.dismissStatusRecoveryNotice(id)
+        }
+    }
+    func dismissStatusRecoveryNotice(_ id: UInt64) {
+        guard statusRecoveryNotice?.id == id else { return }
+        clearStatusRecoveryNotice()
+    }
+    private func clearStatusRecoveryNotice() {
+        statusNoticeTask?.cancel(); statusNoticeTask = nil; statusRecoveryNotice = nil
     }
 }
 

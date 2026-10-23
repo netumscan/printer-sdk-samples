@@ -63,6 +63,20 @@ enum DemoResultText {
     static func status(_ value: StatusResult?) -> String? {
         value.map { "缺纸=\(known($0.paperOut))，开盖=\(known($0.coverOpen))，将尽=\(known($0.paperNearEnd))，切刀错误=\(known($0.cutterError))" }
     }
+    static func statusRecovery(previous: StatusResult?, current: StatusResult) -> String? {
+        var changes: [String] = []
+        if previous?.coverOpen == true, current.coverOpen == false { changes.append("上盖已关闭") }
+        if previous?.paperOut == true, current.paperOut == false { changes.append("纸张已恢复") }
+        guard !changes.isEmpty else { return nil }
+        if current.coverOpen == true { changes.append("上盖仍打开") }
+        if current.paperOut == true { changes.append("仍缺纸") }
+        if current.coverOpen == nil { changes.append("上盖状态未知") }
+        if current.paperOut == nil { changes.append("纸张状态未知") }
+        return changes.joined(separator: "；")
+    }
+    static func sdkVersion(_ value: SDKInfo?) -> String {
+        value.map { "SDK \($0.distributionVersion)" } ?? "SDK 版本未知"
+    }
     static func printerInfo(_ value: PrinterInfo?) -> String? {
         guard let value else { return nil }
         func number<T>(_ value: T?) -> String { value.map { String(describing: $0) } ?? "未知" }

@@ -12,7 +12,7 @@ import sys
 import uuid
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
-from sdk_contract import MINIMAL_API_VERSIONS, abi_identity, native_evidence
+from sdk_contract import MINIMAL_API_ABI, MINIMAL_API_VERSIONS, abi_identity, native_evidence
 
 sys.dont_write_bytecode = True
 FULL = "com.netum.printersdk.demo"
@@ -40,8 +40,9 @@ def validate_device(serial, qemu, booted):
 
 def validate_manager_runtime(value, nonce, identity, *, quick=False):
     """Local candidate evidence is separate from the published compatibility journal."""
-    if (identity.get("sdk_abi_version"), identity.get("sdk_abi_revision")) != (3, 2):
-        raise ValueError("Manager local runtime requires exact ABI 3/r2")
+    expected_abi = MINIMAL_API_ABI.get(identity.get("sdk_distribution_version"), (3, 2))
+    if (identity.get("sdk_abi_version"), identity.get("sdk_abi_revision")) != expected_abi:
+        raise ValueError("Manager local runtime requires exact ABI " + str(expected_abi[0]) + "/r" + str(expected_abi[1]))
     if (value.get("schema_version") != 1 or value.get("success") is not True or value.get("nonce") != nonce
             or value.get("hardware_verified") is not False or value.get("manager_cleanup_verified") is not True
             or value.get("bluetooth_runtime_permissions_ungranted") is not True
@@ -49,11 +50,11 @@ def validate_manager_runtime(value, nonce, identity, *, quick=False):
         raise ValueError("Manager offline runtime scope, nonce or cleanup evidence differs")
     if quick:
         expected = {"distribution_version": identity["sdk_distribution_version"], "native_version": identity["sdk_core_version"],
-                    "abi_version": 3, "abi_revision": 2}
+                    "abi_version": expected_abi[0], "abi_revision": expected_abi[1]}
         if (value.get("offline_launch") is not True or value.get("printer_created") is not False
                 or value.get("operation_created") is not False or value.get("sdk") != expected):
             raise ValueError("Quick Start runtime identity or offline behavior differs")
-    elif (value.get("full_demo_offline") is not True or value.get("native") != native_evidence(3, 2,
+    elif (value.get("full_demo_offline") is not True or value.get("native") != native_evidence(*expected_abi,
             identity["sdk_core_version"], identity["sdk_distribution_version"])
             or type(value.get("api_level")) is not int or value["api_level"] < 21
             or value.get("process_abi") not in {"arm64-v8a", "armeabi-v7a", "x86_64"}):

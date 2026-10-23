@@ -1,6 +1,36 @@
 import Foundation
 import XLPrinterSDK
 
+/// Unknown values never inherit the appearance of a normal hardware condition.
+enum DemoStatusEmphasis: Equatable {
+    case unknown, normal, warning
+    init(_ fault: Bool?) {
+        switch fault {
+        case true?: self = .warning
+        case false?: self = .normal
+        case nil: self = .unknown
+        }
+    }
+    init(status: StatusResult?) {
+        if status?.coverOpen == true || status?.paperOut == true { self = .warning }
+        else if status?.coverOpen == false && status?.paperOut == false { self = .normal }
+        else { self = .unknown }
+    }
+    var symbol: String {
+        switch self {
+        case .unknown: return "questionmark.circle"
+        case .normal: return "checkmark.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        }
+    }
+}
+
+/// A connection-scoped UI event, separate from the last SDK request result.
+struct DemoStatusNotice: Identifiable, Equatable, Sendable {
+    let id: UInt64
+    let message: String
+}
+
 /// Each case retains the complete SDK result, including its typed optional value.
 enum DemoResult: Sendable {
     enum Action: Sendable { case connect, configure, printLabel, printReceipt, raw, media, feed, getStatus, disconnected, disconnect }

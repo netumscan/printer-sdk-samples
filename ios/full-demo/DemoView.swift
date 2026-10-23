@@ -14,7 +14,6 @@ struct DemoView: View {
             Form {
                 connectionSection
                 profileSection
-                realtimeStatusSection
                 printerInfoSection
                 imageSection
                 printSection
@@ -22,7 +21,10 @@ struct DemoView: View {
                 extensionSection
                 resultSection
                 logSection
-            }.navigationTitle("打印机联调").disabled(pickerPresentationActive)
+            }
+            .safeAreaInset(edge: .top, spacing: 0) { realtimeStatusSection }
+            .navigationTitle("打印机联调").navigationBarTitleDisplayMode(.inline)
+            .disabled(pickerPresentationActive)
         }.navigationViewStyle(.stack)
         .sheet(item: Binding(get: { model.pickerRequest }, set: { value in
             if value == nil, let id = presentedRequestID, model.pickerRequest?.id == id { model.cancelImageFlow() }
@@ -139,13 +141,70 @@ struct DemoView: View {
         }
     }
     private var realtimeStatusSection: some View {
-        Section("打印机实时状态") {
-            Text("盖状态：\(model.realtimeStatus?.coverOpen.map { $0 ? "开盖" : "关盖" } ?? "未知")")
-                .accessibilityIdentifier("demo.coverStatus")
-            Text("纸张状态：\(model.realtimeStatus?.paperOut.map { $0 ? "缺纸" : "有纸" } ?? "未知")")
-                .accessibilityIdentifier("demo.paperStatus")
-            Text("显示本次 BLE 连接最近的 LT-M90 主动上报和状态查询结果；尚无样本时为未知。状态不代表打印完成。")
-                .font(.footnote)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("打印机实时状态").font(.headline)
+                Spacer()
+                Button(action: model.getStatus) {
+                    Text("查询状态").frame(minHeight: 44).contentShape(Rectangle())
+                }.buttonStyle(.bordered).disabled(!model.canWork)
+                    .accessibilityIdentifier("demo.queryStatus")
+            }
+            HStack {
+                statusIndicator("盖状态", value: model.realtimeStatus?.coverOpen,
+                    warning: "开盖", normal: "关盖", identifier: "demo.coverStatus")
+                Spacer()
+                statusIndicator("纸张状态", value: model.realtimeStatus?.paperOut,
+                    warning: "缺纸", normal: "有纸", identifier: "demo.paperStatus")
+            }
+            Text(DemoResultText.sdkVersion(state.identity)).font(.caption).foregroundStyle(.secondary)
+                .textSelection(.enabled).accessibilityIdentifier("demo.sdkVersion")
+            if let notice = model.statusRecoveryNotice {
+                let emphasis = DemoStatusEmphasis(status: model.realtimeStatus)
+                HStack(alignment: .top) {
+                    Label(notice.message, systemImage: emphasis.symbol)
+                        .font(.subheadline).foregroundColor(statusColor(emphasis))
+                        .accessibilityIdentifier("demo.statusRecovery")
+                    Spacer()
+                    Button { model.dismissStatusRecoveryNotice(notice.id) } label: {
+                        Image(systemName: "xmark").frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle()).accessibilityLabel("关闭状态提示")
+                    }.buttonStyle(.plain).accessibilityIdentifier("demo.dismissStatusRecovery")
+                }
+            }
+            Text(statusConnectionHint).font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+    private func statusIndicator(_ title: String, value: Bool?, warning: String, normal: String,
+                                 identifier: String) -> some View {
+        let emphasis = DemoStatusEmphasis(value)
+        return HStack(spacing: 5) {
+            Image(systemName: emphasis.symbol).accessibilityHidden(true)
+            Text("\(title)：\(value.map { $0 ? warning : normal } ?? "未知")")
+                .accessibilityIdentifier(identifier)
+        }.font(.subheadline.weight(.semibold)).foregroundColor(statusColor(emphasis))
+    }
+    private func statusColor(_ emphasis: DemoStatusEmphasis) -> Color {
+        switch emphasis {
+        case .warning: return .red
+        case .normal: return .green
+        case .unknown: return .secondary
+        }
+    }
+    private var statusConnectionHint: String {
+        switch model.phase {
+        case .offline, .closed: return "未连接；盖纸状态未知"
+        case .connecting: return "正在连接；等待有效状态"
+        case .disconnecting: return "正在断开；已清除本次状态"
+        case .ready, .working:
+            if model.realtimeStatus?.coverOpen == nil || model.realtimeStatus?.paperOut == nil {
+                return "已连接；等待有效盖纸状态，可在空闲时查询"
+            }
+            return "本次连接最近的上报／查询结果；状态不代表打印完成"
         }
     }
     private func openPicker(_ kind: DemoPickerKind) {
@@ -168,14 +227,13 @@ struct DemoView: View {
     }
     private var extensionSection: some View {
         Section("诊断与控制") {
-            DisclosureGroup("Raw／走纸／状态／能力") {
+            DisclosureGroup("Raw／走纸／能力") {
                 TextField("Raw HEX（ASCII 空白分隔）", text: $model.rawHex)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                 Button("发送 Raw（一次）", action: model.sendRaw).disabled(!model.canWork)
                 Button("定位下一标签", action: model.feed).disabled(!model.canWork)
-                Button("查询状态", action: model.getStatus).disabled(!model.canWork)
                 Button("读取能力", action: model.capabilities).disabled(!model.canWork)
-                Text("查询状态主动发送指令；回调报告请求结果，盖纸状态与主动上报统一由状态监听刷新。不支持或失败保留原始错误，状态不代表打印完成。").font(.footnote)
+                Text("顶部“查询状态”主动发送指令；回调报告请求结果，盖纸状态与主动上报统一由顶部状态区刷新。不支持或失败保留原始错误。").font(.footnote)
                 Text("Raw 可能改变纸张设置；必要时重新设置纸张类型。").font(.footnote)
             }
         }

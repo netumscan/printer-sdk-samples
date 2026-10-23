@@ -1,6 +1,6 @@
 {
   "abi": {
-    "revision": 2,
+    "revision": 3,
     "version": 3
   },
   "c_abi": {
@@ -140,14 +140,14 @@
   "candidate_contract": {
     "c_abi": {
       "declarations": {
-        "printer_sdk.h": "#\nifndef\nPRINTER_SDK_C_API_H\n#\ndefine\nPRINTER_SDK_C_API_H\n#\ninclude\n<\nstddef\n.\nh\n>\n#\ninclude\n<\nstdint\n.\nh\n>\n#\ninclude\n<\nstring\n.\nh\n>\n#\nif\ndefined\n(\n_WIN32\n)\n#\ndefine\nPSDK_CALL\n__cdecl\n#\nif\ndefined\n(\nPRINTER_SDK_CAPI_BUILD\n)\n#\ndefine\nPSDK_API\n__declspec\n(\ndllexport\n)\n#\nelse\n#\ndefine\nPSDK_API\n__declspec\n(\ndllimport\n)\n#\nendif\n#\nelse\n#\ndefine\nPSDK_CALL\n#\ndefine\nPSDK_API\n__attribute__\n(\n(\nvisibility\n(\n\"\ndefault\n\"\n)\n)\n)\n#\nendif\n#\nifdef\n__cplusplus\nextern\n\"\nC\n\"\n{\n#\nendif\n#\ndefine\nPSDK_ABI_VERSION\n3u\n#\ndefine\nPSDK_ABI_REVISION\n2u\n#\ndefine\nPSDK_OK\n0\n#\ndefine\nPSDK_INTERNAL_ERROR\n1000\n#\ndefine\nPSDK_INVALID_ARGUMENT\n1001\n#\ndefine\nPSDK_INVALID_STATE\n1002\n#\ndefine\nPSDK_NOT_INITIALIZED\n1003\n#\ndefine\nPSDK_UNSUPPORTED_OPERATION\n1004\n#\ndefine\nPSDK_CANCELLED\n1005\n#\ndefine\nPSDK_ABI_MISMATCH\n1006\n#\ndefine\nPSDK_BUFFER_TOO_SMALL\n1007\n#\ndefine\nPSDK_RESOURCE_LIMIT\n1008\n#\ndefine\nPSDK_TRANSPORT_NOT_OPEN\n2000\n#\ndefine\nPSDK_TRANSPORT_TIMEOUT\n2001\n#\ndefine\nPSDK_TRANSPORT_CONNECTION_LOST\n2002\n#\ndefine\nPSDK_TRANSPORT_IO_ERROR\n2003\n#\ndefine\nPSDK_TRANSPORT_NO_PROGRESS\n2004\n#\ndefine\nPSDK_PROTOCOL_INVALID_RESPONSE\n3000\n#\ndefine\nPSDK_TCP\n1u\n#\ndefine\nPSDK_SPP\n2u\n#\ndefine\nPSDK_BLE\n3u\n#\ndefine\nPSDK_UNKNOWN\n0u\n#\ndefine\nPSDK_UNSUPPORTED\n1u\n#\ndefine\nPSDK_SUPPORTED\n2u\n#\ndefine\nPSDK_NATIVE\n1u\n#\ndefine\nPSDK_HOST_RENDERED\n2u\n#\ndefine\nPSDK_PROFILE_DECLARED\n1u\n#\ndefine\nPSDK_DEVICE_REPORTED\n2u\n#\ndefine\nPSDK_HARDWARE_VERIFIED\n4u\n#\ndefine\nPSDK_FEATURE_LABEL\n1u\n#\ndefine\nPSDK_FEATURE_RECEIPT\n2u\n#\ndefine\nPSDK_FEATURE_STATUS\n3u\n#\ndefine\nPSDK_FEATURE_MEDIA\n4u\n#\ndefine\nPSDK_FEATURE_CUT\n5u\n#\ndefine\nPSDK_FEATURE_RAW\n6u\n#\ndefine\nPSDK_FEATURE_IMAGE\n7u\n#\ndefine\nPSDK_FEATURE_FEED_TO_NEXT_LABEL\n8u\n#\ndefine\nPSDK_VALUES_KNOWN\n1u\n#\ndefine\nPSDK_REQUIRED_FIELDS_KNOWN\n2u\n#\ndefine\nPSDK_SUPPORTED_FIELDS_KNOWN\n4u\n#\ndefine\nPSDK_GEOMETRY_DPI\n1u\n#\ndefine\nPSDK_GEOMETRY_WIDTH\n2u\n#\ndefine\nPSDK_GEOMETRY_LENGTH\n4u\n#\ndefine\nPSDK_GEOMETRY_CUT_BLANK\n8u\n#\ndefine\nPSDK_CONNECTION_DISCONNECTED\n0u\n#\ndefine\nPSDK_CONNECTION_CONNECTING\n1u\n#\ndefine\nPSDK_CONNECTION_CONNECTED\n2u\n#\ndefine\nPSDK_CONNECTION_DISCONNECTING\n3u\n#\ndefine\nPSDK_CONSTRAINT_COPIES\n1u\n#\ndefine\nPSDK_CONSTRAINT_MEDIA_GAP_UM\n2u\n#\ndefine\nPSDK_CONSTRAINT_JOB_IMAGE_BYTES\n3u\n#\ndefine\nPSDK_CONSTRAINT_PENDING_PAYLOAD_BYTES\n4u\n#\ndefine\nPSDK_PROTOCOL_CPCL\n1u\n#\ndefine\nPSDK_PROTOCOL_ESCPOS\n2u\n#\ndefine\nPSDK_THRESHOLD\n0u\n#\ndefine\nPSDK_FLOYD_STEINBERG\n1u\n#\ndefine\nPSDK_BAYER_4X4\n2u\n#\ndefine\nPSDK_BAYER_8X8\n3u\n#\ndefine\nPSDK_ALLOW_LAST_SENT\n1u\n#\ndefine\nPSDK_REQUIRE_READBACK\n2u\n#\ndefine\nPSDK_MEDIA_BASIS_NONE\n0u\n#\ndefine\nPSDK_MEDIA_BASIS_LAST_SENT\n1u\n#\ndefine\nPSDK_MEDIA_BASIS_READBACK\n2u\n#\ndefine\nPSDK_GAP\n1u\n#\ndefine\nPSDK_BLACK_MARK\n2u\n#\ndefine\nPSDK_CONTINUOUS\n3u\n#\ndefine\nPSDK_MEDIA_TRACKING\n1u\n#\ndefine\nPSDK_MEDIA_GAP_LENGTH\n2u\n#\ndefine\nPSDK_MEDIA_LABEL_LENGTH\n4u\n#\ndefine\nPSDK_MEDIA_WIDTH\n8u\n#\ndefine\nPSDK_MEDIA_MARK_LENGTH\n16u\n#\ndefine\nPSDK_MEDIA_MARK_OFFSET\n32u\n#\ndefine\nPSDK_VOLATILE_ONLY\n0u\n#\ndefine\nPSDK_ALLOW_PERSISTENT\n1u\n#\ndefine\nPSDK_CONTENT_END\n0u\n#\ndefine\nPSDK_NEXT_LABEL_START\n1u\n#\ndefine\nPSDK_CUT_NONE\n0u\n#\ndefine\nPSDK_CUT_FULL\n1u\n#\ndefine\nPSDK_CUT_PARTIAL\n2u\n#\ndefine\nPSDK_EACH_COPY\n0u\n#\ndefine\nPSDK_END_OF_JOB\n1u\n#\ndefine\nPSDK_GRAY8\n1u\n#\ndefine\nPSDK_RGB24\n2u\n#\ndefine\nPSDK_RGBA32\n3u\n#\ndefine\nPSDK_BYTES_SENT_EXACT\n1u\n#\ndefine\nPSDK_BYTES_TOTAL_KNOWN\n2u\n#\ndefine\nPSDK_QUEUED\n0u\n#\ndefine\nPSDK_PREPARING\n1u\n#\ndefine\nPSDK_SENDING\n2u\n#\ndefine\nPSDK_COMPLETED\n4u\n#\ndefine\nPSDK_FAILED\n5u\n#\ndefine\nPSDK_OPERATION_CANCELLED\n6u\n#\ndefine\nPSDK_COMPLETION_NONE\n0u\n#\ndefine\nPSDK_DATA_SENT\n1u\n#\ndefine\nPSDK_DEVICE_CONFIRMED\n2u\n#\ndefine\nPSDK_OP_PRINT\n1u\n#\ndefine\nPSDK_OP_STATUS\n2u\n#\ndefine\nPSDK_OP_MEDIA\n3u\n#\ndefine\nPSDK_OP_RAW\n4u\n#\ndefine\nPSDK_OP_FEED_TO_NEXT_LABEL\n5u\n#\ndefine\nPSDK_PAPER_OUT\n1u\n#\ndefine\nPSDK_COVER_OPEN\n2u\n#\ndefine\nPSDK_PAPER_NEAR_END\n4u\n#\ndefine\nPSDK_CUTTER_ERROR\n8u\n#\ndefine\nPSDK_WORK_IDLE\n0u\n#\ndefine\nPSDK_WORK_QUEUED\n1u\n#\ndefine\nPSDK_WORK_PREPARING\n2u\n#\ndefine\nPSDK_WORK_SENDING\n3u\n#\ndefine\nPSDK_HARDWARE_UNKNOWN\n0u\n#\ndefine\nPSDK_DIAGNOSTIC_NONE\n0u\n#\ndefine\nPSDK_DIAGNOSTIC_CONNECT\n1u\n#\ndefine\nPSDK_DIAGNOSTIC_OPERATION\n2u\n#\ndefine\nPSDK_DIAGNOSTIC_TRANSPORT\n3u\n#\ndefine\nPSDK_DIAGNOSTIC_USER_DISCONNECT\n4u\n#\ndefine\nPSDK_WRITE_ERROR_COUNT_EXACT\n1u\n#\ndefine\nPSDK_JOB_LABEL\n1u\n#\ndefine\nPSDK_JOB_RECEIPT\n2u\n#\ndefine\nPSDK_ITEM_IMAGE\n1u\n#\ndefine\nPSDK_ITEM_BLANK\n2u\n#\ndefine\nPSDK_FEATURE_COUNT\n8u\n#\ndefine\nPSDK_CONSTRAINT_COUNT\n4u\ntypedef\nstruct\npsdk_device\npsdk_device\n;\ntypedef\nstruct\npsdk_image\npsdk_image\n;\ntypedef\nstruct\npsdk_job\npsdk_job\n;\ntypedef\nstruct\npsdk_operation\npsdk_operation\n;\ntypedef\nstruct\npsdk_transport_observer\npsdk_transport_observer\n;\ntypedef\nstruct\npsdk_scalar_constraint\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nparameter_id\n,\nknown\n;\nint32_t\nminimum\n,\nmaximum\n;\nuint32_t\nstep\n,\nevidence\n;\n}\npsdk_scalar_constraint\n;\ntypedef\nstruct\npsdk_feature\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nfeature_id\n,\nimplementation\n,\ndevice_support\n,\nevidence\n;\nuint32_t\nsupported_values\n,\nrequired_fields\n,\nknown_fields\n,\nsupported_fields\n;\n}\npsdk_feature\n;\ntypedef\nstruct\npsdk_geometry\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ndpi_x\n,\ndpi_y\n,\nprintable_width_dots\n,\nmax_job_length_dots\n;\nuint32_t\nmin_cut_blank_dots\n,\nevidence\n,\npresent_fields\n;\n}\npsdk_geometry\n;\ntypedef\nstruct\npsdk_label_options\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nwidth_dots\n,\nheight_dots\n,\ndpi_x\n,\ndpi_y\n;\nint32_t\norigin_x_dots\n,\norigin_y_dots\n;\nuint32_t\ncopies\n,\nfinish_policy\n;\n}\npsdk_label_options\n;\ntypedef\nstruct\npsdk_receipt_options\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprint_width_dots\n,\nmax_total_length_dots\n,\ndpi_x\n,\ndpi_y\n;\nuint32_t\nmargin_left_dots\n,\nmargin_right_dots\n,\ncopies\n;\n}\npsdk_receipt_options\n;\ntypedef\nstruct\npsdk_receipt_finish\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ntrailing_blank_dots\n,\ncut_mode\n,\nscope\n;\n}\npsdk_receipt_finish\n;\ntypedef\nstruct\npsdk_image_data\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nwidth\n,\nheight\n,\npixel_format\n;\nconst\nuint8_t\n*\ndata\n;\nsize_t\ndata_size\n;\nuint32_t\nalgorithm\n,\nthreshold\n,\ninvert\n,\nfit_width\n,\ntarget_width_dots\n;\n}\npsdk_image_data\n;\ntypedef\nstruct\npsdk_media_settings\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\npresent_fields\n,\ntracking\n,\nwidth_um\n,\nlabel_length_um\n;\nuint32_t\ngap_length_um\n,\nmark_length_um\n;\nint32_t\nmark_offset_um\n;\nuint32_t\npersistence_policy\n;\n}\npsdk_media_settings\n;\ntypedef\nstruct\npsdk_media_requirement\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\npresent_fields\n,\ntracking\n,\nwidth_um\n,\nlabel_length_um\n;\nuint32_t\ngap_length_um\n,\nmark_length_um\n;\nint32_t\nmark_offset_um\n;\nuint32_t\nverification_policy\n;\n}\npsdk_media_requirement\n;\ntypedef\nstruct\npsdk_operation_options\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ntimeout_ms\n,\nrequired_completion\n;\n}\npsdk_operation_options\n;\ntypedef\nstruct\npsdk_operation_snapshot\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint64_t\noperation_id\n;\nuint32_t\nkind\n,\nstate\n,\ncompletion\n;\nint32_t\nerror_code\n;\nuint32_t\nside_effects_possible\n,\nresponse_valid\n;\nuint64_t\nbytes_sent\n,\nbytes_total\n;\nuint32_t\nmedia_basis\n,\nbyte_count_flags\n;\n}\npsdk_operation_snapshot\n;\ntypedef\nstruct\npsdk_status_result\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nknown_conditions\n,\nactive_conditions\n;\nuint64_t\nsampled_monotonic_ms\n,\nconnection_generation\n;\nuint32_t\nevidence\n;\n}\npsdk_status_result\n;\ntypedef\nstruct\npsdk_device_state_snapshot\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nconnection_state\n,\nwork_state\n,\nqueued_count\n,\nhas_active_operation\n;\nuint64_t\nactive_operation_id\n;\nuint32_t\nactive_operation_kind\n,\nactive_operation_state\n,\nhardware_state\n;\nuint32_t\nhardware_known_conditions\n,\nhardware_active_conditions\n;\nuint64_t\nhardware_sampled_monotonic_ms\n,\nconnection_generation\n;\n}\npsdk_device_state_snapshot\n;\ntypedef\nstruct\npsdk_error_diagnostic\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint64_t\nsequence\n,\nconnection_generation\n,\ntransport_epoch\n,\noperation_id\n,\nsampled_monotonic_ms\n;\nint32_t\nerror_code\n;\nuint32_t\nsource\n;\nint64_t\nnative_code\n;\nuint32_t\nhas_native_code\n;\nchar\ndomain\n[\n32\n]\n,\nmessage\n[\n192\n]\n;\n}\npsdk_error_diagnostic\n;\ntypedef\nstruct\npsdk_resource_snapshot\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint64_t\nmax_image_bytes\n,\nmax_job_image_bytes\n,\nmax_raw_bytes\n;\nuint64_t\nmax_pending_payload_bytes\n,\npending_payload_bytes\n;\nuint32_t\nmax_pending_operations\n,\noutstanding_operations\n,\nmax_copies\n;\n}\npsdk_resource_snapshot\n;\ntypedef\nstruct\npsdk_sdk_info\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nabi_revision\n,\nbuild_id_known\n;\nchar\nnative_version\n[\n32\n]\n,\ndistribution_version\n[\n64\n]\n,\nbuild_id\n[\n65\n]\n;\n}\npsdk_sdk_info\n;\ntypedef\nstruct\npsdk_io_control\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nremaining_timeout_ms\n;\nvoid\n*\ncancellation_context\n;\nint32_t\n(\nPSDK_CALL\n*\nis_cancelled\n)\n(\nvoid\n*\n)\n;\n}\npsdk_io_control\n;\ntypedef\nstruct\npsdk_transport_callbacks\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ntransport_type\n,\nwrite_count_flags\n;\nvoid\n*\ncontext\n;\nint32_t\n(\nPSDK_CALL\n*\nopen\n)\n(\nvoid\n*\n,\nconst\npsdk_io_control\n*\n)\n;\nvoid\n(\nPSDK_CALL\n*\nclose\n)\n(\nvoid\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\nis_open\n)\n(\nvoid\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\nwrite\n)\n(\nvoid\n*\n,\nconst\nuint8_t\n*\n,\nsize_t\n,\nconst\npsdk_io_control\n*\n,\nsize_t\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\nread\n)\n(\nvoid\n*\n,\nuint8_t\n*\n,\nsize_t\n,\nconst\npsdk_io_control\n*\n,\nsize_t\n*\n)\n;\nvoid\n(\nPSDK_CALL\n*\ndispose\n)\n(\nvoid\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\ncopy_error\n)\n(\nvoid\n*\n,\npsdk_error_diagnostic\n*\n)\n;\n}\npsdk_transport_callbacks\n;\ntypedef\nstruct\npsdk_print_config\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprotocol\n,\ndpi\n,\nwidth_dots\n,\nmax_label_height_dots\n;\nuint32_t\nstripe_height\n,\nchunk_size\n,\nwrite_timeout_ms\n,\nquery_timeout_ms\n,\ninter_chunk_delay_ms\n;\nuint32_t\ncpcl_resolution\n;\n}\npsdk_print_config\n;\ntypedef\nstruct\npsdk_status_query_config\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprotocol\n,\nquery_timeout_ms\n;\n}\npsdk_status_query_config\n;\ntypedef\nstruct\npsdk_job_item\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nkind\n;\nunion\n{\nstruct\n{\nconst\npsdk_image\n*\nimage\n;\nint32_t\nx\n,\ny\n;\n}\nimage\n;\nstruct\n{\nuint32_t\ndots\n;\n}\nblank\n;\n}\ndata\n;\n}\npsdk_job_item\n;\ntypedef\nstruct\npsdk_job_descriptor\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nkind\n,\nitem_count\n;\nconst\npsdk_job_item\n*\nitems\n;\nunion\n{\npsdk_label_options\nlabel\n;\npsdk_receipt_options\nreceipt\n;\n}\noptions\n;\nconst\npsdk_receipt_finish\n*\nreceipt_finish\n;\nconst\npsdk_media_requirement\n*\nmedia_requirement\n;\n}\npsdk_job_descriptor\n;\ntypedef\nstruct\npsdk_execute_request\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nkind\n;\nunion\n{\nstruct\n{\nconst\nuint8_t\n*\ndata\n;\nsize_t\ndata_size\n;\nuint32_t\ncopies\n,\nreserved\n;\n}\nraw\n;\nstruct\n{\npsdk_media_settings\nsettings\n;\npsdk_print_config\nconfig\n;\n}\nmedia\n;\nstruct\n{\npsdk_print_config\nconfig\n;\n}\nfeed\n;\nstruct\n{\npsdk_status_query_config\nconfig\n;\n}\nstatus\n;\n}\ndata\n;\n}\npsdk_execute_request\n;\ntypedef\nstruct\npsdk_capabilities\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\npsdk_feature\nfeatures\n[\nPSDK_FEATURE_COUNT\n]\n;\npsdk_scalar_constraint\nconstraints\n[\nPSDK_CONSTRAINT_COUNT\n]\n;\npsdk_geometry\ngeometry\n;\n}\npsdk_capabilities\n;\ntypedef\nstruct\npsdk_operation_result\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\npsdk_operation_snapshot\nsnapshot\n;\npsdk_error_diagnostic\ndiagnostic\n;\npsdk_status_result\nstatus\n;\n}\npsdk_operation_result\n;\n#\ndefine\nPSDK_INLINE_INIT\n(\nname\n)\n\\\nstatic\ninline\nint32_t\nPSDK_CALL\nname\n#\n#\n_init\n(\nname\n*\nvalue\n,\nsize_t\nsize\n)\n{\n\\\nif\n(\n!\nvalue\n)\nreturn\nPSDK_INVALID_ARGUMENT\n;\n\\\nif\n(\nsize\n<\nsizeof\n(\nname\n)\n)\nreturn\nPSDK_BUFFER_TOO_SMALL\n;\n\\\nif\n(\nsize\n>\nUINT32_MAX\n)\nreturn\nPSDK_INVALID_ARGUMENT\n;\n\\\nmemset\n(\nvalue\n,\n0\n,\nsize\n)\n;\n\\\nvalue\n-\n>\nstruct_size\n=\n(\nuint32_t\n)\nsize\n;\nvalue\n-\n>\nabi_version\n=\nPSDK_ABI_VERSION\n;\n\\\nreturn\nPSDK_OK\n;\n\\\n}\nPSDK_INLINE_INIT\n(\npsdk_scalar_constraint\n)\nPSDK_INLINE_INIT\n(\npsdk_feature\n)\nPSDK_INLINE_INIT\n(\npsdk_geometry\n)\nPSDK_INLINE_INIT\n(\npsdk_label_options\n)\nPSDK_INLINE_INIT\n(\npsdk_receipt_options\n)\nPSDK_INLINE_INIT\n(\npsdk_receipt_finish\n)\nPSDK_INLINE_INIT\n(\npsdk_image_data\n)\nPSDK_INLINE_INIT\n(\npsdk_media_settings\n)\nPSDK_INLINE_INIT\n(\npsdk_media_requirement\n)\nPSDK_INLINE_INIT\n(\npsdk_operation_options\n)\nPSDK_INLINE_INIT\n(\npsdk_operation_snapshot\n)\nPSDK_INLINE_INIT\n(\npsdk_status_result\n)\nPSDK_INLINE_INIT\n(\npsdk_device_state_snapshot\n)\nPSDK_INLINE_INIT\n(\npsdk_error_diagnostic\n)\nPSDK_INLINE_INIT\n(\npsdk_resource_snapshot\n)\nPSDK_INLINE_INIT\n(\npsdk_sdk_info\n)\nPSDK_INLINE_INIT\n(\npsdk_io_control\n)\nPSDK_INLINE_INIT\n(\npsdk_transport_callbacks\n)\nPSDK_INLINE_INIT\n(\npsdk_print_config\n)\nPSDK_INLINE_INIT\n(\npsdk_status_query_config\n)\nPSDK_INLINE_INIT\n(\npsdk_job_item\n)\nPSDK_INLINE_INIT\n(\npsdk_job_descriptor\n)\nPSDK_INLINE_INIT\n(\npsdk_execute_request\n)\nPSDK_INLINE_INIT\n(\npsdk_capabilities\n)\nPSDK_INLINE_INIT\n(\npsdk_operation_result\n)\n#\nundef\nPSDK_INLINE_INIT\nPSDK_API\nuint32_t\nPSDK_CALL\npsdk_abi_version\n(\nvoid\n)\n;\nPSDK_API\nuint32_t\nPSDK_CALL\npsdk_abi_revision\n(\nvoid\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_get_sdk_info\n(\npsdk_sdk_info\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_create\n(\nconst\npsdk_transport_callbacks\n*\n,\npsdk_device\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_connect\n(\npsdk_device\n*\n,\nuint32_t\ntimeout_ms\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_disconnect\n(\npsdk_device\n*\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_device_destroy\n(\npsdk_device\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_state\n(\nconst\npsdk_device\n*\n,\npsdk_device_state_snapshot\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_resources\n(\nconst\npsdk_device\n*\n,\npsdk_resource_snapshot\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_capabilities\n(\nconst\npsdk_device\n*\n,\npsdk_capabilities\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_diagnostic\n(\nconst\npsdk_device\n*\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_image_create_copy\n(\nconst\npsdk_image_data\n*\n,\npsdk_image\n*\n*\nout\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_image_release\n(\npsdk_image\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_job_create\n(\nconst\npsdk_job_descriptor\n*\n,\npsdk_job\n*\n*\nout\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_job_release\n(\npsdk_job\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_submit\n(\npsdk_device\n*\n,\nconst\npsdk_job\n*\n,\nconst\npsdk_print_config\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_execute\n(\npsdk_device\n*\n,\nconst\npsdk_execute_request\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_submit_diagnosed\n(\npsdk_device\n*\n,\nconst\npsdk_job\n*\n,\nconst\npsdk_print_config\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_execute_diagnosed\n(\npsdk_device\n*\n,\nconst\npsdk_execute_request\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_get_snapshot\n(\nconst\npsdk_operation\n*\n,\npsdk_operation_snapshot\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_get_result\n(\nconst\npsdk_operation\n*\n,\npsdk_operation_result\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_cancel\n(\npsdk_operation\n*\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_operation_release\n(\npsdk_operation\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_create_transport_observer\n(\nconst\npsdk_device\n*\n,\npsdk_transport_observer\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_transport_observer_get_epoch\n(\nconst\npsdk_transport_observer\n*\n,\nuint64_t\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_transport_observer_notify_lost\n(\npsdk_transport_observer\n*\n,\nuint64_t\n,\nconst\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_transport_observer_release\n(\npsdk_transport_observer\n*\n)\n;\n#\nifdef\n__cplusplus\n}\n#\nendif\n#\nendif"
+        "printer_sdk.h": "#\nifndef\nPRINTER_SDK_C_API_H\n#\ndefine\nPRINTER_SDK_C_API_H\n#\ninclude\n<\nstddef\n.\nh\n>\n#\ninclude\n<\nstdint\n.\nh\n>\n#\ninclude\n<\nstring\n.\nh\n>\n#\nif\ndefined\n(\n_WIN32\n)\n#\ndefine\nPSDK_CALL\n__cdecl\n#\nif\ndefined\n(\nPRINTER_SDK_CAPI_BUILD\n)\n#\ndefine\nPSDK_API\n__declspec\n(\ndllexport\n)\n#\nelse\n#\ndefine\nPSDK_API\n__declspec\n(\ndllimport\n)\n#\nendif\n#\nelse\n#\ndefine\nPSDK_CALL\n#\ndefine\nPSDK_API\n__attribute__\n(\n(\nvisibility\n(\n\"\ndefault\n\"\n)\n)\n)\n#\nendif\n#\nifdef\n__cplusplus\nextern\n\"\nC\n\"\n{\n#\nendif\n#\ndefine\nPSDK_ABI_VERSION\n3u\n#\ndefine\nPSDK_ABI_REVISION\n3u\n#\ndefine\nPSDK_OK\n0\n#\ndefine\nPSDK_INTERNAL_ERROR\n1000\n#\ndefine\nPSDK_INVALID_ARGUMENT\n1001\n#\ndefine\nPSDK_INVALID_STATE\n1002\n#\ndefine\nPSDK_NOT_INITIALIZED\n1003\n#\ndefine\nPSDK_UNSUPPORTED_OPERATION\n1004\n#\ndefine\nPSDK_CANCELLED\n1005\n#\ndefine\nPSDK_ABI_MISMATCH\n1006\n#\ndefine\nPSDK_BUFFER_TOO_SMALL\n1007\n#\ndefine\nPSDK_RESOURCE_LIMIT\n1008\n#\ndefine\nPSDK_TRANSPORT_NOT_OPEN\n2000\n#\ndefine\nPSDK_TRANSPORT_TIMEOUT\n2001\n#\ndefine\nPSDK_TRANSPORT_CONNECTION_LOST\n2002\n#\ndefine\nPSDK_TRANSPORT_IO_ERROR\n2003\n#\ndefine\nPSDK_TRANSPORT_NO_PROGRESS\n2004\n#\ndefine\nPSDK_PROTOCOL_INVALID_RESPONSE\n3000\n#\ndefine\nPSDK_TCP\n1u\n#\ndefine\nPSDK_SPP\n2u\n#\ndefine\nPSDK_BLE\n3u\n#\ndefine\nPSDK_UNKNOWN\n0u\n#\ndefine\nPSDK_UNSUPPORTED\n1u\n#\ndefine\nPSDK_SUPPORTED\n2u\n#\ndefine\nPSDK_NATIVE\n1u\n#\ndefine\nPSDK_HOST_RENDERED\n2u\n#\ndefine\nPSDK_PROFILE_DECLARED\n1u\n#\ndefine\nPSDK_DEVICE_REPORTED\n2u\n#\ndefine\nPSDK_HARDWARE_VERIFIED\n4u\n#\ndefine\nPSDK_FEATURE_LABEL\n1u\n#\ndefine\nPSDK_FEATURE_RECEIPT\n2u\n#\ndefine\nPSDK_FEATURE_STATUS\n3u\n#\ndefine\nPSDK_FEATURE_MEDIA\n4u\n#\ndefine\nPSDK_FEATURE_CUT\n5u\n#\ndefine\nPSDK_FEATURE_RAW\n6u\n#\ndefine\nPSDK_FEATURE_IMAGE\n7u\n#\ndefine\nPSDK_FEATURE_FEED_TO_NEXT_LABEL\n8u\n#\ndefine\nPSDK_VALUES_KNOWN\n1u\n#\ndefine\nPSDK_REQUIRED_FIELDS_KNOWN\n2u\n#\ndefine\nPSDK_SUPPORTED_FIELDS_KNOWN\n4u\n#\ndefine\nPSDK_GEOMETRY_DPI\n1u\n#\ndefine\nPSDK_GEOMETRY_WIDTH\n2u\n#\ndefine\nPSDK_GEOMETRY_LENGTH\n4u\n#\ndefine\nPSDK_GEOMETRY_CUT_BLANK\n8u\n#\ndefine\nPSDK_CONNECTION_DISCONNECTED\n0u\n#\ndefine\nPSDK_CONNECTION_CONNECTING\n1u\n#\ndefine\nPSDK_CONNECTION_CONNECTED\n2u\n#\ndefine\nPSDK_CONNECTION_DISCONNECTING\n3u\n#\ndefine\nPSDK_CONSTRAINT_COPIES\n1u\n#\ndefine\nPSDK_CONSTRAINT_MEDIA_GAP_UM\n2u\n#\ndefine\nPSDK_CONSTRAINT_JOB_IMAGE_BYTES\n3u\n#\ndefine\nPSDK_CONSTRAINT_PENDING_PAYLOAD_BYTES\n4u\n#\ndefine\nPSDK_PROTOCOL_CPCL\n1u\n#\ndefine\nPSDK_PROTOCOL_ESCPOS\n2u\n#\ndefine\nPSDK_THRESHOLD\n0u\n#\ndefine\nPSDK_FLOYD_STEINBERG\n1u\n#\ndefine\nPSDK_BAYER_4X4\n2u\n#\ndefine\nPSDK_BAYER_8X8\n3u\n#\ndefine\nPSDK_ALLOW_LAST_SENT\n1u\n#\ndefine\nPSDK_REQUIRE_READBACK\n2u\n#\ndefine\nPSDK_MEDIA_BASIS_NONE\n0u\n#\ndefine\nPSDK_MEDIA_BASIS_LAST_SENT\n1u\n#\ndefine\nPSDK_MEDIA_BASIS_READBACK\n2u\n#\ndefine\nPSDK_GAP\n1u\n#\ndefine\nPSDK_BLACK_MARK\n2u\n#\ndefine\nPSDK_CONTINUOUS\n3u\n#\ndefine\nPSDK_MEDIA_TRACKING\n1u\n#\ndefine\nPSDK_MEDIA_GAP_LENGTH\n2u\n#\ndefine\nPSDK_MEDIA_LABEL_LENGTH\n4u\n#\ndefine\nPSDK_MEDIA_WIDTH\n8u\n#\ndefine\nPSDK_MEDIA_MARK_LENGTH\n16u\n#\ndefine\nPSDK_MEDIA_MARK_OFFSET\n32u\n#\ndefine\nPSDK_VOLATILE_ONLY\n0u\n#\ndefine\nPSDK_ALLOW_PERSISTENT\n1u\n#\ndefine\nPSDK_CONTENT_END\n0u\n#\ndefine\nPSDK_NEXT_LABEL_START\n1u\n#\ndefine\nPSDK_CUT_NONE\n0u\n#\ndefine\nPSDK_CUT_FULL\n1u\n#\ndefine\nPSDK_CUT_PARTIAL\n2u\n#\ndefine\nPSDK_EACH_COPY\n0u\n#\ndefine\nPSDK_END_OF_JOB\n1u\n#\ndefine\nPSDK_GRAY8\n1u\n#\ndefine\nPSDK_RGB24\n2u\n#\ndefine\nPSDK_RGBA32\n3u\n#\ndefine\nPSDK_BYTES_SENT_EXACT\n1u\n#\ndefine\nPSDK_BYTES_TOTAL_KNOWN\n2u\n#\ndefine\nPSDK_QUEUED\n0u\n#\ndefine\nPSDK_PREPARING\n1u\n#\ndefine\nPSDK_SENDING\n2u\n#\ndefine\nPSDK_COMPLETED\n4u\n#\ndefine\nPSDK_FAILED\n5u\n#\ndefine\nPSDK_OPERATION_CANCELLED\n6u\n#\ndefine\nPSDK_COMPLETION_NONE\n0u\n#\ndefine\nPSDK_DATA_SENT\n1u\n#\ndefine\nPSDK_DEVICE_CONFIRMED\n2u\n#\ndefine\nPSDK_OP_PRINT\n1u\n#\ndefine\nPSDK_OP_STATUS\n2u\n#\ndefine\nPSDK_OP_MEDIA\n3u\n#\ndefine\nPSDK_OP_RAW\n4u\n#\ndefine\nPSDK_OP_FEED_TO_NEXT_LABEL\n5u\n#\ndefine\nPSDK_OP_INFO\n6u\n#\ndefine\nPSDK_INFO_LTM90_JXIG_CANDIDATE\n1u\n#\ndefine\nPSDK_INFO_MANUFACTURER\n1u\n#\ndefine\nPSDK_INFO_DEVICE_NAME\n2u\n#\ndefine\nPSDK_INFO_UID\n4u\n#\ndefine\nPSDK_INFO_REPORTED_VERSION\n8u\n#\ndefine\nPSDK_INFO_MAX_PRINT_WIDTH\n16u\n#\ndefine\nPSDK_INFO_DPI\n32u\n#\ndefine\nPSDK_INFO_BATTERY\n64u\n#\ndefine\nPSDK_INFO_EXTERNAL_POWER\n128u\n#\ndefine\nPSDK_INFO_TEMPERATURE\n256u\n#\ndefine\nPSDK_INFO_HAS_ERROR\n512u\n#\ndefine\nPSDK_INFO_PAPER_TYPE\n1024u\n#\ndefine\nPSDK_INFO_SPEED\n2048u\n#\ndefine\nPSDK_INFO_DENSITY\n4096u\n#\ndefine\nPSDK_INFO_RTC\n8192u\n#\ndefine\nPSDK_INFO_NFC\n16384u\n#\ndefine\nPSDK_INFO_COMPRESSION\n32768u\n#\ndefine\nPSDK_PAPER_OUT\n1u\n#\ndefine\nPSDK_COVER_OPEN\n2u\n#\ndefine\nPSDK_PAPER_NEAR_END\n4u\n#\ndefine\nPSDK_CUTTER_ERROR\n8u\n#\ndefine\nPSDK_WORK_IDLE\n0u\n#\ndefine\nPSDK_WORK_QUEUED\n1u\n#\ndefine\nPSDK_WORK_PREPARING\n2u\n#\ndefine\nPSDK_WORK_SENDING\n3u\n#\ndefine\nPSDK_HARDWARE_UNKNOWN\n0u\n#\ndefine\nPSDK_DIAGNOSTIC_NONE\n0u\n#\ndefine\nPSDK_DIAGNOSTIC_CONNECT\n1u\n#\ndefine\nPSDK_DIAGNOSTIC_OPERATION\n2u\n#\ndefine\nPSDK_DIAGNOSTIC_TRANSPORT\n3u\n#\ndefine\nPSDK_DIAGNOSTIC_USER_DISCONNECT\n4u\n#\ndefine\nPSDK_WRITE_ERROR_COUNT_EXACT\n1u\n#\ndefine\nPSDK_JOB_LABEL\n1u\n#\ndefine\nPSDK_JOB_RECEIPT\n2u\n#\ndefine\nPSDK_ITEM_IMAGE\n1u\n#\ndefine\nPSDK_ITEM_BLANK\n2u\n#\ndefine\nPSDK_FEATURE_COUNT\n8u\n#\ndefine\nPSDK_CONSTRAINT_COUNT\n4u\ntypedef\nstruct\npsdk_device\npsdk_device\n;\ntypedef\nstruct\npsdk_image\npsdk_image\n;\ntypedef\nstruct\npsdk_job\npsdk_job\n;\ntypedef\nstruct\npsdk_operation\npsdk_operation\n;\ntypedef\nstruct\npsdk_transport_observer\npsdk_transport_observer\n;\ntypedef\nstruct\npsdk_scalar_constraint\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nparameter_id\n,\nknown\n;\nint32_t\nminimum\n,\nmaximum\n;\nuint32_t\nstep\n,\nevidence\n;\n}\npsdk_scalar_constraint\n;\ntypedef\nstruct\npsdk_feature\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nfeature_id\n,\nimplementation\n,\ndevice_support\n,\nevidence\n;\nuint32_t\nsupported_values\n,\nrequired_fields\n,\nknown_fields\n,\nsupported_fields\n;\n}\npsdk_feature\n;\ntypedef\nstruct\npsdk_geometry\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ndpi_x\n,\ndpi_y\n,\nprintable_width_dots\n,\nmax_job_length_dots\n;\nuint32_t\nmin_cut_blank_dots\n,\nevidence\n,\npresent_fields\n;\n}\npsdk_geometry\n;\ntypedef\nstruct\npsdk_label_options\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nwidth_dots\n,\nheight_dots\n,\ndpi_x\n,\ndpi_y\n;\nint32_t\norigin_x_dots\n,\norigin_y_dots\n;\nuint32_t\ncopies\n,\nfinish_policy\n;\n}\npsdk_label_options\n;\ntypedef\nstruct\npsdk_receipt_options\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprint_width_dots\n,\nmax_total_length_dots\n,\ndpi_x\n,\ndpi_y\n;\nuint32_t\nmargin_left_dots\n,\nmargin_right_dots\n,\ncopies\n;\n}\npsdk_receipt_options\n;\ntypedef\nstruct\npsdk_receipt_finish\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ntrailing_blank_dots\n,\ncut_mode\n,\nscope\n;\n}\npsdk_receipt_finish\n;\ntypedef\nstruct\npsdk_image_data\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nwidth\n,\nheight\n,\npixel_format\n;\nconst\nuint8_t\n*\ndata\n;\nsize_t\ndata_size\n;\nuint32_t\nalgorithm\n,\nthreshold\n,\ninvert\n,\nfit_width\n,\ntarget_width_dots\n;\n}\npsdk_image_data\n;\ntypedef\nstruct\npsdk_media_settings\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\npresent_fields\n,\ntracking\n,\nwidth_um\n,\nlabel_length_um\n;\nuint32_t\ngap_length_um\n,\nmark_length_um\n;\nint32_t\nmark_offset_um\n;\nuint32_t\npersistence_policy\n;\n}\npsdk_media_settings\n;\ntypedef\nstruct\npsdk_media_requirement\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\npresent_fields\n,\ntracking\n,\nwidth_um\n,\nlabel_length_um\n;\nuint32_t\ngap_length_um\n,\nmark_length_um\n;\nint32_t\nmark_offset_um\n;\nuint32_t\nverification_policy\n;\n}\npsdk_media_requirement\n;\ntypedef\nstruct\npsdk_operation_options\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ntimeout_ms\n,\nrequired_completion\n;\n}\npsdk_operation_options\n;\ntypedef\nstruct\npsdk_operation_snapshot\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint64_t\noperation_id\n;\nuint32_t\nkind\n,\nstate\n,\ncompletion\n;\nint32_t\nerror_code\n;\nuint32_t\nside_effects_possible\n,\nresponse_valid\n;\nuint64_t\nbytes_sent\n,\nbytes_total\n;\nuint32_t\nmedia_basis\n,\nbyte_count_flags\n;\n}\npsdk_operation_snapshot\n;\ntypedef\nstruct\npsdk_status_result\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nknown_conditions\n,\nactive_conditions\n;\nuint64_t\nsampled_monotonic_ms\n,\nconnection_generation\n;\nuint32_t\nevidence\n;\n}\npsdk_status_result\n;\ntypedef\nstruct\npsdk_device_state_snapshot\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nconnection_state\n,\nwork_state\n,\nqueued_count\n,\nhas_active_operation\n;\nuint64_t\nactive_operation_id\n;\nuint32_t\nactive_operation_kind\n,\nactive_operation_state\n,\nhardware_state\n;\nuint32_t\nhardware_known_conditions\n,\nhardware_active_conditions\n;\nuint64_t\nhardware_sampled_monotonic_ms\n,\nconnection_generation\n;\n}\npsdk_device_state_snapshot\n;\ntypedef\nstruct\npsdk_error_diagnostic\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint64_t\nsequence\n,\nconnection_generation\n,\ntransport_epoch\n,\noperation_id\n,\nsampled_monotonic_ms\n;\nint32_t\nerror_code\n;\nuint32_t\nsource\n;\nint64_t\nnative_code\n;\nuint32_t\nhas_native_code\n;\nchar\ndomain\n[\n32\n]\n,\nmessage\n[\n192\n]\n;\n}\npsdk_error_diagnostic\n;\ntypedef\nstruct\npsdk_resource_snapshot\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint64_t\nmax_image_bytes\n,\nmax_job_image_bytes\n,\nmax_raw_bytes\n;\nuint64_t\nmax_pending_payload_bytes\n,\npending_payload_bytes\n;\nuint32_t\nmax_pending_operations\n,\noutstanding_operations\n,\nmax_copies\n;\n}\npsdk_resource_snapshot\n;\ntypedef\nstruct\npsdk_sdk_info\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nabi_revision\n,\nbuild_id_known\n;\nchar\nnative_version\n[\n32\n]\n,\ndistribution_version\n[\n64\n]\n,\nbuild_id\n[\n65\n]\n;\n}\npsdk_sdk_info\n;\ntypedef\nstruct\npsdk_io_control\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nremaining_timeout_ms\n;\nvoid\n*\ncancellation_context\n;\nint32_t\n(\nPSDK_CALL\n*\nis_cancelled\n)\n(\nvoid\n*\n)\n;\n}\npsdk_io_control\n;\ntypedef\nstruct\npsdk_transport_callbacks\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\ntransport_type\n,\nwrite_count_flags\n;\nvoid\n*\ncontext\n;\nint32_t\n(\nPSDK_CALL\n*\nopen\n)\n(\nvoid\n*\n,\nconst\npsdk_io_control\n*\n)\n;\nvoid\n(\nPSDK_CALL\n*\nclose\n)\n(\nvoid\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\nis_open\n)\n(\nvoid\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\nwrite\n)\n(\nvoid\n*\n,\nconst\nuint8_t\n*\n,\nsize_t\n,\nconst\npsdk_io_control\n*\n,\nsize_t\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\nread\n)\n(\nvoid\n*\n,\nuint8_t\n*\n,\nsize_t\n,\nconst\npsdk_io_control\n*\n,\nsize_t\n*\n)\n;\nvoid\n(\nPSDK_CALL\n*\ndispose\n)\n(\nvoid\n*\n)\n;\nint32_t\n(\nPSDK_CALL\n*\ncopy_error\n)\n(\nvoid\n*\n,\npsdk_error_diagnostic\n*\n)\n;\n}\npsdk_transport_callbacks\n;\ntypedef\nstruct\npsdk_print_config\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprotocol\n,\ndpi\n,\nwidth_dots\n,\nmax_label_height_dots\n;\nuint32_t\nstripe_height\n,\nchunk_size\n,\nwrite_timeout_ms\n,\nquery_timeout_ms\n,\ninter_chunk_delay_ms\n;\nuint32_t\ncpcl_resolution\n;\n}\npsdk_print_config\n;\ntypedef\nstruct\npsdk_status_query_config\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprotocol\n,\nquery_timeout_ms\n;\n}\npsdk_status_query_config\n;\ntypedef\nstruct\npsdk_info_query_config\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nprotocol\n,\nquery_timeout_ms\n;\n}\npsdk_info_query_config\n;\ntypedef\nstruct\npsdk_printer_info\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\npresent_fields\n,\nprotocol_verified\n,\nreported_version\n,\nmax_print_width_dots\n,\nreported_dpi\n;\nint32_t\nbattery_percent\n,\nexternal_power\n,\nprinthead_temperature_celsius\n,\nhas_error\n;\nint32_t\npaper_type_code\n,\nspeed_level\n,\ndensity_level\n,\nsupports_rtc\n,\nsupports_nfc\n,\nsupports_compression\n;\nuint64_t\nsampled_monotonic_ms\n,\nconnection_generation\n;\nchar\nmanufacturer\n[\n33\n]\n,\ndevice_name\n[\n17\n]\n,\nuid_hex\n[\n25\n]\n;\n}\npsdk_printer_info\n;\ntypedef\nstruct\npsdk_job_item\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nkind\n;\nunion\n{\nstruct\n{\nconst\npsdk_image\n*\nimage\n;\nint32_t\nx\n,\ny\n;\n}\nimage\n;\nstruct\n{\nuint32_t\ndots\n;\n}\nblank\n;\n}\ndata\n;\n}\npsdk_job_item\n;\ntypedef\nstruct\npsdk_job_descriptor\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nkind\n,\nitem_count\n;\nconst\npsdk_job_item\n*\nitems\n;\nunion\n{\npsdk_label_options\nlabel\n;\npsdk_receipt_options\nreceipt\n;\n}\noptions\n;\nconst\npsdk_receipt_finish\n*\nreceipt_finish\n;\nconst\npsdk_media_requirement\n*\nmedia_requirement\n;\n}\npsdk_job_descriptor\n;\ntypedef\nstruct\npsdk_execute_request\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\nuint32_t\nkind\n;\nunion\n{\nstruct\n{\nconst\nuint8_t\n*\ndata\n;\nsize_t\ndata_size\n;\nuint32_t\ncopies\n,\nreserved\n;\n}\nraw\n;\nstruct\n{\npsdk_media_settings\nsettings\n;\npsdk_print_config\nconfig\n;\n}\nmedia\n;\nstruct\n{\npsdk_print_config\nconfig\n;\n}\nfeed\n;\nstruct\n{\npsdk_status_query_config\nconfig\n;\n}\nstatus\n;\nstruct\n{\npsdk_info_query_config\nconfig\n;\n}\ninfo\n;\n}\ndata\n;\n}\npsdk_execute_request\n;\ntypedef\nstruct\npsdk_capabilities\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\npsdk_feature\nfeatures\n[\nPSDK_FEATURE_COUNT\n]\n;\npsdk_scalar_constraint\nconstraints\n[\nPSDK_CONSTRAINT_COUNT\n]\n;\npsdk_geometry\ngeometry\n;\n}\npsdk_capabilities\n;\ntypedef\nstruct\npsdk_operation_result\n{\nuint32_t\nstruct_size\n,\nabi_version\n,\nflags\n,\nreserved\n;\npsdk_operation_snapshot\nsnapshot\n;\npsdk_error_diagnostic\ndiagnostic\n;\npsdk_status_result\nstatus\n;\n}\npsdk_operation_result\n;\n#\ndefine\nPSDK_INLINE_INIT\n(\nname\n)\n\\\nstatic\ninline\nint32_t\nPSDK_CALL\nname\n#\n#\n_init\n(\nname\n*\nvalue\n,\nsize_t\nsize\n)\n{\n\\\nif\n(\n!\nvalue\n)\nreturn\nPSDK_INVALID_ARGUMENT\n;\n\\\nif\n(\nsize\n<\nsizeof\n(\nname\n)\n)\nreturn\nPSDK_BUFFER_TOO_SMALL\n;\n\\\nif\n(\nsize\n>\nUINT32_MAX\n)\nreturn\nPSDK_INVALID_ARGUMENT\n;\n\\\nmemset\n(\nvalue\n,\n0\n,\nsize\n)\n;\n\\\nvalue\n-\n>\nstruct_size\n=\n(\nuint32_t\n)\nsize\n;\nvalue\n-\n>\nabi_version\n=\nPSDK_ABI_VERSION\n;\n\\\nreturn\nPSDK_OK\n;\n\\\n}\nPSDK_INLINE_INIT\n(\npsdk_scalar_constraint\n)\nPSDK_INLINE_INIT\n(\npsdk_feature\n)\nPSDK_INLINE_INIT\n(\npsdk_geometry\n)\nPSDK_INLINE_INIT\n(\npsdk_label_options\n)\nPSDK_INLINE_INIT\n(\npsdk_receipt_options\n)\nPSDK_INLINE_INIT\n(\npsdk_receipt_finish\n)\nPSDK_INLINE_INIT\n(\npsdk_image_data\n)\nPSDK_INLINE_INIT\n(\npsdk_media_settings\n)\nPSDK_INLINE_INIT\n(\npsdk_media_requirement\n)\nPSDK_INLINE_INIT\n(\npsdk_operation_options\n)\nPSDK_INLINE_INIT\n(\npsdk_operation_snapshot\n)\nPSDK_INLINE_INIT\n(\npsdk_status_result\n)\nPSDK_INLINE_INIT\n(\npsdk_device_state_snapshot\n)\nPSDK_INLINE_INIT\n(\npsdk_error_diagnostic\n)\nPSDK_INLINE_INIT\n(\npsdk_resource_snapshot\n)\nPSDK_INLINE_INIT\n(\npsdk_sdk_info\n)\nPSDK_INLINE_INIT\n(\npsdk_io_control\n)\nPSDK_INLINE_INIT\n(\npsdk_transport_callbacks\n)\nPSDK_INLINE_INIT\n(\npsdk_print_config\n)\nPSDK_INLINE_INIT\n(\npsdk_status_query_config\n)\nPSDK_INLINE_INIT\n(\npsdk_info_query_config\n)\nPSDK_INLINE_INIT\n(\npsdk_printer_info\n)\nPSDK_INLINE_INIT\n(\npsdk_job_item\n)\nPSDK_INLINE_INIT\n(\npsdk_job_descriptor\n)\nPSDK_INLINE_INIT\n(\npsdk_execute_request\n)\nPSDK_INLINE_INIT\n(\npsdk_capabilities\n)\nPSDK_INLINE_INIT\n(\npsdk_operation_result\n)\n#\nundef\nPSDK_INLINE_INIT\nPSDK_API\nuint32_t\nPSDK_CALL\npsdk_abi_version\n(\nvoid\n)\n;\nPSDK_API\nuint32_t\nPSDK_CALL\npsdk_abi_revision\n(\nvoid\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_get_sdk_info\n(\npsdk_sdk_info\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_create\n(\nconst\npsdk_transport_callbacks\n*\n,\npsdk_device\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_connect\n(\npsdk_device\n*\n,\nuint32_t\ntimeout_ms\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_disconnect\n(\npsdk_device\n*\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_device_destroy\n(\npsdk_device\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_state\n(\nconst\npsdk_device\n*\n,\npsdk_device_state_snapshot\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_resources\n(\nconst\npsdk_device\n*\n,\npsdk_resource_snapshot\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_capabilities\n(\nconst\npsdk_device\n*\n,\npsdk_capabilities\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_get_diagnostic\n(\nconst\npsdk_device\n*\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_image_create_copy\n(\nconst\npsdk_image_data\n*\n,\npsdk_image\n*\n*\nout\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_image_release\n(\npsdk_image\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_job_create\n(\nconst\npsdk_job_descriptor\n*\n,\npsdk_job\n*\n*\nout\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_job_release\n(\npsdk_job\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_submit\n(\npsdk_device\n*\n,\nconst\npsdk_job\n*\n,\nconst\npsdk_print_config\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_execute\n(\npsdk_device\n*\n,\nconst\npsdk_execute_request\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_submit_diagnosed\n(\npsdk_device\n*\n,\nconst\npsdk_job\n*\n,\nconst\npsdk_print_config\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_execute_diagnosed\n(\npsdk_device\n*\n,\nconst\npsdk_execute_request\n*\n,\nconst\npsdk_operation_options\n*\n,\npsdk_operation\n*\n*\nout\n,\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_get_snapshot\n(\nconst\npsdk_operation\n*\n,\npsdk_operation_snapshot\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_get_result\n(\nconst\npsdk_operation\n*\n,\npsdk_operation_result\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_get_printer_info\n(\nconst\npsdk_operation\n*\n,\npsdk_printer_info\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_operation_cancel\n(\npsdk_operation\n*\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_operation_release\n(\npsdk_operation\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_device_create_transport_observer\n(\nconst\npsdk_device\n*\n,\npsdk_transport_observer\n*\n*\nout\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_transport_observer_get_epoch\n(\nconst\npsdk_transport_observer\n*\n,\nuint64_t\n*\n)\n;\nPSDK_API\nint32_t\nPSDK_CALL\npsdk_transport_observer_notify_lost\n(\npsdk_transport_observer\n*\n,\nuint64_t\n,\nconst\npsdk_error_diagnostic\n*\n)\n;\nPSDK_API\nvoid\nPSDK_CALL\npsdk_transport_observer_release\n(\npsdk_transport_observer\n*\n)\n;\n#\nifdef\n__cplusplus\n}\n#\nendif\n#\nendif"
       },
       "manifest": {
         "abi": {
-          "revision": 2,
+          "revision": 3,
           "version": 3
         },
-        "baseline": "ABI-3-r2-candidate",
+        "baseline": "ABI-3-r3-candidate",
         "exports": [
           "psdk_abi_revision",
           "psdk_abi_version",
@@ -170,6 +170,7 @@
           "psdk_job_create",
           "psdk_job_release",
           "psdk_operation_cancel",
+          "psdk_operation_get_printer_info",
           "psdk_operation_get_result",
           "psdk_operation_get_snapshot",
           "psdk_operation_release",
@@ -178,7 +179,7 @@
           "psdk_transport_observer_release"
         ],
         "header": "capi/include/printer_sdk/printer_sdk.h",
-        "header_token_sha256": "d7dba9b8f37644caa2d930c169527413b7689c0040b9ba8f1dee65ac8bd29c3c",
+        "header_token_sha256": "ca9c616fd324bdf4abe039bc9d4703aeb77592cb3a9f857e524bc429c5e1369c",
         "inline_initializers": [
           "psdk_capabilities_init",
           "psdk_device_state_snapshot_init",
@@ -187,6 +188,7 @@
           "psdk_feature_init",
           "psdk_geometry_init",
           "psdk_image_data_init",
+          "psdk_info_query_config_init",
           "psdk_io_control_init",
           "psdk_job_descriptor_init",
           "psdk_job_item_init",
@@ -197,6 +199,7 @@
           "psdk_operation_result_init",
           "psdk_operation_snapshot_init",
           "psdk_print_config_init",
+          "psdk_printer_info_init",
           "psdk_receipt_finish_init",
           "psdk_receipt_options_init",
           "psdk_resource_snapshot_init",
@@ -270,6 +273,7 @@
                 "abi_version": 4,
                 "data": 24,
                 "data.feed.config": 24,
+                "data.info.config": 24,
                 "data.media.config": 72,
                 "data.media.settings": 24,
                 "data.raw.copies": 40,
@@ -338,6 +342,18 @@
                 "width": 16
               },
               "size": 72
+            },
+            "psdk_info_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
             },
             "psdk_io_control": {
               "alignment": 8,
@@ -505,6 +521,36 @@
                 "write_timeout_ms": 40
               },
               "size": 56
+            },
+            "psdk_printer_info": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "battery_percent": 36,
+                "connection_generation": 88,
+                "density_level": 60,
+                "device_name": 129,
+                "external_power": 40,
+                "flags": 8,
+                "has_error": 48,
+                "manufacturer": 96,
+                "max_print_width_dots": 28,
+                "paper_type_code": 52,
+                "present_fields": 16,
+                "printhead_temperature_celsius": 44,
+                "protocol_verified": 20,
+                "reported_dpi": 32,
+                "reported_version": 24,
+                "reserved": 12,
+                "sampled_monotonic_ms": 80,
+                "speed_level": 56,
+                "struct_size": 0,
+                "supports_compression": 72,
+                "supports_nfc": 68,
+                "supports_rtc": 64,
+                "uid_hex": 146
+              },
+              "size": 176
             },
             "psdk_receipt_finish": {
               "alignment": 4,
@@ -696,6 +742,7 @@
                 "abi_version": 4,
                 "data": 24,
                 "data.feed.config": 24,
+                "data.info.config": 24,
                 "data.media.config": 72,
                 "data.media.settings": 24,
                 "data.raw.copies": 40,
@@ -764,6 +811,18 @@
                 "width": 16
               },
               "size": 72
+            },
+            "psdk_info_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
             },
             "psdk_io_control": {
               "alignment": 8,
@@ -931,6 +990,36 @@
                 "write_timeout_ms": 40
               },
               "size": 56
+            },
+            "psdk_printer_info": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "battery_percent": 36,
+                "connection_generation": 88,
+                "density_level": 60,
+                "device_name": 129,
+                "external_power": 40,
+                "flags": 8,
+                "has_error": 48,
+                "manufacturer": 96,
+                "max_print_width_dots": 28,
+                "paper_type_code": 52,
+                "present_fields": 16,
+                "printhead_temperature_celsius": 44,
+                "protocol_verified": 20,
+                "reported_dpi": 32,
+                "reported_version": 24,
+                "reserved": 12,
+                "sampled_monotonic_ms": 80,
+                "speed_level": 56,
+                "struct_size": 0,
+                "supports_compression": 72,
+                "supports_nfc": 68,
+                "supports_rtc": 64,
+                "uid_hex": 146
+              },
+              "size": 176
             },
             "psdk_receipt_finish": {
               "alignment": 4,
@@ -1122,6 +1211,7 @@
                 "abi_version": 4,
                 "data": 20,
                 "data.feed.config": 20,
+                "data.info.config": 20,
                 "data.media.config": 68,
                 "data.media.settings": 20,
                 "data.raw.copies": 28,
@@ -1190,6 +1280,18 @@
                 "width": 16
               },
               "size": 56
+            },
+            "psdk_info_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
             },
             "psdk_io_control": {
               "alignment": 4,
@@ -1357,6 +1459,36 @@
                 "write_timeout_ms": 40
               },
               "size": 56
+            },
+            "psdk_printer_info": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "battery_percent": 36,
+                "connection_generation": 88,
+                "density_level": 60,
+                "device_name": 129,
+                "external_power": 40,
+                "flags": 8,
+                "has_error": 48,
+                "manufacturer": 96,
+                "max_print_width_dots": 28,
+                "paper_type_code": 52,
+                "present_fields": 16,
+                "printhead_temperature_celsius": 44,
+                "protocol_verified": 20,
+                "reported_dpi": 32,
+                "reported_version": 24,
+                "reserved": 12,
+                "sampled_monotonic_ms": 80,
+                "speed_level": 56,
+                "struct_size": 0,
+                "supports_compression": 72,
+                "supports_nfc": 68,
+                "supports_rtc": 64,
+                "uid_hex": 146
+              },
+              "size": 176
             },
             "psdk_receipt_finish": {
               "alignment": 4,
@@ -1548,6 +1680,7 @@
                 "abi_version": 4,
                 "data": 20,
                 "data.feed.config": 20,
+                "data.info.config": 20,
                 "data.media.config": 68,
                 "data.media.settings": 20,
                 "data.raw.copies": 28,
@@ -1616,6 +1749,18 @@
                 "width": 16
               },
               "size": 56
+            },
+            "psdk_info_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
             },
             "psdk_io_control": {
               "alignment": 4,
@@ -1783,6 +1928,36 @@
                 "write_timeout_ms": 40
               },
               "size": 56
+            },
+            "psdk_printer_info": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "battery_percent": 36,
+                "connection_generation": 84,
+                "density_level": 60,
+                "device_name": 125,
+                "external_power": 40,
+                "flags": 8,
+                "has_error": 48,
+                "manufacturer": 92,
+                "max_print_width_dots": 28,
+                "paper_type_code": 52,
+                "present_fields": 16,
+                "printhead_temperature_celsius": 44,
+                "protocol_verified": 20,
+                "reported_dpi": 32,
+                "reported_version": 24,
+                "reserved": 12,
+                "sampled_monotonic_ms": 76,
+                "speed_level": 56,
+                "struct_size": 0,
+                "supports_compression": 72,
+                "supports_nfc": 68,
+                "supports_rtc": 64,
+                "uid_hex": 142
+              },
+              "size": 168
             },
             "psdk_receipt_finish": {
               "alignment": 4,
@@ -1974,6 +2149,7 @@
                 "abi_version": 4,
                 "data": 24,
                 "data.feed.config": 24,
+                "data.info.config": 24,
                 "data.media.config": 72,
                 "data.media.settings": 24,
                 "data.raw.copies": 40,
@@ -2042,6 +2218,18 @@
                 "width": 16
               },
               "size": 72
+            },
+            "psdk_info_query_config": {
+              "alignment": 4,
+              "offsets": {
+                "abi_version": 4,
+                "flags": 8,
+                "protocol": 16,
+                "query_timeout_ms": 20,
+                "reserved": 12,
+                "struct_size": 0
+              },
+              "size": 24
             },
             "psdk_io_control": {
               "alignment": 8,
@@ -2210,6 +2398,36 @@
               },
               "size": 56
             },
+            "psdk_printer_info": {
+              "alignment": 8,
+              "offsets": {
+                "abi_version": 4,
+                "battery_percent": 36,
+                "connection_generation": 88,
+                "density_level": 60,
+                "device_name": 129,
+                "external_power": 40,
+                "flags": 8,
+                "has_error": 48,
+                "manufacturer": 96,
+                "max_print_width_dots": 28,
+                "paper_type_code": 52,
+                "present_fields": 16,
+                "printhead_temperature_celsius": 44,
+                "protocol_verified": 20,
+                "reported_dpi": 32,
+                "reported_version": 24,
+                "reserved": 12,
+                "sampled_monotonic_ms": 80,
+                "speed_level": 56,
+                "struct_size": 0,
+                "supports_compression": 72,
+                "supports_nfc": 68,
+                "supports_rtc": 64,
+                "uid_hex": 146
+              },
+              "size": 176
+            },
             "psdk_receipt_finish": {
               "alignment": 4,
               "offsets": {
@@ -2339,17 +2557,17 @@
           }
         },
         "schema": 1,
-        "snapshot": "docs/api/candidates/0.3.0-preview.11/printer_sdk.h"
+        "snapshot": "docs/api/candidates/0.3.0-preview.16/printer_sdk.h"
       }
     },
     "manifest": {
       "abi": {
-        "revision": 2,
+        "revision": 3,
         "version": 3
       },
       "c_abi": {
-        "baseline": "docs/api/candidates/0.3.0-preview.11/BASELINE.json",
-        "baseline_sha256": "472eb4dc0da30cb42c922b7da59320416c0ff33d197f978a102f7554006d68d1"
+        "baseline": "docs/api/candidates/0.3.0-preview.16/BASELINE.json",
+        "baseline_sha256": "0a335a087221279cd123d3a2fcfc0098e77cf840e633c723d446fbd1270e55fd"
       },
       "contract_status": "candidate",
       "historical_baseline_version": "0.2.0-preview.3",
@@ -2380,21 +2598,21 @@
       ],
       "mobile": {
         "android": {
-          "annotations": "docs/api/candidates/0.3.0-preview.11/android.json",
-          "annotations_sha256": "676a3763c5ce5349e8e55fbd18341b2a96017430cc6f1c2fc40eb44dbb39f023",
-          "baseline": "docs/api/candidates/0.3.0-preview.11/android-java.txt",
-          "baseline_sha256": "b42d80dff97b0dd790219ae23107f9946bca030b301aef865ef93694c093e980"
+          "annotations": "docs/api/candidates/0.3.0-preview.16/android.json",
+          "annotations_sha256": "8269c96693e867167d04294acf1740d8d98d8bd176d4a09f2ade8ba27d10547f",
+          "baseline": "docs/api/candidates/0.3.0-preview.16/android-java.txt",
+          "baseline_sha256": "49d9629dfc0027c4800486a48808472b39ff9c75645bea7a35f4c0f4a3a49d45"
         },
         "apple": {
-          "annotations": "docs/api/candidates/0.3.0-preview.11/apple.json",
-          "annotations_sha256": "3b128f944f44123b7e31ca8e4ca0c7e25596ceb08328bd7bf7d715e4793569dc",
-          "baseline": "docs/api/candidates/0.3.0-preview.11/apple-swift.txt",
-          "baseline_sha256": "8aaed8263549d0d9ea0abc7c14918fdf38492531e97e975143c2d1c583533377"
+          "annotations": "docs/api/candidates/0.3.0-preview.16/apple.json",
+          "annotations_sha256": "cf3e03d7ed938305a2d70ee605f5973fe0809dc41942d13304e89432f9419b36",
+          "baseline": "docs/api/candidates/0.3.0-preview.16/apple-swift.txt",
+          "baseline_sha256": "197498b66174e391abd4b8d5704ea4e09762b775f3fb6ff55d16b92653125307"
         }
       },
       "native_sdk_version": "0.3.0",
       "schema": 3,
-      "sdk_version": "0.3.0-preview.11"
+      "sdk_version": "0.3.0-preview.16"
     }
   },
   "contract_status": "candidate",
@@ -2509,5 +2727,5 @@
     }
   ],
   "schema": 2,
-  "sdk_version": "0.3.0-preview.11"
+  "sdk_version": "0.3.0-preview.16"
 }

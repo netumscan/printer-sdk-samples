@@ -2,7 +2,7 @@
 
 SDK 权限、生命周期、capabilities、错误码和诊断字段见[客户指南](../docs/README.md)。
 
-两个独立 App 固定从 Maven Central 获取 `com.netumscan:printer-sdk-android:0.3.0-preview.11`，不依赖本地 SDK 源码或 AAR。
+两个独立 App 固定从 Maven Central 获取 `com.netumscan:printer-sdk-android:0.3.0-preview.16`，不依赖本地 SDK 源码或 AAR。
 
 | 示例 | 用途 | applicationId |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ bash android/verify.sh --emulator-serial emulator-5554 --output /tmp/printer-sdk
 
 运行门禁只接受 `emulator-N` 且 `ro.kernel.qemu=1` 的已启动模拟器，拒绝物理设备。它安装这两个样例和测试 APK，并清除这两个样例在所选模拟器中的数据，以保证诊断记录来自本次运行；请使用专用测试模拟器。每次验证使用新的输出目录。
 
-两个测试 runner 直接使用 Android `Instrumentation`，无需 AndroidX。Quick Start 启动后检查没有打印机实例或任务；Full Demo 保持离线、不扫描和不授予蓝牙权限。测试 APK 仅为门禁使用精确 SDK 版本的内部 `BluetoothChannel` / `IoControl` 和既有私有构造方法；客户集成仍使用公共 API。测试 APK 将内存通道注入该构造方法，实际加载 AAR 的 JNI、通过原生 `nCreate` 的 ABI 3 / 最低修订 2 握手，验证最多 3 字节的部分写入和两个 Raw 任务的 14 字节顺序。ABI 握手要求与诊断中的分发清单 ABI 来源会分别记录，避免把清单值当成运行时 getter 的结果。
+两个测试 runner 直接使用 Android `Instrumentation`，无需 AndroidX。Quick Start 启动后检查没有打印机实例或任务；Full Demo 保持离线、不扫描和不授予蓝牙权限。测试 APK 仅为门禁使用精确 SDK 版本的内部 `BluetoothChannel` / `IoControl` 和既有私有构造方法；客户集成仍使用公共 API。测试 APK 将内存通道注入该构造方法，实际加载 AAR 的 JNI、通过原生 `nCreate` 的 ABI 3 / 最低修订 3 握手，验证最多 3 字节的部分写入和两个 Raw 任务的 14 字节顺序。ABI 握手要求与诊断中的分发清单 ABI 来源会分别记录，避免把清单值当成运行时 getter 的结果。
 
 `runtime-validation.json`（schema 2）和合并的 `validation.json` 记录本次 nonce、实际进程 ABI、API 级别、APK 哈希和测试结果；`instrumentation-result.json` 与 `quick-start-runtime.json` 保留两份真实 runner 结果。当前版本验证普通公开 API、离线启动和 Manager 释放，使用 `runtime_api_verified=true`、`runtime_compatibility_verified=false`，不声称旧版兼容日志场景通过。固定 SDK commit、AAR checksum 与 Demo 来源指纹另由构建身份记录核对。CI 在 API 35 / x86_64 模拟器执行门禁，并归档软件验证结果。全部流程不连接打印机、不执行真实打印，`hardware_verified=false`。下载双端脱敏日志与软件报告、定位失败步骤见 [CI 验证证据](../VERIFICATION.md)。
 

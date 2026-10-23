@@ -7,6 +7,12 @@
             <ImageButton android:id="@+id/more_button" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:src="@drawable/ic_more" android:tint="@color/secondary_button_text" android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/more_button" android:tooltipText="@string/more_button" />
         </LinearLayout>
         <TextView android:id="@+id/connection_status" style="@style/StatusLabel" android:accessibilityLiveRegion="polite" android:text="@string/offline" android:layout_marginTop="0dp" />
+        <LinearLayout android:id="@+id/printer_status_panel" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="8dp" android:paddingEnd="4dp" android:layout_marginTop="8dp" android:background="@color/status_unknown_surface">
+            <TextView android:id="@+id/status_symbol" android:layout_width="28dp" android:layout_height="wrap_content" android:text="?" android:textSize="22sp" android:textStyle="bold" android:textColor="@color/help_text" android:importantForAccessibility="no" />
+            <TextView android:id="@+id/live_status" style="@style/PrinterStatusLabel" android:layout_width="0dp" android:layout_weight="1" android:text="@string/live_status_unknown" android:accessibilityLiveRegion="polite" android:saveEnabled="false" />
+            <Button android:id="@+id/query_status" style="@style/TextButton" android:layout_width="wrap_content" android:text="@string/query_status" android:contentDescription="@string/query_status_help" android:enabled="false" />
+        </LinearLayout>
+        <TextView android:id="@+id/sdk_version" style="@style/HelpText" android:text="@string/sdk_version_unknown" android:saveEnabled="false" />
         <TextView android:id="@+id/status" style="@style/FieldLabel" android:accessibilityLiveRegion="polite" android:layout_marginTop="4dp" android:visibility="gone" />
     </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:orientation="vertical" android:id="@+id/print_page" android:layout_weight="1">

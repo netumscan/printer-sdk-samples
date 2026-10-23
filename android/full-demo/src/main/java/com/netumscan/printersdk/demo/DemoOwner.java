@@ -41,6 +41,7 @@ final class DemoOwner implements AutoCloseable {
     private boolean closed;
     private boolean exportPickerPending, exportPickerOpen, logsCleared;
     private long exportGeneration;
+    private long displayedStatusRecovery;
     boolean utilityBusy, pickerOpen;
     private boolean pickerValid;
     Uri importUri;
@@ -69,6 +70,13 @@ final class DemoOwner implements AutoCloseable {
     }
     void attach(Runnable listener) { if (!closed) changed = listener; }
     void notifyChanged() { if (!closed && changed != null) changed.run(); }
+    /** Owner 跨重建记住已消费序号；过时恢复不会在断连或新异常后补放。 */
+    String takeStatusRecoveryNotice() {
+        long sequence = model.statusRecoverySequence();
+        if (sequence == displayedStatusRecovery) return null;
+        displayedStatusRecovery = sequence;
+        return closed ? null : model.statusRecoveryNotice();
+    }
     /** 日志交给 journal 异步记录，回调切回主线程更新有长度上限的界面记录。 */
     void log(String message) {
         if (closed || journal == null) return;

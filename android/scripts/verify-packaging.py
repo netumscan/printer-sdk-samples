@@ -13,9 +13,9 @@ import zipfile
 import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
-from sdk_contract import abi_identity, jni_callbacks, jni_methods, packaging_checks
+from sdk_contract import jni_callbacks, jni_constructors, jni_methods, packaging_checks
 
-VERSION = "0.3.0-preview.11"
+VERSION = "0.3.0-preview.16"
 SDK_LOCK = json.loads((Path(__file__).resolve().parents[2] / "sdk-lock.json").read_text())
 AAR_SHA256 = SDK_LOCK["android"]["aar_sha256"]
 ABIS = ("arm64-v8a", "armeabi-v7a", "x86_64")
@@ -113,6 +113,12 @@ def validate_debug_payload(application, library, identity=None):
         raise SystemExit("Debug APK diagnostic identity differs from the exported build identity")
 
 
+def validate_jni_constructors(methods, lock, module):
+    for owner, descriptor in jni_constructors(lock).items():
+        if methods.get(("Lcom/netumscan/printersdk/" + owner + ";", "<init>"), {}).get("descriptor") != descriptor:
+            raise SystemExit(f"{module}: R8 changed JNI constructor {owner}")
+
+
 def inspect(root, module, application_id):
     build = root / module / "build"
     aar = build / "verification/resolved-sdk.aar"
@@ -158,12 +164,7 @@ def inspect(root, module, application_id):
             method = methods.get(("Lcom/netumscan/printersdk/MobilePrinter$ChannelBridge;", name))
             if not method or method["descriptor"] != descriptor:
                 raise SystemExit(f"{module}: R8 changed JNI callback {name}")
-        if abi_identity(SDK_LOCK)[0] == 3:
-            for owner, descriptor in {"Diagnostic": "([JLjava/lang/String;Ljava/lang/String;)V",
-                                      "SdkInfo": "(IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
-                                      "PrintOperation$Result": "([JLcom/netumscan/printersdk/Diagnostic;[J)V"}.items():
-                if methods.get(("Lcom/netumscan/printersdk/" + owner + ";", "<init>"), {}).get("descriptor") != descriptor:
-                    raise SystemExit(f"{module}: R8 changed JNI constructor {owner}")
+        validate_jni_constructors(methods, SDK_LOCK, module)
     sdk_home = Path(os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT", ""))
     aapt = sdk_home / "build-tools/35.0.0/aapt2"
     if not aapt.is_file():

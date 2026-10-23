@@ -5,6 +5,10 @@
     <color name="action_accent">#1955B8</color>
     <color name="action_surface">#FFFFFF</color>
     <color name="error_text">#B3261E</color>
+    <color name="status_alert_surface">#FCE8E6</color>
+    <color name="status_normal_surface">#E7F4EC</color>
+    <color name="status_normal_text">#176B47</color>
+    <color name="status_unknown_surface">#EEF1F5</color>
     <style name="AppThemeBase" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">@color/action_accent</item>
@@ -29,6 +33,13 @@
         <item name="android:textColor">@color/action_accent</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textSize">16sp</item>
+    </style>
+    <style name="PrinterStatusLabel" parent="FieldLabel">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:layout_marginTop">0dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
     </style>
     <style name="ProfileSummary" parent="FieldLabel">
         <item name="android:textColor">@color/title_text</item>

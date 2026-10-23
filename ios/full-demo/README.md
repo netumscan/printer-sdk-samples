@@ -1,6 +1,6 @@
 # iOS Full Demo
 
-See the current [iOS customer guide](../SDK_GUIDE.md) for diagnostic records,
+See the shared [customer guide](../../docs/README.md) for diagnostic records,
 compatibility boundaries and support.
 
 Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
@@ -26,5 +26,3 @@ See the [iOS guide](../README.md) for setup, known firmware limitations, licensi
 and complete online verification. This sample is MIT; the downloaded SDK remains
 closed commercial software under its own license. `DATA_SENT` is transfer
 completion, not physical print confirmation. `hardware_verified=false`.
-
-Current iOS setup and CocoaPods / SwiftPM migration: [XLPrinterSDK guide](../SDK_GUIDE.md).

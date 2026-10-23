@@ -1,20 +1,20 @@
 {
-  "version": "0.3.0-preview.11",
-  "native_sdk_version": "0.3.0",
-  "c_abi": "3/r2",
-  "hardware_verified": false,
   "android": {
-    "coordinate": "com.netumscan:printer-sdk-android:0.3.0-preview.11",
+    "aar_sha256": "67fa39933869ad172555d16074ca872ecc380c3b2c58c3eebb3ad4f7532758ef",
+    "coordinate": "com.netumscan:printer-sdk-android:0.3.0-preview.16",
+    "license": "https://github.com/netumscan/printer-sdk-android/blob/v0.3.0-preview.16/LICENSE",
     "repository": "https://repo.maven.apache.org/maven2",
-    "aar_sha256": "9c0bf3fd28db6ef61473b5130f97307b59a502c9c61b4054e8b443beab12d691",
-    "license": "https://github.com/netumscan/printer-sdk-android/blob/v0.3.0-preview.11/LICENSE",
-    "revision": "a487288c0ebad0a91c9da7cd8dbd659df7b40505"
+    "revision": "4a740de2234593e5aac5321cfac8648fc9bbf818"
   },
+  "c_abi": "3/r3",
+  "hardware_verified": false,
   "ios": {
+    "license": "https://github.com/netumscan/printer-sdk-ios/blob/v0.3.0-preview.16/LICENSE",
     "repository": "https://github.com/netumscan/printer-sdk-ios",
-    "version": "0.3.0-preview.11",
-    "revision": "8af6232e0f3e3d743bcb68af16e04f98df459bab",
-    "xcframework_sha256": "840de5a59fd72c661dc72bc176a3a3f882df68f0929695767e5e29b44cbda916",
-    "license": "https://github.com/netumscan/printer-sdk-ios/blob/v0.3.0-preview.11/LICENSE"
-  }
+    "revision": "c7c00f40855a998c4f408c01323f8ce6d6816ee7",
+    "version": "0.3.0-preview.16",
+    "xcframework_sha256": "1a9fa4064d86a098395815f0ffedec65a83f034c8735ae5c172c5800fda1c7e1"
+  },
+  "native_sdk_version": "0.3.0",
+  "version": "0.3.0-preview.16"
 }
