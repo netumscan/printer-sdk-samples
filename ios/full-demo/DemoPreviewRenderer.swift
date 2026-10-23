@@ -1,6 +1,6 @@
 import Foundation
 import CoreGraphics
-import PrinterSDK
+import XLPrinterSDK
 
 /// A bounded layout preview. Printing still starts from the immutable source;
 /// this app bitmap is never submitted to the SDK as a printing prerequisite.

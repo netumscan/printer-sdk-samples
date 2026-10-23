@@ -1,0 +1,13 @@
+{
+  "c_abi": "3/r3",
+  "hardware_verified": false,
+  "ios": {
+    "license": "https://github.com/netumscan/printer-sdk-ios/blob/v0.3.0-preview.15/LICENSE",
+    "repository": "https://github.com/netumscan/printer-sdk-ios",
+    "revision": "346df124ddf9a6e07e59c38b83e2d91b25a9d66a",
+    "version": "0.3.0-preview.15",
+    "xcframework_sha256": "db3ecea6d2a69258781295c8594689af948bfd9935ea28dc4dc2466e714b6d70"
+  },
+  "native_sdk_version": "0.3.0",
+  "version": "0.3.0-preview.15"
+}

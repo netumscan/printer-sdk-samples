@@ -1,9 +1,9 @@
 import Foundation
-import PrinterSDK
+import XLPrinterSDK
 
 /// Each case retains the complete SDK result, including its typed optional value.
 enum DemoResult: Sendable {
-    enum Action: Sendable { case connect, configure, printLabel, printReceipt, raw, media, feed, disconnected, disconnect }
+    enum Action: Sendable { case connect, configure, printLabel, printReceipt, raw, media, feed, getStatus, disconnected, disconnect }
     case action(Action, ManagerResult<Void>)
     case connection(Action, ManagerResult<ConnectionInfo>)
     case status(ManagerResult<StatusResult>)

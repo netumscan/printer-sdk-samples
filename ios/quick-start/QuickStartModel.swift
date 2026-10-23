@@ -4,7 +4,7 @@ import Combine
 import Foundation
 import CoreGraphics
 import ImageIO
-import PrinterSDK
+import XLPrinterSDK
 
 @MainActor
 final class QuickStartModel: ObservableObject {

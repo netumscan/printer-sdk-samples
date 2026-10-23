@@ -1,5 +1,5 @@
 import SwiftUI
-import PrinterSDK
+import XLPrinterSDK
 import UniformTypeIdentifiers
 
 /// UI bindings and read-only rendering. The Model owns all requests and file workflows.
@@ -14,6 +14,8 @@ struct DemoView: View {
             Form {
                 connectionSection
                 profileSection
+                realtimeStatusSection
+                printerInfoSection
                 imageSection
                 printSection
                 settingsSection
@@ -127,6 +129,25 @@ struct DemoView: View {
             Text("空闲连接选图不会重连或重复初始化。取消／失败保留上一图片；导入上限 32 MiB，打印按目标采样。图片与缓存仅本次运行使用。").font(.footnote)
         }
     }
+    private var printerInfoSection: some View {
+        Section("设备信息（JXIG 连接快照）") {
+            if let text = DemoResultText.printerInfo(model.printerInfo) {
+                Text(text).font(.footnote).textSelection(.enabled)
+                    .accessibilityIdentifier("demo.printerInfo")
+            } else { Text("尚无本次连接的设备信息").foregroundStyle(.secondary) }
+            Text("每次连接后自动读取一次；未读到信息仍可打印。信息为连接快照，部分字段含义待确认；未知字段为空，实时开盖、缺纸见状态区。").font(.footnote)
+        }
+    }
+    private var realtimeStatusSection: some View {
+        Section("打印机实时状态") {
+            Text("盖状态：\(model.realtimeStatus?.coverOpen.map { $0 ? "开盖" : "关盖" } ?? "未知")")
+                .accessibilityIdentifier("demo.coverStatus")
+            Text("纸张状态：\(model.realtimeStatus?.paperOut.map { $0 ? "缺纸" : "有纸" } ?? "未知")")
+                .accessibilityIdentifier("demo.paperStatus")
+            Text("显示本次 BLE 连接最近的 LT-M90 主动上报和状态查询结果；尚无样本时为未知。状态不代表打印完成。")
+                .font(.footnote)
+        }
+    }
     private func openPicker(_ kind: DemoPickerKind) {
         guard !pickerPresentationActive, let id = model.requestImageImport(kind) else { return }
         presentedRequestID = id; pickerPresentationActive = true
@@ -152,9 +173,10 @@ struct DemoView: View {
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                 Button("发送 Raw（一次）", action: model.sendRaw).disabled(!model.canWork)
                 Button("定位下一标签", action: model.feed).disabled(!model.canWork)
-                Button("查询状态", action: model.queryStatus).disabled(!model.canWork)
+                Button("查询状态", action: model.getStatus).disabled(!model.canWork)
                 Button("读取能力", action: model.capabilities).disabled(!model.canWork)
-                Text("Raw 可能改变纸张设置；必要时重新设置纸张类型。未实现的状态查询原样返回不支持，不推断打印完成。").font(.footnote)
+                Text("查询状态主动发送指令；回调报告请求结果，盖纸状态与主动上报统一由状态监听刷新。不支持或失败保留原始错误，状态不代表打印完成。").font(.footnote)
+                Text("Raw 可能改变纸张设置；必要时重新设置纸张类型。").font(.footnote)
             }
         }
     }

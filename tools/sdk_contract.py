@@ -1,28 +1,69 @@
 # SPDX-License-Identifier: MIT
 """Reviewed sample verification boundaries, selected by the exact SDK lock."""
+import json
+from pathlib import Path
 import re
 
-MINIMAL_API_VERSIONS = frozenset({"0.3.0-preview.10", "0.3.0-preview.11"})
+MINIMAL_API_ABI = {"0.3.0-preview.10": (3, 2), "0.3.0-preview.11": (3, 2),
+                   "0.3.0-preview.14": (3, 3), "0.3.0-preview.15": (3, 3)}
+MINIMAL_API_VERSIONS = frozenset(MINIMAL_API_ABI)
+UNIFIED_FLUTTER_VERSIONS = frozenset({"0.3.0-preview.11", "0.3.0-preview.14"})
+
+
+def platform_lock(root, platform):
+    """Keep the historical root lock; only the reviewed iOS overlay selects a sidecar."""
+    root = Path(root)
+    lock = json.loads((root / "sdk-lock.json").read_text())
+    sidecar = root / "ios-sdk-lock.json"
+    if platform == "ios" and sidecar.exists():
+        if sidecar.is_symlink():
+            raise ValueError("Symlinked iOS SDK lock")
+        manifest = json.loads((root / "samples-manifest.json").read_text())
+        if manifest.get("ios_overlay", {}).get("sdk_lock") != sidecar.name:
+            raise ValueError("iOS SDK sidecar lacks reviewed overlay metadata")
+        lock = json.loads(sidecar.read_text())
+        validate_ios_overlay_lock(lock)
+    return lock
+
+
+def validate_ios_overlay_lock(lock):
+    """This overlay is intentionally limited to the independently released .15 iOS SDK."""
+    ios = lock.get("ios", {})
+    if (set(lock) != {"version", "native_sdk_version", "c_abi", "hardware_verified", "ios"}
+            or lock.get("version") != "0.3.0-preview.15" or lock.get("native_sdk_version") != "0.3.0"
+            or lock.get("c_abi") != "3/r3" or lock.get("hardware_verified") is not False
+            or ios.get("version") != lock["version"]
+            or ios.get("repository") != "https://github.com/netumscan/printer-sdk-ios"
+            or ios.get("license") != ios["repository"] + "/blob/v" + lock["version"] + "/LICENSE"
+            or not isinstance(ios.get("revision"), str) or re.fullmatch(r"[0-9a-f]{40}", ios["revision"]) is None
+            or not isinstance(ios.get("xcframework_sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", ios["xcframework_sha256"]) is None):
+        raise ValueError("Invalid independently published iOS .15 SDK lock")
+    abi_identity(lock)
+    return lock
 
 
 def abi_identity(lock):
     value = lock.get("c_abi", "")
     match = re.fullmatch(r"([1-9][0-9]*)/r([1-9][0-9]*)", value) if isinstance(value, str) else None
-    if match is None or tuple(map(int, match.groups())) not in {(2, 10), (3, 1), (3, 2)}:
+    if match is None:
         raise ValueError("Unsupported samples C ABI identity")
-    return tuple(map(int, match.groups()))
+    identity = tuple(map(int, match.groups()))
+    expected = MINIMAL_API_ABI.get(lock.get("version"))
+    if ((expected is not None and identity != expected) or
+            (expected is None and identity not in {(2, 10), (3, 1), (3, 2)})):
+        raise ValueError("Unsupported samples C ABI identity")
+    return identity
 
 
 def c_export_count(lock):
     identity = abi_identity(lock)
-    return 27 if identity == (3, 2) else 25 if identity[0] == 3 else 49
+    return 28 if identity == (3, 3) else 27 if identity == (3, 2) else 25 if identity[0] == 3 else 49
 
 
 def ios_test_count(lock):
     identity = abi_identity(lock)
     if lock.get("version") in MINIMAL_API_VERSIONS:
-        if identity != (3, 2):
-            raise ValueError("Minimal mobile API requires ABI 3/r2")
         return 18
     return 15 if identity == (3, 2) else 10 if identity[0] == 3 else 4
 
@@ -69,8 +110,9 @@ def native_evidence(abi_version, abi_revision, native_version=None, distribution
 
 def validate_ios_runtime_api(value, lock):
     """Recheck reviewed minimal API identities; never relabel legacy ABI evidence."""
-    if lock.get("version") not in MINIMAL_API_VERSIONS or abi_identity(lock) != (3, 2):
-        raise ValueError("Minimal iOS runtime evidence requires a reviewed exact version / ABI 3/r2")
+    if lock.get("version") not in MINIMAL_API_VERSIONS:
+        raise ValueError("Minimal iOS runtime evidence requires a reviewed exact version")
+    abi_version, abi_revision = abi_identity(lock)
     if (not isinstance(value, dict) or set(value) != {"schema_version", "scope", "nonce", "sdk", "distribution",
             "demo", "offline_lifecycle", "hardware_verified", "transport", "build_resource", "journal_sha256"}
             or type(value.get("schema_version")) is not int or value["schema_version"] != 1
@@ -88,7 +130,7 @@ def validate_ios_runtime_api(value, lock):
         raise ValueError("Invalid iOS build resource")
     identity = resource["identity"]
     expected = {"sdk_distribution_version": lock["version"], "sdk_core_version": lock["native_sdk_version"],
-                "sdk_abi_version": 3, "sdk_abi_revision": 2,
+                "sdk_abi_version": abi_version, "sdk_abi_revision": abi_revision,
                 "sdk_release_commit": lock["ios"]["revision"],
                 "sdk_artifact_sha256": lock["ios"]["xcframework_sha256"]}
     if ({key: identity.get(key) for key in expected} != expected

@@ -9,7 +9,7 @@ import struct
 import sys
 import zlib
 sys.dont_write_bytecode = True
-from sdk_contract import MINIMAL_API_VERSIONS
+from sdk_contract import MINIMAL_API_VERSIONS, abi_identity, platform_lock
 
 PREFIX = "flutter/"
 LOCAL_FLUTTER = "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage"
@@ -25,8 +25,9 @@ def sha(value):
 
 def validate_lock(lock):
     version = lock.get("version")
-    if version not in MINIMAL_API_VERSIONS or lock.get("native_sdk_version") != "0.3.0" or lock.get("c_abi") != "3/r2" or lock.get("hardware_verified") is not False:
+    if version not in MINIMAL_API_VERSIONS or lock.get("native_sdk_version") != "0.3.0" or lock.get("hardware_verified") is not False:
         raise ValueError("Invalid Flutter SDK lock")
+    abi_identity(lock)
     android, ios = lock.get("android", {}), lock.get("ios", {})
     if (android.get("coordinate") != "com.netumscan:printer-sdk-android:" + version
             or android.get("repository") != "https://repo.maven.apache.org/maven2"
@@ -82,6 +83,7 @@ def check(root, manifest, actual):
     validate_lock(lock)
     if lock != json.loads((root / "sdk-lock.json").read_text()):
         raise ValueError("Flutter SDK lock differs from the public root SDK lock")
+    ios_lock = platform_lock(root, "ios")
     canonical = node.get("canonical_sources")
     if not isinstance(canonical, dict) or set(canonical) != {"samples/flutter"}:
         raise ValueError("Missing canonical Flutter provenance")
@@ -112,12 +114,15 @@ def check(root, manifest, actual):
     urls = re.findall(r'\brepositoryURL\s*=\s*"([^"\n]+)"\s*;', text)
     versions = re.findall(r'\bversion\s*=\s*"?([^";\s]+)"?\s*;', text)
     kinds = re.findall(r'\bkind\s*=\s*([^;\s]+)\s*;', text)
-    if urls != [lock["ios"]["repository"]] or versions != [lock["version"]] or kinds != ["exactVersion"]:
+    if urls != [ios_lock["ios"]["repository"]] or versions != [ios_lock["version"]] or kinds != ["exactVersion"]:
         raise ValueError("Flutter iOS must use its exact remote SwiftPM SDK pin")
     pins = json.loads((root / RESOLVED).read_text()).get("pins")
-    if pins != [{"identity": "printer-sdk-ios", "kind": "remoteSourceControl", "location": lock["ios"]["repository"],
-                 "state": {"revision": lock["ios"]["revision"], "version": lock["version"]}}]:
+    if pins != [{"identity": "printer-sdk-ios", "kind": "remoteSourceControl", "location": ios_lock["ios"]["repository"],
+                 "state": {"revision": ios_lock["ios"]["revision"], "version": ios_lock["version"]}}]:
         raise ValueError("Flutter resolved SDK identity differs from its lock")
     if (root / PREFIX / "LICENSE").read_bytes() != (root / "LICENSE").read_bytes():
         raise ValueError("Missing MIT Flutter sample license")
-    return {"sdk_version": lock["version"], "files_verified": len(sources), "hardware_verified": False}
+    report = {"sdk_version": lock["version"], "files_verified": len(sources), "hardware_verified": False}
+    if "ios_overlay" in manifest:
+        report["ios_sdk_version"] = ios_lock["version"]
+    return report

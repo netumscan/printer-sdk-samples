@@ -1,5 +1,5 @@
 import Foundation
-import PrinterSDK
+import XLPrinterSDK
 
 enum DemoJournalError: Error, Equatable, Sendable {
     case unavailable
