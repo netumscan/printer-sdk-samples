@@ -10,7 +10,7 @@ import stat
 import sys
 import types
 sys.dont_write_bytecode = True
-from sdk_contract import abi_identity
+from sdk_contract import abi_identity, platform_lock
 
 WRAPPER_JAR = "android/gradle/wrapper/gradle-wrapper.jar"
 WRAPPER_SHA256 = "81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f"
@@ -73,6 +73,7 @@ def check_wrapper(root, actual, manifest):
 
 
 def check_ios_dependencies(root, lock):
+    lock = platform_lock(root, "ios")
     version = lock["version"]
     ios = lock.get("ios", {})
     if (ios.get("version") != version or ios.get("repository") not in {
@@ -137,6 +138,10 @@ def check(root):
         if not files or canonical[origin] != {"target": target, "files_sha256": files}:
             raise ValueError("Full Demo provenance differs from exported sources: " + origin)
     lock = json.loads((root / "sdk-lock.json").read_text())
+    overlay = None
+    if "ios_overlay" in manifest:
+        from ios_samples_overlay import validate_overlay
+        overlay = validate_overlay(root, manifest, actual)
     abi_version, abi_revision = abi_identity(lock)
     version = manifest["sdk_version"]
     if lock["version"] != version or lock["hardware_verified"] is not False:
@@ -148,12 +153,16 @@ def check(root):
         if resource.get("schema_version") != 1 or set(resource) != {"schema_version", "identity"}:
             raise ValueError("Invalid diagnostic build identity resource")
         identity = resource["identity"]
-        sdk = lock.get(platform, {})
-        if identity != {"sdk_distribution_version": version, "sdk_core_version": lock.get("native_sdk_version"),
-                        "sdk_abi_version": abi_version, "sdk_abi_revision": abi_revision, "sdk_release_commit": sdk.get("revision"),
+        selected = platform_lock(root, platform)
+        selected_version = selected["version"]
+        selected_abi = abi_identity(selected)
+        source_fingerprint = overlay["android_source_fingerprint"] if overlay and platform == "android" else fingerprint
+        sdk = selected.get(platform, {})
+        if identity != {"sdk_distribution_version": selected_version, "sdk_core_version": selected.get("native_sdk_version"),
+                        "sdk_abi_version": selected_abi[0], "sdk_abi_revision": selected_abi[1], "sdk_release_commit": sdk.get("revision"),
                         "sdk_artifact_sha256": sdk.get("aar_sha256" if platform == "android" else "xcframework_sha256"),
-                        "demo_source_fingerprint": fingerprint,
-                        "demo_build_version": version + "+samples." + fingerprint[:12]}:
+                        "demo_source_fingerprint": source_fingerprint,
+                        "demo_build_version": selected_version + "+samples." + source_fingerprint[:12]}:
             raise ValueError("Diagnostic identity differs from SDK pin or canonical source fingerprint")
     if "Permission is hereby granted, free of charge" not in (root / "LICENSE").read_text():
         raise ValueError("Missing MIT sample license")
@@ -206,6 +215,8 @@ def check(root):
     # identifiers (for example c:@T@NSTimeInterval), never arbitrary templates.
     reference_files = {"docs/api-reference.json", "docs/android-java-api.md", "docs/ios-swift-api.md",
                        "docs/api-history.json"}
+    if overlay:
+        reference_files.update({"ios/api-reference.json", "ios/ios-swift-api.md"})
     prohibited = re.compile(
         r"/Users/[A-Za-z0-9_.-]+/|/home/[A-Za-z0-9_.-]+/|XCLocalSwiftPackageReference|mavenLocal\s*\(|"
         r"implementation\s*\(\s*project\s*\(|"
@@ -245,6 +256,9 @@ def check(root):
               "api_reference": reference_report, "api_history": history_report}
     if flutter_report is not None:
         report["flutter_demo"] = flutter_report
+    if overlay:
+        report["ios_overlay"] = {"sdk_version": platform_lock(root, "ios")["version"],
+                                 "android_sdk_version": version, "retained_baseline_verified": True}
     return report
 
 

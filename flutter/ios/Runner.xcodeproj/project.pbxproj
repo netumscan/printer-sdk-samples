@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A80000000000000000000001 /* PrinterSDK in Frameworks */ = {isa = PBXBuildFile; productRef = A80000000000000000000002 /* PrinterSDK */; };
+		A80000000000000000000001 /* XLPrinterSDK in Frameworks */ = {isa = PBXBuildFile; productRef = A80000000000000000000002 /* XLPrinterSDK */; };
 		A80000000000000000000003 /* PrinterSdkBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A80000000000000000000004 /* PrinterSdkBridge.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
@@ -70,7 +70,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
-				A80000000000000000000001 /* PrinterSDK in Frameworks */,
+				A80000000000000000000001 /* XLPrinterSDK in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -171,7 +171,7 @@
 			name = Runner;
 			packageProductDependencies = (
 				78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */,
-				A80000000000000000000002 /* PrinterSDK */,
+				A80000000000000000000002 /* XLPrinterSDK */,
 			);
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
@@ -645,16 +645,16 @@
 		A80000000000000000000005 /* XCRemoteSwiftPackageReference "printer-sdk-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/netumscan/printer-sdk-ios";
-			requirement = {kind = exactVersion; version = 0.3.0-preview.11;};
+			requirement = {kind = exactVersion; version = 0.3.0-preview.16;};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 
 /* Begin XCSwiftPackageProductDependency section */
-		A80000000000000000000002 /* PrinterSDK */ = {
+		A80000000000000000000002 /* XLPrinterSDK */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A80000000000000000000005 /* XCRemoteSwiftPackageReference "printer-sdk-ios" */;
-			productName = PrinterSDK;
+			productName = XLPrinterSDK;
 		};
 		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {
 			isa = XCSwiftPackageProductDependency;

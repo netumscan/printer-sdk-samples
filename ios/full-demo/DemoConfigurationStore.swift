@@ -1,5 +1,5 @@
 import Foundation
-import PrinterSDK
+import XLPrinterSDK
 
 /// A form draft only: never persist device identity, Raw data, image locations, or runtime state.
 struct DemoSavedSettings: Codable, Sendable, Equatable {

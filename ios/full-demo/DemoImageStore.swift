@@ -1,7 +1,7 @@
 import Foundation
 import CoreGraphics
 import ImageIO
-import PrinterSDK
+import XLPrinterSDK
 
 /// App image work has its own cancellation lifetime, independent of a printer request.
 final class DemoImageCancellation: @unchecked Sendable {

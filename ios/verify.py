@@ -15,10 +15,10 @@ from pathlib import Path
 import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from sdk_contract import MINIMAL_API_VERSIONS, c_export_count, ios_test_count, validate_ios_runtime_api
+from sdk_contract import MINIMAL_API_VERSIONS, c_export_count, ios_test_count, platform_lock, validate_ios_runtime_api
 
 IOS = Path(__file__).resolve().parent
-SDK_LOCK = json.loads((IOS.parent / "sdk-lock.json").read_text())
+SDK_LOCK = platform_lock(IOS.parent, "ios")
 VERSION = SDK_LOCK["version"]
 REVISION = SDK_LOCK["ios"]["revision"]
 CHECKSUM = SDK_LOCK["ios"]["xcframework_sha256"]

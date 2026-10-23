@@ -1,5 +1,5 @@
 import Foundation
-import PrinterSDK
+import XLPrinterSDK
 
 /// App selection only. SDK owns BLE transport and printing parameters.
 struct DemoConnectionSettings {

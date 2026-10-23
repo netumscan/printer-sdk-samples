@@ -83,7 +83,7 @@ hardware.
 The separate **Flutter** workflow pins Flutter 3.41.9 to upstream commit
 `00b0c91f06209d9e4a41f71b7a512d6eb3b9c694`. Its `flutter-android` and
 `flutter-ios` jobs use the public [Flutter Quick Start](flutter/README.md), its
-committed Dart dependency lock, and exact SDK 0.3.0-preview.11 pins.
+committed Dart dependency lock, and exact Android SDK 0.3.0-preview.11 and iOS SDK 0.3.0-preview.16 pins.
 
 The unified sample synchronization requires both workflows on the same candidate
 commit before updating main, then verifies both workflows again on that exact
@@ -116,3 +116,5 @@ For iOS simulator architecture notes and the unsigned Xcode command, see the
 [Flutter README](flutter/README.md). Native SDK build/runtime evidence remains
 scoped to the corresponding native workflow and version. Hardware acceptance
 remains deferred (`hardware_verified=false`).
+
+The iOS overlay preserves the historical root/Flutter .11 locks and all Android/Dart bytes. iOS native and Flutter consumers select `ios-sdk-lock.json`; all four existing CI jobs remain enabled.

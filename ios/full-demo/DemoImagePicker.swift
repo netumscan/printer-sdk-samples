@@ -1,7 +1,7 @@
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
-import PrinterSDK
+import XLPrinterSDK
 
 /// Provider URLs are copied before their callback returns. The Model accepts only the matching request.
 struct DemoImagePicker: UIViewControllerRepresentable {

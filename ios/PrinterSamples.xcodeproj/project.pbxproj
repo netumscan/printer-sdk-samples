@@ -46,7 +46,7 @@
         00000000000000000000001E = { isa = PBXGroup; children = (D5062DE8CD5D328B1A34E5B3, D8FEE56F56C1B1E29341A2E6, 48FE060132EBCEC9C570233A, CE1A502665FCE5C70620A477, 956CB8A3377E9FE45F2421BE, 5025C5406DE444A7B4124D89, 97653D043657D8E696CE61B0, 9717B5A56BE1A9D6FD35677E, 5A682CF64F06F490FF2BD017, 76D8EF340250C6285A98AA1B, 9FF39E5F5017B322BDF6110B, C815979CAC396B9CEF4AFCE9, 779FE2DC563C06FA2800EA94, 2A81717B0EA4475C16691C5D, 00000000000000000000001D, A10000000000000000000001); path = "full-demo"; sourceTree = "<group>"; };
         000000000000000000000021 = { isa = PBXGroup; children = (A1E403795BA82D7F874E87F2); path = "tests"; sourceTree = "<group>"; };
         000000000000000000000022 = { isa = PBXFileReference; explicitFileType = wrapper.application; path = PrinterQuickStart.app; sourceTree = BUILT_PRODUCTS_DIR; };
-        000000000000000000000024 = { isa = XCSwiftPackageProductDependency; package = 000000000000000000000023; productName = PrinterSDK; };
+        000000000000000000000024 = { isa = XCSwiftPackageProductDependency; package = 000000000000000000000023; productName = XLPrinterSDK; };
         000000000000000000000025 = { isa = PBXBuildFile; productRef = 000000000000000000000024; };
         000000000000000000000026 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E8B36619495B8534367D6ECB, 8A9870A4E5E9450944B2B277); runOnlyForDeploymentPostprocessing = 0; };
         000000000000000000000027 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000025); runOnlyForDeploymentPostprocessing = 0; };
@@ -56,7 +56,7 @@
         00000000000000000000002C = { isa = XCBuildConfiguration; name = Release; buildSettings = { CURRENT_PROJECT_VERSION = 1; MARKETING_VERSION = 0.3.0; PRODUCT_BUNDLE_IDENTIFIER = com.netumscan.printersdk.samples.quickstart; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; IPHONEOS_DEPLOYMENT_TARGET = 15.0; TARGETED_DEVICE_FAMILY = "1,2"; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks"); GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = "quick-start/Info.plist"; ENABLE_TESTABILITY = NO; }; };
         000000000000000000000029 = { isa = XCConfigurationList; buildConfigurations = (00000000000000000000002B, 00000000000000000000002C); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
         00000000000000000000002D = { isa = PBXFileReference; explicitFileType = wrapper.application; path = PrinterFullDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
-        00000000000000000000002E = { isa = XCSwiftPackageProductDependency; package = 000000000000000000000023; productName = PrinterSDK; };
+        00000000000000000000002E = { isa = XCSwiftPackageProductDependency; package = 000000000000000000000023; productName = XLPrinterSDK; };
         00000000000000000000002F = { isa = PBXBuildFile; productRef = 00000000000000000000002E; };
         000000000000000000000030 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (4FF63F3305FF7D08BB3D6E7F, 8BD4F51A0F1E8E0A307F44CF, DEE30EBF0CB4DE76012F79D6, CDF9886A024C3479ADCE0A0A, 51F1DFFF1BFB7D5EFDF18843, AE1355E6C4A9EA409805F7FC, 4F981F0B4D47EC7892093349, 1681DF3FE4214D3641279510, F2D74A3676C413F4EC9B9525, 2946B7298639B2100F877236, B66B8FD3B14C3CEF34AF742B, B96DCFF33779B923EE85D768, 1822283675FEBD32033FFF80, C0DC07078CC9C5910C3A58F0); runOnlyForDeploymentPostprocessing = 0; };
         000000000000000000000031 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (00000000000000000000002F); runOnlyForDeploymentPostprocessing = 0; };
@@ -66,7 +66,7 @@
         000000000000000000000036 = { isa = XCBuildConfiguration; name = Release; buildSettings = { CURRENT_PROJECT_VERSION = 1; MARKETING_VERSION = 0.3.0; PRODUCT_BUNDLE_IDENTIFIER = com.netumscan.printersdk.samples.fulldemo; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; IPHONEOS_DEPLOYMENT_TARGET = 15.0; TARGETED_DEVICE_FAMILY = "1,2"; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks"); GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = "full-demo/Info.plist"; ENABLE_TESTABILITY = NO; }; };
         000000000000000000000033 = { isa = XCConfigurationList; buildConfigurations = (000000000000000000000035, 000000000000000000000036); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
         000000000000000000000037 = { isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = PrinterSamplesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-        000000000000000000000038 = { isa = XCSwiftPackageProductDependency; package = 000000000000000000000023; productName = PrinterSDK; };
+        000000000000000000000038 = { isa = XCSwiftPackageProductDependency; package = 000000000000000000000023; productName = XLPrinterSDK; };
         000000000000000000000039 = { isa = PBXBuildFile; productRef = 000000000000000000000038; };
         00000000000000000000003A = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (1A116E21E8CF8CD2A883BC03); runOnlyForDeploymentPostprocessing = 0; };
         00000000000000000000003B = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000039); runOnlyForDeploymentPostprocessing = 0; };
@@ -77,7 +77,7 @@
         00000000000000000000003E = { isa = XCConfigurationList; buildConfigurations = (000000000000000000000040, 000000000000000000000041); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
         000000000000000000000043 = { isa = PBXContainerItemProxy; containerPortal = 000000000000000000000042; proxyType = 1; remoteGlobalIDString = 00000000000000000000002A; remoteInfo = PrinterQuickStart; };
         00000000000000000000003D = { isa = PBXTargetDependency; target = 00000000000000000000002A; targetProxy = 000000000000000000000043; };
-        000000000000000000000023 = { isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/netumscan/printer-sdk-ios.git"; requirement = {kind = exactVersion; version = "0.3.0-preview.11"; }; };
+        000000000000000000000023 = { isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/netumscan/printer-sdk-ios.git"; requirement = {kind = exactVersion; version = "0.3.0-preview.16"; }; };
         000000000000000000000044 = { isa = PBXGroup; children = (000000000000000000000022, 00000000000000000000002D, 000000000000000000000037); name = Products; sourceTree = "<group>"; };
         000000000000000000000045 = { isa = PBXGroup; children = (000000000000000000000006, 00000000000000000000001E, 000000000000000000000021, 000000000000000000000044); sourceTree = "<group>"; };
         000000000000000000000046 = { isa = XCBuildConfiguration; name = Debug; buildSettings = { CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 15.0; SDKROOT = iphoneos; SWIFT_VERSION = 6.0; GCC_C_LANGUAGE_STANDARD = gnu17; CLANG_CXX_LANGUAGE_STANDARD = "gnu++17"; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; ONLY_ACTIVE_ARCH = YES; }; };

@@ -1,6 +1,6 @@
 # iOS samples
 
-See the shared [customer guide](../docs/README.md) for SDK permissions, lifecycle,
+See the current [iOS customer guide](SDK_GUIDE.md) for SDK permissions, lifecycle,
 capabilities, errors, runtime identity and validation records and support boundaries.
 
 Open `PrinterSamples.xcodeproj` with Xcode 16 or newer (Swift 6+), then select a scheme:
@@ -14,7 +14,7 @@ Both apps require iOS 15+ and use the exact public dependency below.
 Quick Start and its tests use Swift 6.0 language mode; Full Demo retains
 Swift 5 language mode with the same SDK. The shared APP owner supports Swift 6 strict concurrency without a preconcurrency import.
 The committed `Package.resolved` uses the same version and release commit;
-root `sdk-lock.json` also records the binary checksum. No SDK implementation or
+root `ios-sdk-lock.json` also records the binary checksum. No SDK implementation or
 local package path is included here.
 
 ## Current SDK dependency
@@ -22,8 +22,8 @@ local package path is included here.
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.3.0-preview.11` |
-| Release commit | `8af6232e0f3e3d743bcb68af16e04f98df459bab` |
+| Exact version | `0.3.0-preview.16` |
+| Release commit | `c7c00f40855a998c4f408c01323f8ce6d6816ee7` |
 
 ## App configuration
 
@@ -77,7 +77,7 @@ Use a new output directory for each run. The verifier downloads the public
 Swift package and binary into fresh caches, checks the exact commit and ZIP
 checksum, compares unpacked bytes, and builds both apps for device arm64 and
 simulator arm64/x86_64. Each build checks the dynamic framework, its Bundle ID,
-27 C exports and privacy resource. 18 tests then run on an available iPhone
+28 C exports and privacy resource. 18 tests then run on an available iPhone
 simulator: current public values, invalid input, Quick Start request ownership, cancellation and offline cleanup. Both apps are launched afterward. No test scans BLE or contacts a
 printer. Reports, screenshots and the XCTest result bundle stay in `build/`.
 
@@ -90,3 +90,5 @@ closed commercial software** under its own license; MIT does not apply to the SD
 Swift wrapper, binary, headers or resources. See the root license boundary notice.
 `hardware_verified=false`: these checks establish integration, not physical
 Bluetooth, firmware or paper acceptance.
+
+Current iOS setup and CocoaPods / SwiftPM migration: [XLPrinterSDK guide](SDK_GUIDE.md).

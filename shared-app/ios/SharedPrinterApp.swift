@@ -1,5 +1,5 @@
 import Foundation
-import PrinterSDK
+import XLPrinterSDK
 
 // The application owns this object. Pages subscribe to App state, never SDK internals.
 @MainActor

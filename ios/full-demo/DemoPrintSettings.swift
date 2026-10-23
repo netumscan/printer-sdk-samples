@@ -1,5 +1,5 @@
 import Foundation
-import PrinterSDK
+import XLPrinterSDK
 
 /// App preview geometry for the supported LT-M90. SDK independently validates every print.
 struct DemoPrintSettings: Sendable {

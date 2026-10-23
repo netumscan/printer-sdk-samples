@@ -1,7 +1,7 @@
 import Foundation
 import CoreFoundation
 @preconcurrency import Flutter
-import PrinterSDK
+import XLPrinterSDK
 
 /// One manager belongs to one Flutter engine. The SDK owns decoding and printer IO.
 @MainActor

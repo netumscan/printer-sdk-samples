@@ -1,6 +1,6 @@
 # printer-sdk-samples
 
-NETUM 打印机 SDK 的 MIT 许可应用示例。Android、iOS 与 Flutter 均固定接入在线 SDK **0.3.0-preview.11**。克隆本仓库即可构建，无需访问 SDK 私有开发仓库。
+NETUM 打印机 SDK 的 MIT 许可应用示例。Android／Flutter Android 固定在线 SDK **0.3.0-preview.11**，iOS／Flutter iOS 固定 **0.3.0-preview.16**（`import XLPrinterSDK`）。克隆本仓库即可构建，无需访问 SDK 私有开发仓库。
 
 | 平台 | 最小接入 | 完整示例 |
 | --- | --- | --- |
@@ -33,8 +33,8 @@ Windows 使用 `android\gradlew.bat -p android` 加相同任务。原生 iOS 使
 ## 当前 SDK 与行为
 
 - Android：`com.netumscan:printer-sdk-android:0.3.0-preview.11`，来自 Maven Central。
-- iOS：公开 `https://github.com/netumscan/printer-sdk-ios`，Exact Version `0.3.0-preview.11`。
-- 身份与制品摘要见根 [sdk-lock.json](sdk-lock.json)；Flutter 的 [独立锁](flutter/sdk-lock.json) 与根锁一致。
+- iOS：公开 `https://github.com/netumscan/printer-sdk-ios`，Exact Version `0.3.0-preview.16`，SwiftPM 产品 `XLPrinterSDK`。
+- Android 身份见原 [sdk-lock.json](sdk-lock.json)；iOS 身份见 [ios-sdk-lock.json](ios-sdk-lock.json)和 [iOS 接入指南](ios/SDK_GUIDE.md)。根客户文档/API快照保留 `.11` 历史；iOS当前参考见 [Swift API](ios/ios-swift-api.md)。
 - 传图片与页面毫米宽高；SDK 管理型号通信、点密度和流式编码。设置纸型与定位均为独立请求，打印不隐式 FORM 或切纸。
 - Android 支持 BLE／SPP，iOS 支持 BLE；未知型号不猜参数。`DATA_SENT` 仅表示数据交付，取消或失败后可能已有部分输出，不自动重连、续打或重放。
 
@@ -54,4 +54,4 @@ python3 tools/check-samples.py
 
 自有示例代码、资源和工程配置采用 [MIT](LICENSE)，详见 [许可边界](LICENSING.md)；Gradle Wrapper 保留 [Apache-2.0 许可](android/gradle/wrapper/LICENSE)。**SDK 保持闭源商用许可，MIT 不适用于下载的 SDK、包装层、C 头文件或第三方组件。**
 
-当前 native SDK `0.3.0`、C ABI `3/r2`，`hardware_verified=false`。构建及模拟器通过不表示真实无线、固件、纸面输出或手机峰值内存完成验收。M90 取消后重连的短斜痕仍待解决，ESC/POS 尚无硬件验收。
+当前 native SDK `0.3.0`；Android C ABI `3/r2`，iOS C ABI `3/r3`，`hardware_verified=false`。构建及模拟器通过不表示真实无线、固件、纸面输出或手机峰值内存完成验收。M90 取消后重连的短斜痕仍待解决，ESC/POS 尚无硬件验收。

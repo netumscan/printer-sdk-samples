@@ -1,6 +1,6 @@
 import Combine
 import Foundation
-import PrinterSDK
+import XLPrinterSDK
 
 enum DemoPickerKind: String, Sendable { case files, photos }
 struct DemoPickerRequest: Identifiable, Sendable { let id: UUID; let kind: DemoPickerKind }
@@ -20,6 +20,8 @@ final class DemoModel: ObservableObject {
     @Published private(set) var scanning = false
     @Published private(set) var status = "请选择设备；连接不需要先填写图纸尺寸"
     @Published private(set) var connectionInfo: ConnectionInfo?
+    @Published private(set) var printerInfo: PrinterInfo?
+    @Published private(set) var realtimeStatus: StatusResult?
     @Published private(set) var mediaInitialized = false
     @Published private(set) var lastResult: DemoResult? { didSet { recordResult(lastResult) } }
     @Published private(set) var cleanupResult: DemoResult? { didSet { recordResult(cleanupResult) } }
@@ -130,7 +132,7 @@ final class DemoModel: ObservableObject {
         guard canConnect, let selected else { return }
         let device = devices.first { $0.identifier == selected } ?? DiscoveredPrinter(identifier: selected)
         appendLog("event=connect_requested")
-        inputError = nil; phase = .connecting; status = "正在连接…"
+        stopStatusListening(); startStatusListening(); inputError = nil; printerInfo = nil; phase = .connecting; status = "正在连接…"
         let callback: @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { [weak self] result in
                 guard let self, connectingRequest == result.requestID else { return }
                 connectingRequest = nil
@@ -138,7 +140,8 @@ final class DemoModel: ObservableObject {
                 lastResult = .connection(.connect, result)
                 guard connection == result.requestID, phase == .connecting else { return }
                 if result.isSuccess {
-                    connectionInfo = result.value; mediaInitialized = false; phase = .ready
+                    connectionInfo = result.value; printerInfo = result.value?.printerInfo; mediaInitialized = false; phase = .ready
+                    startStatusListening()
                     status = "已连接；可设置纸张类型或直接打印，连接不发送纸张设置命令"
                 } else {
                     connection = nil; connectionInfo = nil; phase = .disconnecting
@@ -151,7 +154,8 @@ final class DemoModel: ObservableObject {
             }
         let onDisconnected: @MainActor @Sendable (ManagerResult<Void>) -> Void = { [weak self] result in
                 guard let self, connection == result.requestID else { return }
-                connection = nil; connectionInfo = nil; mediaInitialized = false; phase = .offline
+                stopStatusListening()
+                connection = nil; connectionInfo = nil; printerInfo = nil; mediaInitialized = false; phase = .offline
                 connectionLoss = .action(.disconnected, result); cancelImageFlow()
                 status = "连接意外断开；请手动重新连接"
             }
@@ -171,7 +175,8 @@ final class DemoModel: ObservableObject {
             guard phase == .working, connection != nil else { return }
             phase = .ready
             if result.isSuccess, let info = result.value {
-                connectionInfo = info; mediaInitialized = false; invalidatePreview()
+                connectionInfo = info; printerInfo = info.printerInfo; mediaInitialized = false; invalidatePreview()
+                startStatusListening()
                 status = "已采用 LT-M90；纸张设置需单独执行"
             } else { status = "型号未采用；保留原配置" }
         }
@@ -226,10 +231,10 @@ final class DemoModel: ObservableObject {
         inputError = nil; phase = .working
         active = manager.locateNextLabel { [weak self] result in self?.finish(.action(.feed, result)) }
     }
-    func queryStatus() {
+    func getStatus() {
         guard canWork else { return }
-        inputError = nil; phase = .working
-        active = manager.queryStatus { [weak self] result in self?.finish(.status(result)) }
+        inputError = nil; phase = .working; status = "正在查询状态；盖纸状态由状态监听更新"
+        active = manager.getStatus { [weak self] result in self?.finish(.action(.getStatus, result)) }
     }
     func capabilities() {
         guard canWork else { return }
@@ -327,39 +332,55 @@ final class DemoModel: ObservableObject {
         guard let request = phase == .connecting ? connection : active else { return }
         manager.cancel(request); status = "已请求取消；等待真实终态，已发送数据不能撤回"
     }
-    func foregroundEntry() { foreground = true }
+    func foregroundEntry() { foreground = true; startStatusListening() }
     func background() {
+        stopStatusListening()
         foreground = false; cancelFilePresentation()
         appendLog("event=background")
         cancelImageFlow(); invalidatePreview(); disconnect()
     }
     func disconnect() {
+        stopStatusListening()
         cancelSettingsWork()
         cancelImageFlow()
         guard phase != .closed, phase != .disconnecting else { return }
         appendLog("event=disconnect_requested")
-        connection = nil; connectionInfo = nil; mediaInitialized = false; phase = .disconnecting; status = "正在断开并清理…"
+        connection = nil; connectionInfo = nil; printerInfo = nil; mediaInitialized = false; phase = .disconnecting; status = "正在断开并清理…"
         manager.disconnect { [weak self] result in
             guard let self, phase == .disconnecting else { return }
             cleanupResult = .action(.disconnect, result); phase = .offline; status = "已断开；不会自动重连或重放"
         }
     }
     func close() {
+        stopStatusListening()
         guard phase != .closed else { return }
         cancelFilePresentation(); logClearRequest = nil; logBusy = false
         appendLog("event=demo_closed"); journal?.close()
         cancelImageFlow(); invalidatePreview(); importedImage = nil; manager.close { _ in }
-        connection = nil; connectionInfo = nil; scanRequest = nil; mediaInitialized = false; phase = .closed; scanning = false
+        connection = nil; connectionInfo = nil; printerInfo = nil; scanRequest = nil; mediaInitialized = false; phase = .closed; scanning = false
     }
-    deinit { imageCancellation?.cancel(); journal?.close(); manager.close { _ in } }
+    deinit { manager.setStatusListener(nil); imageCancellation?.cancel(); journal?.close(); manager.close { _ in } }
     private func finish(_ result: DemoResult) {
         guard active == result.evidence.requestID, phase != .closed else { return }
         active = nil
         if phase == .working { phase = connection == nil ? .offline : .ready }
-        lastResult = result; status = "请求已结束；DATA_SENT 只表示传输完成，请检查实际出纸"
+        lastResult = result; status = DemoResultText.requestSummary(result)
     }
     private func rejectInput(_ error: Error) {
         inputError = error as? DemoInputError ?? DemoInputError(1000); status = "输入或前置条件校验失败；尚未登记 SDK 请求"
+    }
+
+    // Listener registration performs no IO. Queried and spontaneous samples use
+    // this sole display path; request completions only control loading/errors.
+    private func startStatusListening() {
+        manager.setStatusListener { [weak self] value in
+            guard let self, foreground, connection != nil,
+                  phase == .ready || phase == .working else { return }
+            realtimeStatus = value
+        }
+    }
+    private func stopStatusListening() {
+        manager.setStatusListener(nil); realtimeStatus = nil
     }
 }
 

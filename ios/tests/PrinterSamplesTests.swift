@@ -3,7 +3,7 @@
 import CPrinterSDK
 import Foundation
 import CoreBluetooth
-@testable import PrinterSDK
+@testable import XLPrinterSDK
 @testable import PrinterQuickStart
 import XCTest
 
@@ -51,7 +51,7 @@ final class PrinterSamplesTests: XCTestCase {
         let result: ManagerResult<SDKInfo> = await withCheckedContinuation { continuation in
             manager.sdkInfo { continuation.resume(returning: $0) }
         }
-        XCTAssertEqual(result.value?.abiVersion, 3); XCTAssertEqual(result.value?.abiRevision, 2)
+        XCTAssertEqual(result.value?.abiVersion, 3); XCTAssertEqual(result.value?.abiRevision, 3)
         XCTAssertEqual(result.value?.nativeVersion, "0.3.0")
         await withCheckedContinuation { continuation in manager.close { _ in continuation.resume() } }
     }
@@ -190,11 +190,13 @@ private final class QuickStartMemoryChannel: BluetoothByteChannel, @unchecked Se
     private var opened = false, interrupted = false, holdOpen = false
     private var holdAfter: Int?
     private var bytes = Data(), opens = 0, openTimeout: TimeInterval = 0
+    private var informationQueries = 0
     private var observer: ChannelConnectionObserver?
     let opening = DispatchSemaphore(value: 0), blockedWrite = DispatchSemaphore(value: 0)
     var isOpen: Bool { lock.lock(); defer { lock.unlock() }; return opened }
     var sent: Data { lock.lock(); defer { lock.unlock() }; return bytes }
     var openCount: Int { lock.lock(); defer { lock.unlock() }; return opens }
+    var infoQueryCount: Int { lock.lock(); defer { lock.unlock() }; return informationQueries }
     var connectionTimeout: TimeInterval { lock.lock(); defer { lock.unlock() }; return openTimeout }
     func configure(holdOpen: Bool = false, holdWriteAfter: Int? = nil) {
         lock.lock(); self.holdOpen = holdOpen; holdAfter = holdWriteAfter.map { bytes.count + $0 }; lock.unlock()
@@ -213,6 +215,15 @@ private final class QuickStartMemoryChannel: BluetoothByteChannel, @unchecked Se
     }
     func close() { lock.lock(); opened = false; interrupted = true; lock.unlock() }
     func write(_ data: Data, _ control: IOControl) throws -> Int {
+        // This write-only fixture exercises INFO soft failure separately from
+        // the print bytes and cancellation barrier checked below.
+        if data == Data([0x1b, 0x23, 0x23, 0x4a, 0x58, 0x49, 0x47]) {
+            if control.cancelled() { throw PrinterSDKError(1005) }
+            lock.lock(); defer { lock.unlock() }
+            guard opened else { throw PrinterSDKError(2002) }
+            informationQueries += 1
+            return data.count
+        }
         lock.lock(); let held = holdAfter.map { bytes.count >= $0 } ?? false; lock.unlock()
         if held { blockedWrite.signal() }
         let deadline = ProcessInfo.processInfo.systemUptime + control.timeout
@@ -318,6 +329,8 @@ extension PrinterSamplesTests {
     func testConsumerAdoptsOriginalScannedNameAndPrintsFixedSingleCopyWithoutForm() async throws {
         let channel = QuickStartMemoryChannel(), (model, _) = consumer(channel); defer { model.close() }
         model.connect(); try await until { model.canPrint }
+        XCTAssertEqual(channel.infoQueryCount, 1)
+        XCTAssertNil(model.connectionResult?.value?.printerInfo)
         let info = try XCTUnwrap(model.connectionResult?.value)
         XCTAssertEqual(info.deviceName, "LT-M90_A1B2")
         XCTAssertEqual(info.configurationSource, .nameRecommendation)
@@ -363,6 +376,7 @@ extension PrinterSamplesTests {
         XCTAssertEqual(model.lastResult?.requestID, terminalID); XCTAssertEqual(model.cleanupResult?.code, 0)
         channel.configure(); model.connect(); try await until { model.canPrint }
         XCTAssertEqual(channel.sent.count, 3); XCTAssertEqual(channel.openCount, 2)
+        XCTAssertEqual(channel.infoQueryCount, 2)
     }
     @MainActor
     func testConsumerDisconnectCannotHidePriorTerminalBeforeManualReconnect() async throws {
@@ -449,5 +463,6 @@ extension PrinterSamplesTests {
         XCTAssertEqual(model.phase, .closed); XCTAssertFalse(model.canConnect); XCTAssertFalse(model.canPrint)
         XCTAssertEqual(model.connectionResult?.requestID, priorID); XCTAssertNil(model.lastResult); XCTAssertFalse(channel.isOpen)
         XCTAssertEqual(channel.openCount, 1); XCTAssertEqual(channel.sent.count, 3)
+        XCTAssertEqual(channel.infoQueryCount, 1)
     }
 }

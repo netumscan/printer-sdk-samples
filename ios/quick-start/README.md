@@ -1,18 +1,18 @@
 # iOS Quick Start
 
-See the shared [customer guide](../../docs/README.md) for SDK permissions and API lifecycle.
+See the current [iOS customer guide](../SDK_GUIDE.md) for SDK permissions and API lifecycle.
 
 Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
 `PrinterQuickStart` scheme and run on iOS 15+. Xcode 16+ resolves the exact public
-`PrinterSDK` dependency below; no local SDK checkout is needed.
+`XLPrinterSDK` dependency below; no local SDK checkout is needed.
 
 ## Current SDK dependency
 
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.3.0-preview.11` |
-| Release commit | `8af6232e0f3e3d743bcb68af16e04f98df459bab` |
+| Exact version | `0.3.0-preview.16` |
+| Release commit | `c7c00f40855a998c4f408c01323f8ce6d6816ee7` |
 
 ## Running the sample
 
@@ -24,3 +24,5 @@ not reconnect or replay. `DATA_SENT` does not establish actual paper output.
 See the [iOS guide](../README.md) for setup, licensing and complete online
 verification. This sample is MIT; the downloaded SDK remains closed commercial
 software under its own license. `hardware_verified=false`.
+
+Current iOS setup and CocoaPods / SwiftPM migration: [XLPrinterSDK guide](../SDK_GUIDE.md).
