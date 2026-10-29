@@ -1,16 +1,23 @@
-# Android/iOS App接入
+# Android／iOS App 接入
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.16` · native `0.3.0` · ABI `3/r3`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.17` · native `0.3.0` · ABI `3/r3`
 
-Android最低API21、Java8；iOS最低iOS15。实际发布后使用同版精确Maven／SwiftPM依赖，核对分发身份与制品摘要；候选或开发契约不表示线上已发布。App负责权限、设备选择和配对，iOS配置NSBluetoothAlwaysUsageDescription。
+Android 最低 API21、Java8；iOS 最低 iOS15，支持 Swift5／6。实际发布后使用精确同版 Maven／SwiftPM 依赖，
+核对制品摘要和实际身份；候选契约不表示线上已发布。App 负责权限、设备选择、系统配对和后台策略，
+iOS 配置 `NSBluetoothAlwaysUsageDescription`。
 
-两端直接接收设备值，已知名称可推荐内置型号；改名的已支持设备可显式指定PrinterModel。未知型号不猜通信参数。连接、选型号和实际设纸型分开；图片打印只提供图片和页面宽高，不自动设置纸张。
+稳定 owner 在提交请求前注册统一 Listener／Delegate，操作只返回请求 ID；按动作接收完整结果并关联 ID。
+扫描时将实时发现直接展示，成功终态刷新最终合并信息；停止后再显式连接，发现和选择不会自动连接或打印。
+设备原名可推荐内置型号，已确认型号的改名设备可显式指定；未知型号不猜通信参数。
 
-以下会话源码与当前SDK进行Java8和iOS15 Swift5/6严格编译检查。owner持有Manager和请求标识，页面只观察结果。编译通过不表示真实无线或纸面验收。
+以下会话源码与当前 SDK 进行 Java8、iOS15 Swift5／6 严格编译检查。页面只观察 owner 的结果，
+编译通过不证明真实无线或纸面验收。
 
 ## Android
 
-构造 LabelSession 时提供应用 Context、DiscoveredDevice、是否 BLE 和 Ui；可选型号构造重载用于已确认型号的改名设备或无名保存地址。打印支持 Bitmap 或完整 PNG/JPEG byte[]，widthMm／heightMm 为本页尺寸。固定一份、不隐式 FORM；定位调用独立方法。
+`LabelSession` 实现 `PrinterListener`，在连接前调用 `manager.setListener(this)`。
+构造时提供 Context、候选设备、是否 BLE 与 Ui；显式型号重载仅用于已确认型号的设备。
+图片直接传 Bitmap 或完整 PNG/JPEG byte[] 和页面毫米宽高，不传逐调用 Callback。
 
 ```java
 import android.content.Context;
@@ -18,7 +25,7 @@ import android.graphics.Bitmap;
 import com.netumscan.printersdk.*;
 
 /** Application notification target; the SDK owns image processing and all printer IO. */
-public final class LabelSession implements AutoCloseable {
+public final class LabelSession implements AutoCloseable, PrinterListener {
     public interface Ui {
         void connection(ManagerResult<ConnectionInfo> result);
         void configuration(ManagerResult<ConnectionInfo> result);
@@ -37,47 +44,48 @@ public final class LabelSession implements AutoCloseable {
         this(new PrinterManager(context), device, lowEnergy, model, ui);
     }
     LabelSession(PrinterManager manager, DiscoveredDevice device, boolean lowEnergy, PrinterModel model, Ui ui) {
-        this.manager = manager; this.ui = ui;
-        PrinterManager.Callback<ConnectionInfo> connected = result -> {
-            Ui target = this.ui; if (target != null) target.connection(result);
-        };
-        PrinterManager.DisconnectedListener disconnected = result -> {
-            Ui target = this.ui; if (target != null) target.disconnected(result);
-        };
+        this.manager = manager; this.ui = ui; manager.setListener(this);
         if (model != null) {
-            if (lowEnergy) manager.connectBle(device, model, connected, disconnected);
-            else manager.connectSpp(device, model, connected, disconnected);
-        } else if (lowEnergy) manager.connectBle(device, connected, disconnected);
-        else manager.connectSpp(device, connected, disconnected);
+            if (lowEnergy) manager.connectBle(device, model); else manager.connectSpp(device, model);
+        } else if (lowEnergy) manager.connectBle(device); else manager.connectSpp(device);
     }
-    public void setPrinterModel(PrinterModel model) {
-        manager.setPrinterModel(model, result -> {
-            Ui target = ui; if (target != null) target.configuration(result);
-        });
+    @Override public void onConnectionCompleted(ManagerResult<ConnectionInfo> result) {
+        Ui target = ui; if (target != null) target.connection(result);
     }
-    public void setPaperType(PaperType type) {
-        manager.setPaperType(type, result -> {
-            Ui target = ui; if (target != null) target.media(result);
-        });
+    @Override public void onModelConfigurationCompleted(ManagerResult<ConnectionInfo> result) {
+        Ui target = ui; if (target != null) target.configuration(result);
     }
+    @Override public void onPaperTypeCompleted(ManagerResult<Void> result) {
+        Ui target = ui; if (target != null) target.media(result);
+    }
+    @Override public void onDisconnected(ManagerResult<Void> result) {
+        Ui target = ui; if (target != null) target.disconnected(result);
+    }
+    @Override public void onPrintCompleted(ManagerResult<Void> result) { completed(result); }
+    @Override public void onLabelPositioningCompleted(ManagerResult<Void> result) { completed(result); }
+    public void setPrinterModel(PrinterModel model) { manager.setPrinterModel(model); }
+    public void setPaperType(PaperType type) { manager.setPaperType(type); }
     public void printImage(Bitmap image, double widthMm, double heightMm) {
-        active = manager.printImage(image, widthMm, heightMm, this::completed);
+        active = manager.printImage(image, widthMm, heightMm);
     }
     public void printEncodedImage(byte[] pngJpeg, double widthMm, double heightMm) {
-        active = manager.printEncodedImage(pngJpeg, widthMm, heightMm, this::completed);
+        active = manager.printEncodedImage(pngJpeg, widthMm, heightMm);
     }
     private void completed(ManagerResult<Void> result) {
         Ui target = ui; if (target != null) target.completed(result);
     }
-    public void locateNextLabel() { active = manager.locateNextLabel(this::completed); }
+    public void locateNextLabel() { active = manager.locateNextLabel(); }
     public void cancel() { manager.cancel(active); }
-    @Override public void close() { ui = null; manager.close(result -> { }); }
+    @Override public void close() { ui = null; manager.close(); }
 }
 ```
 
 ## iOS
 
-在 MainActor 由 ViewModel 持有 AppPrinter。connect 提供 DiscoveredPrinter，可选 model 用于改名设备或只有 UUID 的目标；不传时仍按名称推荐。printEncodedImage 提供完整 PNG/JPEG Data 与页面毫米。回调直接更新 MainActor 状态。SDK 同时提供 UIImage 入口。
+由 MainActor owner 持有 `AppPrinter`。它实现 `PrinterDelegate` 并设置 `manager.delegate = self`；
+SDK 弱持有 Delegate，App 必须保持 owner 存活到关闭清理终态。
+connect 提供 `DiscoveredPrinter` 和可选型号；printEncodedImage 提供完整 PNG/JPEG Data 和页面毫米。
+示例 App owner 可向自己的 UI 提供闭包，SDK 公共请求入口本身不再接收 completion 或断连闭包。
 
 ```swift
 import Foundation
@@ -85,52 +93,80 @@ import XLPrinterSDK
 
 // An App/ViewModel owner. The Manager owns snapshots, processing, printer IO and cleanup.
 @MainActor
-final class AppPrinter {
+final class AppPrinter: PrinterDelegate {
+    enum LifecycleError: Error { case closed }
     private let manager: PrinterManager
     private var requests: Set<RequestID> = []
+    private var cleanup: [RequestID: @MainActor @Sendable (ManagerResult<Void>) -> Void] = [:]
+    private var closeRequest: RequestID?
+    private var closeResult: ManagerResult<Void>?
+    private var closeWaiters: [@MainActor @Sendable (ManagerResult<Void>) -> Void] = []
+    private var closingOwner: AppPrinter?
     var showConnection: (ManagerResult<ConnectionInfo>) -> Void = { _ in }
     var showResult: (ManagerResult<Void>) -> Void = { _ in }
     var disconnected: (ManagerResult<Void>) -> Void = { _ in }
-    init(manager: PrinterManager = PrinterManager()) { self.manager = manager }
-    @discardableResult
-    func connect(_ device: DiscoveredPrinter, model: PrinterModel? = nil) -> RequestID {
-        let completed: @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { [weak self] in self?.showConnection($0) }
-        let disconnected: @MainActor @Sendable (ManagerResult<Void>) -> Void = { [weak self] in self?.disconnected($0) }
-        if let model {
-            return manager.connectBle(device: device, model: model, completion: completed, onDisconnected: disconnected)
-        }
-        return manager.connectBle(device: device, completion: completed, onDisconnected: disconnected)
+    init(manager: PrinterManager = PrinterManager()) { self.manager = manager; manager.delegate = self }
+    private func requireOpen() throws {
+        guard closeRequest == nil, closeResult == nil else { throw LifecycleError.closed }
     }
     @discardableResult
-    func printEncodedImage(_ pngJpeg: Data, widthMm: Double, heightMm: Double) -> RequestID {
-        let id = manager.printEncodedImage(pngJpeg, widthMm: widthMm, heightMm: heightMm) { [weak self] result in
-            guard let self else { return }
-            requests.remove(result.requestID)
-            showResult(result) // dataSent confirms transport delivery, not physical paper output.
-        }
+    func connect(_ device: DiscoveredPrinter, model: PrinterModel? = nil) throws -> RequestID {
+        try requireOpen()
+        if let model { return manager.connectBle(device: device, model: model) }
+        return manager.connectBle(device: device)
+    }
+    func printerManager(_ manager: PrinterManager, didFinishConnecting result: ManagerResult<ConnectionInfo>) {
+        showConnection(result)
+    }
+    func printerManager(_ manager: PrinterManager, didLoseConnection result: ManagerResult<Void>) {
+        disconnected(result)
+    }
+    @discardableResult
+    func printEncodedImage(_ pngJpeg: Data, widthMm: Double, heightMm: Double) throws -> RequestID {
+        try requireOpen()
+        let id = manager.printEncodedImage(pngJpeg, widthMm: widthMm, heightMm: heightMm)
         requests.insert(id); return id
+    }
+    func printerManager(_ manager: PrinterManager, didFinishPrinting result: ManagerResult<Void>) {
+        requests.remove(result.requestID)
+        showResult(result) // dataSent confirms transport delivery, not physical paper output.
     }
     func cancel(_ id: RequestID) { manager.cancel(id) }
     func cancelPrint() { for id in requests { manager.cancel(id) } }
-    func disconnect(_ completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) {
-        manager.disconnect(completion: completion)
+    func disconnect(_ completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) throws {
+        try requireOpen()
+        cleanup[manager.disconnect()] = completion
     }
     func close(_ completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) {
-        manager.close(completion: completion)
+        if let closeResult { DispatchQueue.main.async { completion(closeResult) }; return }
+        closeWaiters.append(completion)
+        if closeRequest == nil { closingOwner = self; closeRequest = manager.close() }
+    }
+    func printerManager(_ manager: PrinterManager, didFinishDisconnecting result: ManagerResult<Void>) {
+        cleanup.removeValue(forKey: result.requestID)?(result)
+    }
+    func printerManager(_ manager: PrinterManager, didFinishClosing result: ManagerResult<Void>) {
+        guard closeRequest == result.requestID else { return }
+        closeResult = result; closeRequest = nil
+        let waiters = closeWaiters; closeWaiters.removeAll()
+        for completion in waiters { completion(result) }
+        closingOwner = nil
     }
 }
 ```
 
-Flutter通过MethodChannel传Uint8List，Android接byte[]，iOS接FlutterStandardTypedData后取data，直接调用printEncodedImage。不要在插件解码再重新编码，也不传rawRgba。ui.Image.toByteData需要明确format: ImageByteFormat.png，并保留ByteData的offset／length范围。
+Flutter 的标准 MethodChannel 将完整 PNG/JPEG `Uint8List` 映射到 Android `byte[]`／iOS
+`FlutterStandardTypedData.data`。原生适配器保存每个请求 ID，将对应类型化通知转为一次插件回复；
+detach 或关闭期间隔离迟到结果。无需 Base64、裸 RGBA 或插件重复解码；`ui.Image` 明确导出 PNG。
 
-取消、失败和断开可能已有部分输出，读取outputMayHaveOccurred；DATA_SENT不等于机械完成。disconnect完成后才能正常换机，close永久停止独占会话。共享所有者的页面解绑不关闭设备；恢复前台不重连或补印。
-
-UIImage 入口支持可取得 CGImage 的非动画图片；CI-only、矢量／系统符号等无 CGImage 来源及动画图片返回 1001。检查和像素读取在后台执行。源像素 bytesPerRow×height 上限 16 MiB，接纳时按此上限保守预留输入额度；编码 Data 上限 32 MiB，大图优先使用 Data 按目标采样。SDK 强持有不可变 UIImage，返回后可释放或重新赋值调用方引用；自定义 CGDataProvider 的底层数据须在 provider 生命周期内保持不变。Bitmap、byte[]／Data 仍在返回前复制，复制期间不得并发修改，返回后可修改或释放原数据。iOS 只有保存 UUID、没有有效名称且未显式选择型号时，连接返回 1004。
+失败和取消可能已有部分输出，读取 `outputMayHaveOccurred`；`DATA_SENT` 不等于机械完成。
+换机等待 disconnect，独占 owner 结束时 close，保持接收者直至关闭终态。返回前台不自动重连或补印。
+图片规格与输入副本寿命见[设备与图片](configuration.md)。
 
 SwiftPM 产品和 Swift 模块为 `XLPrinterSDK`。CocoaPods 接入使用同版公开仓库标签：
 
 ```ruby
-pod 'XLPrinterSDK', :git => 'https://github.com/netumscan/printer-sdk-ios.git', :tag => 'v0.3.0-preview.16'
+pod 'XLPrinterSDK', :git => 'https://github.com/netumscan/printer-sdk-ios.git', :tag => 'v0.3.0-preview.17'
 ```
 
 候选契约本身不证明线上发布；远程标签必须实际发布后才能使用。本地 `:path` 接入须先将校验后的原生附件解压到包的 `Binaries/`，详见包根目录 README。

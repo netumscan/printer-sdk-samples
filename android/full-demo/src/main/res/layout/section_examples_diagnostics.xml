@@ -4,6 +4,7 @@
         <TextView style="@style/FieldLabel" android:text="@string/pixel_example_label" android:labelFor="@id/pixel_example" />
         <Spinner android:id="@+id/pixel_example" style="@style/Selector" />
         <TextView style="@style/HelpText" android:text="@string/pixel_example_help" />
+        <Button android:id="@+id/print_sample" style="@style/SecondaryButton" android:text="@string/print_developer_sample" android:enabled="false" />
         <Button android:id="@+id/print_fifo" style="@style/SecondaryButton" android:text="@string/print_fifo" android:enabled="false" />
         <TextView style="@style/HelpText" android:text="@string/print_fifo_help" />
     </LinearLayout>

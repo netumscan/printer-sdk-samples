@@ -348,39 +348,72 @@ struct DemoOfflineRuntimeProof: Sendable {
 
 @MainActor
 enum DemoOfflineRuntimeVerification {
-    private final class Delivery { var returned = false; var requestID: RequestID? }
-    private final class Recorder {
+    private enum Reply {
+        case identity(ManagerResult<SDKInfo>)
+        case lifecycle(ManagerResult<Void>)
+    }
+    private final class Delivery {
+        let name: String
+        let finish: (Reply) -> Void
+        var returned = false
+        var requestID: RequestID?
+        init(_ name: String, finish: @escaping (Reply) -> Void) { self.name = name; self.finish = finish }
+    }
+    private final class Recorder: PrinterDelegate {
         var requests: Set<RequestID> = []
         var steps: [DemoOfflineRuntimeProof.Step] = []
-        func record<Value>(_ name: String, _ value: ManagerResult<Value>, delivery: Delivery) {
+        var pending: [RequestID: Delivery] = [:]
+        func record<Value>(_ value: ManagerResult<Value>, reply: Reply) {
+            guard let delivery = pending.removeValue(forKey: value.requestID) else { return }
             let unique = requests.insert(value.requestID).inserted && delivery.requestID == value.requestID
-            steps.append(.init(name: name, code: value.code, mainThread: Thread.isMainThread,
+            steps.append(.init(name: delivery.name, code: value.code, mainThread: Thread.isMainThread,
                 asynchronous: delivery.returned, uniqueRequest: unique,
                 completionNone: value.completion == .none, outputMayHaveOccurred: value.outputMayHaveOccurred))
+            delivery.finish(reply)
+        }
+        func printerManager(_ manager: PrinterManager, didFinishReadingSDKInfo result: ManagerResult<SDKInfo>) {
+            record(result, reply: .identity(result))
+        }
+        func printerManager(_ manager: PrinterManager, didFinishDisconnecting result: ManagerResult<Void>) {
+            record(result, reply: .lifecycle(result))
+        }
+        func printerManager(_ manager: PrinterManager, didFinishClosing result: ManagerResult<Void>) {
+            record(result, reply: .lifecycle(result))
         }
     }
-    private static func call<Value>(_ name: String, recorder: Recorder,
-        _ operation: (@escaping @MainActor @Sendable (ManagerResult<Value>) -> Void) -> RequestID) async -> ManagerResult<Value> {
-        let delivery = Delivery()
-        return await withCheckedContinuation { next in
-            delivery.requestID = operation { result in
-                recorder.record(name, result, delivery: delivery)
-                next.resume(returning: result)
-            }
-            delivery.returned = true
+    private static func register(_ name: String, recorder: Recorder, operation: () -> RequestID,
+                                 finish: @escaping (Reply) -> Void) {
+        let delivery = Delivery(name, finish: finish)
+        let id = operation()
+        delivery.requestID = id; recorder.pending[id] = delivery; delivery.returned = true
+    }
+    private static func call(_ name: String, recorder: Recorder, _ operation: () -> RequestID) async -> Reply {
+        await withCheckedContinuation { next in
+            register(name, recorder: recorder, operation: operation) { next.resume(returning: $0) }
         }
     }
     static func run(nonce: UUID, journal: DemoLogJournal, resourceURL: URL?) async {
         // A second Manager exists only for this explicit offline acceptance invocation. No connect/print/raw call occurs.
         let manager = PrinterManager(), recorder = Recorder()
-        let info: ManagerResult<SDKInfo> = await call("sdkInfo", recorder: recorder) { manager.sdkInfo(completion: $0) }
-        let _: ManagerResult<Void> = await call("disconnect", recorder: recorder) { manager.disconnect(completion: $0) }
-        let _: ManagerResult<Void> = await call("disconnect", recorder: recorder) { manager.disconnect(completion: $0) }
-        let _: ManagerResult<SDKInfo> = await call("sdkInfo", recorder: recorder) { manager.sdkInfo(completion: $0) }
-        let _: ManagerResult<Void> = await call("close", recorder: recorder) { manager.close(completion: $0) }
-        let _: ManagerResult<Void> = await call("close", recorder: recorder) { manager.close(completion: $0) }
-        let _: ManagerResult<SDKInfo> = await call("sdkInfo", recorder: recorder) { manager.sdkInfo(completion: $0) }
-        guard let sdk = info.value else { journal.append("event=runtime_api_identity_missing"); return }
+        manager.delegate = recorder
+        let info = await call("sdkInfo", recorder: recorder) { manager.sdkInfo() }
+        _ = await call("disconnect", recorder: recorder) { manager.disconnect() }
+        _ = await call("disconnect", recorder: recorder) { manager.disconnect() }
+        _ = await call("sdkInfo", recorder: recorder) { manager.sdkInfo() }
+        // Register both cleanups before either result: close releases the delegate
+        // after every result owed to this close barrier has been delivered.
+        await withCheckedContinuation { (next: CheckedContinuation<Void, Never>) in
+            var remaining = 2
+            for _ in 0..<2 {
+                register("close", recorder: recorder, operation: { manager.close() }) { _ in
+                    remaining -= 1
+                    if remaining == 0 { next.resume() }
+                }
+            }
+        }
+        guard case .identity(let result) = info, let sdk = result.value else {
+            journal.append("event=runtime_api_identity_missing"); return
+        }
         journal.recordRuntimeVerification(.init(nonce: nonce, sdk: sdk, steps: recorder.steps), resourceURL: resourceURL)
     }
 }

@@ -22,8 +22,8 @@ local package path is included here.
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.3.0-preview.16` |
-| Release commit | `c7c00f40855a998c4f408c01323f8ce6d6816ee7` |
+| Exact version | `0.3.0-preview.17` |
+| Release commit | `98bf75c66370d1b85f165ca297a9b4fa299e0fde` |
 
 ## App configuration
 
@@ -77,7 +77,7 @@ Use a new output directory for each run. The verifier downloads the public
 Swift package and binary into fresh caches, checks the exact commit and ZIP
 checksum, compares unpacked bytes, and builds both apps for device arm64 and
 simulator arm64/x86_64. Each build checks the dynamic framework, its Bundle ID,
-28 C exports and privacy resource. 18 tests then run on an available iPhone
+28 C exports and privacy resource. 20 tests then run on an available iPhone
 simulator: current public values, invalid input, Quick Start request ownership, cancellation and offline cleanup. Both apps are launched afterward. No test scans BLE or contacts a
 printer. Reports, screenshots and the XCTest result bundle stay in `build/`.
 

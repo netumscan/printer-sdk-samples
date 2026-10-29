@@ -65,6 +65,45 @@ final class RunnerTests: XCTestCase {
   }
 
   @MainActor
+  func testPermanentCloseRejectsNewRequestsAndCompletesRepeatedCloseLocally() {
+    let bridge = PrinterSdkBridge()
+    let firstClose = expectation(description: "Original close terminal")
+    let repeatedClose = expectation(description: "Repeated close shares the cleanup barrier")
+    bridge.handle(FlutterMethodCall(methodName: "close", arguments: ["requestId": "close-first"])) { response in
+      XCTAssertEqual((response as? [String: Any])?["code"] as? Int32, 0)
+      firstClose.fulfill()
+    }
+    var rejectedWhileClosing = false
+    bridge.handle(FlutterMethodCall(methodName: "sdkInfo", arguments: ["requestId": "info-during-close"])) {
+      XCTAssertEqual(($0 as? FlutterError)?.code, "sdk_closed")
+      rejectedWhileClosing = true
+    }
+    XCTAssertTrue(rejectedWhileClosing)
+    bridge.handle(FlutterMethodCall(methodName: "close", arguments: ["requestId": "close-again"])) { response in
+      XCTAssertEqual((response as? [String: Any])?["requestId"] as? String, "close-again")
+      repeatedClose.fulfill()
+    }
+    wait(for: [firstClose, repeatedClose], timeout: 5)
+    var rejectedAfterClose = false
+    bridge.handle(FlutterMethodCall(methodName: "connect", arguments: ["requestId": "connect-after-close"])) {
+      XCTAssertEqual(($0 as? FlutterError)?.code, "sdk_closed")
+      rejectedAfterClose = true
+    }
+    XCTAssertTrue(rejectedAfterClose)
+    var localClose = false
+    bridge.handle(FlutterMethodCall(methodName: "close", arguments: ["requestId": "close-local"])) { response in
+      XCTAssertEqual((response as? [String: Any])?["requestId"] as? String, "close-local")
+      localClose = true
+    }
+    XCTAssertTrue(localClose)
+    var cancelled = false
+    bridge.handle(FlutterMethodCall(methodName: "cancel", arguments: ["requestId": "old-request"])) {
+      XCTAssertNil($0); cancelled = true
+    }
+    XCTAssertTrue(cancelled)
+  }
+
+  @MainActor
   func testDetachDropsPendingReply() throws {
     let engine = FlutterEngine(name: "bridge-detach-test", project: nil, allowHeadlessExecution: true)
     defer { engine.destroyContext() }

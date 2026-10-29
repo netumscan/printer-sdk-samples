@@ -14,6 +14,6 @@ SDK 权限和 API 生命周期见[客户指南](../../docs/README.md)。
 
 - [MainActivity.java](src/main/java/com/netumscan/printersdk/samples/quickstart/MainActivity.java)：界面与显式权限流程。
 - [QuickStartModel.java](src/main/java/com/netumscan/printersdk/samples/quickstart/QuickStartModel.java)：Manager 所有权、固定图片、请求结果和界面状态。
-本例由 `QuickStartModel` 持有 `PrinterManager`，直接提交 `Bitmap` 与毫米页面宽高；PNG/JPEG 数据使用 `printEncodedImage`。连接显式选择已确认的 `PrinterModel`，纸张定位使用独立的 `PaperType` 与 `locateNextLabel` 请求。
+`QuickStartModel` implements `PrinterListener`, installs itself with `manager.setListener(this)` and keeps each returned request ID. `onDeviceDiscovered` adds devices during scanning; the terminal result refreshes the final names and RSSI. Stop with `cancel(scanId)`, wait for the scan terminal result, then connect explicitly. Keep the listener until `onCloseCompleted`; replacing or removing it discards old queued notifications.
 
-示例采用根目录 MIT 许可；在线依赖 `com.netumscan:printer-sdk-android:0.3.0-preview.16` 保持其闭源商用许可。
+示例采用根目录 MIT 许可；在线依赖 `com.netumscan:printer-sdk-android:0.3.0-preview.17` 保持其闭源商用许可。

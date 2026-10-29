@@ -1,6 +1,6 @@
 # 自有 APP 的共享打印机所有权
 
-本目录代码使用 SDK **0.3.0-preview.16** 的 Manager 回调接口。当前开发示例通过本地 SDK 构建；已发布示例及依赖按各自版本冻结，不能把新代码配旧版制品。
+本目录代码使用 SDK **0.3.0-preview.17** 的 Manager 回调接口。当前开发示例通过本地 SDK 构建；已发布示例及依赖按各自版本冻结，不能把新代码配旧版制品。
 
 - [Android owner](android/SharedPrinterApp.java)：由 `Application` 持有；页面使用 `bindPage()`，离开时关闭应用自己的 `PageBinding`。打印返回纯 `RequestId`，通过 owner 的 `cancel(id)` 取消；`lastResult()` 保留最近结果。
 - [iOS owner](ios/SharedPrinterApp.swift)：由 `App` 持有的 `@MainActor` 对象；页面绑定应用通知，离开时仅解绑。owner 负责连接、逐请求打印、取消及关闭，保存请求身份与终态结果。

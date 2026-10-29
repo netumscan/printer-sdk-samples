@@ -7,87 +7,124 @@ import ImageIO
 import XLPrinterSDK
 
 @MainActor
-final class QuickStartModel: ObservableObject {
+final class QuickStartModel: ObservableObject, PrinterDelegate {
     enum Phase { case offline, connecting, ready, printing, disconnecting, closed }
     enum ResultAction { case connect, print }
     @Published var devices: [DiscoveredPrinter] = []
     @Published var selected: UUID?
     @Published private(set) var phase = Phase.offline
     @Published private(set) var scanning = false
+    @Published private(set) var scanStopping = false
     @Published private(set) var status = "请选择 BLE 设备"
     @Published private(set) var connectionResult: ManagerResult<ConnectionInfo>?
     @Published private(set) var lastResult: ManagerResult<Void>?
     @Published private(set) var lastAction: ResultAction?
     @Published private(set) var cleanupResult: ManagerResult<Void>?
+    @Published private(set) var closeResult: ManagerResult<Void>?
     @Published private(set) var disconnectionResult: ManagerResult<Void>?
     @Published private(set) var scanResult: ManagerResult<[DiscoveredPrinter]>?
     private let manager: PrinterManager
+    @Published private var foreground = true
     private var connection: RequestID?
     private var connectingRequest: RequestID?
     private var active: RequestID?
     private var scanRequest: RequestID?
-    var canConnect: Bool { phase == .offline && !scanning && active == nil && connectingRequest == nil }
+    private var cleanupMessages: [RequestID: String] = [:]
+    var canSelectDevice: Bool { foreground && phase == .offline && active == nil && connectingRequest == nil }
+    var canConnect: Bool { canSelectDevice && !scanning }
+    var canScan: Bool { canConnect || (foreground && scanning && !scanStopping) }
+    struct DeviceRow: Identifiable, Equatable {
+        let id: UUID
+        let title: String
+        let signal: String
+        let isSelected: Bool
+    }
+    var deviceRows: [DeviceRow] {
+        devices.map { DeviceRow(id: $0.identifier, title: Self.deviceTitle($0),
+            signal: $0.signalStrength.map { "\($0) dBm" } ?? "信号未知", isSelected: $0.identifier == selected) }
+    }
+    var scanMessage: String {
+        if scanStopping { return "正在停止扫描；保留本轮已发现的 \(devices.count) 个候选" }
+        if scanning { return "扫描中 · 已发现 \(devices.count) 个候选" }
+        return devices.isEmpty ? "尚无候选设备，点击扫描开始" : "\(devices.count) 个候选设备；请选择后手动连接"
+    }
     var canPrint: Bool { phase == .ready && active == nil && connectingRequest == nil }
     var busy: Bool { phase == .connecting || phase == .disconnecting }
     var connected: Bool { phase == .ready || phase == .printing }
     var printing: Bool { phase == .printing }
     var canCancel: Bool { phase == .connecting || phase == .printing }
-    init(manager: PrinterManager = PrinterManager()) { self.manager = manager }
+    init(manager: PrinterManager = PrinterManager()) { self.manager = manager; manager.delegate = self }
 
     func scan() {
         guard canConnect else { return }
-        scanning = true; status = "扫描中…"
-        scanRequest = manager.scanBLE { [weak self] result in
-            guard let self, scanRequest == result.requestID else { return }
-            scanRequest = nil; scanning = false
-            guard phase != .closed else { return }
-            scanResult = result
-            guard phase == .offline else { return }
-            if result.isSuccess {
-                devices = result.value ?? []
-                if !devices.contains(where: { $0.identifier == self.selected }) { selected = nil }
-            }
-            status = result.isSuccess ? "扫描完成，请手动选择设备" : result.message
-        }
+        devices = []; selected = nil; scanResult = nil; scanStopping = false; scanning = true; status = "扫描中…"
+        scanRequest = manager.scanBLE()
     }
-    func stopScan() { if let scanRequest { manager.cancel(scanRequest) } }
+    func selectDevice(_ identifier: UUID?) {
+        guard canSelectDevice, identifier == nil || devices.contains(where: { $0.identifier == identifier }) else { return }
+        selected = identifier
+    }
+    func printerManager(_ manager: PrinterManager, didDiscover device: DiscoveredPrinter, scanID: RequestID) {
+        guard scanRequest == scanID, scanning, !scanStopping, foreground, phase == .offline else { return }
+        if let index = devices.firstIndex(where: { $0.identifier == device.identifier }) { devices[index] = device }
+        else { devices.append(device) }
+    }
+    func printerManager(_ manager: PrinterManager, didFinishScanning result: ManagerResult<[DiscoveredPrinter]>) {
+        guard scanRequest == result.requestID else { return }
+        scanRequest = nil; scanning = false; scanStopping = false
+        guard phase != .closed else { return }
+        scanResult = result
+        guard phase == .offline else { return }
+        if result.isSuccess {
+            devices = result.value ?? []
+            if !devices.contains(where: { $0.identifier == self.selected }) { selected = nil }
+        }
+        status = result.isSuccess ? "扫描完成，请手动选择设备" : result.message
+    }
+    func stopScan() {
+        guard let scanRequest, !scanStopping else { return }
+        scanStopping = true; status = "正在停止扫描…"
+        manager.cancel(scanRequest)
+    }
+    func foregroundEntry() { foreground = true }
+    func background() { foreground = false; disconnect() }
     func connect() {
         guard canConnect, let device = devices.first(where: { $0.identifier == selected }) else { return }
         phase = .connecting; status = "正在连接…"
-        connection = manager.connectBle(device: device, completion: { [weak self] result in
-            guard let self, connectingRequest == result.requestID else { return }
-            connectingRequest = nil
-            guard phase != .closed else { return }
-            connectionResult = result; lastAction = .connect
-            guard connection == result.requestID, phase == .connecting else { return }
-            if result.isSuccess { phase = .ready; status = "已连接；请手动打印" }
-            else {
-                let failure = "\(result.message)（\(result.code)）"
-                connection = nil; phase = .disconnecting; status = failure
-                manager.disconnect { [weak self] result in
-                    guard let self, phase == .disconnecting else { return }
-                    cleanupResult = result; phase = .offline; status = failure
-                }
-            }
-        }, onDisconnected: { [weak self] result in
-            guard let self, connection == result.requestID else { return }
-            connection = nil; phase = .offline; disconnectionResult = result
-            status = "连接意外断开（\(result.code)）；请手动重连"
-        })
+        connection = manager.connectBle(device: device)
         connectingRequest = connection
+    }
+    func printerManager(_ manager: PrinterManager, didFinishConnecting result: ManagerResult<ConnectionInfo>) {
+        guard connectingRequest == result.requestID else { return }
+        connectingRequest = nil
+        guard phase != .closed else { return }
+        connectionResult = result; lastAction = .connect
+        guard connection == result.requestID, phase == .connecting else { return }
+        if result.isSuccess { phase = .ready; status = "已连接；请手动打印" }
+        else {
+            let failure = "\(result.message)（\(result.code)）"
+            connection = nil; phase = .disconnecting; status = failure
+            cleanupMessages[manager.disconnect()] = failure
+        }
+    }
+    func printerManager(_ manager: PrinterManager, didLoseConnection result: ManagerResult<Void>) {
+        guard connection == result.requestID else { return }
+        connection = nil; phase = .offline; disconnectionResult = result
+        status = "连接意外断开（\(result.code)）；请手动重连"
     }
     func printSample() {
         guard canPrint else { return }
         do {
             let bytes = try Self.testEncodedImage()
             phase = .printing; status = "请求已登记；等待最终回调"
-            active = manager.printEncodedImage(bytes, widthMm: 48, heightMm: 8) { [weak self] result in
-                guard let self, active == result.requestID, phase != .closed else { return }
-                active = nil; lastResult = result; lastAction = .print
-                if phase == .printing { phase = connection == nil ? .offline : .ready }
-                status = "请求已结束；请检查完成级别和实际纸面"
-            }
+            active = manager.printEncodedImage(bytes, widthMm: 48, heightMm: 8)
         } catch { status = error.localizedDescription }
+    }
+    func printerManager(_ manager: PrinterManager, didFinishPrinting result: ManagerResult<Void>) {
+        guard active == result.requestID, phase != .closed else { return }
+        active = nil; lastResult = result; lastAction = .print
+        if phase == .printing { phase = connection == nil ? .offline : .ready }
+        status = "请求已结束；请检查完成级别和实际纸面"
     }
     func cancel() {
         if let request = phase == .connecting ? connection : active {
@@ -96,19 +133,21 @@ final class QuickStartModel: ObservableObject {
     }
     func disconnect() {
         guard phase != .closed, phase != .disconnecting else { return }
+        if scanning { scanStopping = true }
         connection = nil; phase = .disconnecting; status = "正在断开并清理…"
-        manager.disconnect { [weak self] result in
-            guard let self, phase == .disconnecting else { return }
-            cleanupResult = result; phase = .offline
-            status = "已断开；不会自动重连或重放"
-        }
+        cleanupMessages[manager.disconnect()] = "已断开；不会自动重连或重放"
+    }
+    func printerManager(_ manager: PrinterManager, didFinishDisconnecting result: ManagerResult<Void>) {
+        guard let message = cleanupMessages.removeValue(forKey: result.requestID), phase == .disconnecting else { return }
+        cleanupResult = result; phase = .offline; status = message
     }
     func close() {
         guard phase != .closed else { return }
-        manager.close { _ in }
-        connection = nil; scanRequest = nil; scanning = false; phase = .closed
+        manager.close()
+        connection = nil; scanRequest = nil; scanning = false; scanStopping = false; phase = .closed
     }
-    deinit { manager.close { _ in } }
+    func printerManager(_ manager: PrinterManager, didFinishClosing result: ManagerResult<Void>) { closeResult = result }
+    deinit { manager.close() }
 
     var resultDescription: String {
         if lastAction == .connect, let result = connectionResult { return "连接\n" + Self.describe(result) }

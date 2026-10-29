@@ -68,13 +68,14 @@ public final class MainActivity extends Activity {
         for (DiscoveredDevice device : model.candidates) {
             boolean selected = device.address.equals(model.selectedAddress);
             String label = (device.name == null ? "未命名设备" : device.name) + " · " +
-                device.address.substring(Math.max(0, device.address.length() - 8));
+                device.address.substring(Math.max(0, device.address.length() - 8)) + " · " +
+                (device.rssi == null ? "信号未知" : device.rssi + " dBm");
             Button candidate = button(deviceList, (selected ? "✓ " : "") + label, view -> model.select(device.address));
             candidate.setEnabled(selectable);
             if (selected) selection.setText("已选择：" + label +
                 "；连接时采用 LT-M90，请确认实物型号");
         }
-        scan.setEnabled(selectable);
+        scan.setEnabled(selectable && model.scanRequest == null);
         connect.setEnabled(!permissionPending && model.canConnect());
         print.setEnabled(!permissionPending && model.canPrint());
         cancel.setEnabled(!permissionPending && model.canCancel());

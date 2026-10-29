@@ -1,24 +1,51 @@
-# API与生命周期
+# API 与生命周期
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.16`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.17`
 
-Android使用PrinterManager(Context)，iOS使用无参构造；每实例拥有一个设备连接。所有异步操作立即返回RequestId／RequestID，主线程交付一次ManagerResult。参数、状态、准备、接纳或执行失败均走同一结果；不要同步等待主线程回调。
+App 的稳定 owner 先创建 `PrinterManager` 并注册接收者：Android `setListener(this)`，
+iOS `manager.delegate = self`。Android owner 实现 `PrinterListener`，iOS owner 实现
+类约束、`@MainActor` 的 `PrinterDelegate`。公共操作不再逐调用传闭包或 Callback，立即返回
+`RequestId`／`RequestID`，异步在主线程／MainActor 通知完整 `ManagerResult`。
 
-调用方保存请求标识并按终态移除。结果保留outcome、code、message、completion、outputMayHaveOccurred和可选value。DATA_SENT只表示数据交付；未知状态保持未知。意外断连单独通知所属连接，主动disconnect使用自己的完成回调。
+| 事件 | Android Listener | iOS Delegate 方法标签 |
+| --- | --- | --- |
+| 实时设备发现 | `onDeviceDiscovered(scanId, device)` | `printerManager(_:didDiscover:scanID:)` |
+| 扫描终态 | `onScanCompleted` | `printerManager(_:didFinishScanning:)` |
+| 连接终态 | `onConnectionCompleted` | `printerManager(_:didFinishConnecting:)` |
+| 图片打印终态 | `onPrintCompleted` | `printerManager(_:didFinishPrinting:)` |
+| 主动断开终态 | `onDisconnectCompleted` | `printerManager(_:didFinishDisconnecting:)` |
+| 永久关闭终态 | `onCloseCompleted` | `printerManager(_:didFinishClosing:)` |
+| 状态更新 | `onStatusChanged` | `printerManager(_:didUpdateStatus:)` |
+| 意外断连 | `onDisconnected` | `printerManager(_:didLoseConnection:)` |
 
-SDK 拥有独立输入副本或强持有不可变 UIImage，解码和准备在有界后台执行。所有设备IO共用同一native FIFO，Raw不旁路。取消是控制信号，取消终态不表示准备读者已退出；实际退出前资源仍计费，迟到结果不输出。超时由内部策略管理，不在开始发送时重新计时。
+其他动作也有对应的类型化终态，详见完整 Java／Swift API。所有结果保留请求 ID、outcome、code、message、
+completion、`outputMayHaveOccurred` 和可选 value；参数、状态、准备、接纳和执行失败仍按原请求报告。
+业务按 ID 匹配并移除待处理请求；意外断连携带所属连接请求 ID，主动 disconnect 有自己的请求 ID。
+不要同步等待主线程通知。
 
-| 动作 | 效果 |
-| --- | --- |
-| getStatus(callback) | 实际发送状态查询；每请求一次终态，value为空，状态另经监听。 |
-| setStatusListener(listener) | 主线程接收查询与主动上报的同一状态流；null／nil解除。 |
-| cancel(requestId) | 请求取消本实例未完成工作，最终结果以回调为准。 |
-| setPrinterModel(model, callback) | 仅连接后空闲允许，无IO；成功失效旧介质证据。 |
-| disconnect(callback) | 清理当前连接，完成后可显式重连。 |
-| close(callback) | 幂等永久关闭，之后业务请求无效。 |
+## 扫描与展示
 
-断开和关闭先安排受影响请求终态并清理设备与扫描资源，再交付清理完成；不等待非合作解码读者返回，但保留其输入和额度直到实际退出。旧连接事件不影响新连接。SDK不自动重连、续打或重放。
+`scanBle()`／`scanBLE()` 返回本轮请求 ID。实时通知携带同一 ID，每个唯一设备首见通知一次；
+App 立即将候选加入可见列表。终态成功列表包含最终合并的名称、信号等信息，App 按地址／UUID 刷新并保留有效选择。
+取消或失败不会把已显示的部分候选变成成功列表。停止扫描调用 `cancel(scanId)`，仍等待一次真实终态。
+App 过滤旧轮次和自身已停止显示的事件，SDK 也隔离取消、关闭和旧接收者的迟到通知。
+设备发现不自动连接；连接也不会自动停止扫描，App 应明确安排停止和连接顺序。
+Android `bondedDevices()` 返回系统已配对列表；iOS 不提供经典蓝牙列表或 SPP。
 
-Manager由App所有者持有，页面仅观察状态；重建不重提请求。共享Manager的页面离开只解绑自己的UI，独占所有者结束时异步close。选图与导入期间由App禁止换机或修改配置；后台策略明确执行，回前台不自动补印。Swift完成和断连闭包为@MainActor @Sendable，可直接更新MainActor所有者。
+## 接收者与清理
 
-监听按四个可选状态字段去重，重复状态查询仍有独立一次结果回调。新连接不继承旧样本；注册、替换、断开及换型号使旧待投递失效。查询写出后超时／取消／坏回复关闭连接，禁止迟到回复冒充下一请求。连接时自动INFO最多附加1秒；软失败保留可用连接和打印，但禁用本连接后续wire查询，重连后重新尝试。
+Android Manager 强持有当前 Listener；iOS Manager 弱持有 Delegate，因此 App 必须保持 owner 存活。
+通知对仍有效接收者至多交付一次。替换、解除或弱 Delegate 释放使旧注册尚未交付的通知失效，不改投新对象，
+不补交历史，也不取消任务；已进入的通知可以结束。解除使用 `setListener(null)`／`delegate = nil`。
+要等待关闭结果，保留 owner 和接收者直到自己的关闭终态，之后 Manager 释放接收者。
+
+`cancel(id)` 表达取消意图；终态不代表非合作解码读者已退出，实际退出前仍占资源。
+disconnect／close 先结束受影响请求并清理设备和扫描，再通知清理结果；disconnect 后可显式重连，
+close 幂等且永久，之后业务请求仍按公共错误规则拒绝。所有设备 IO 共用 FIFO，Raw 不旁路。
+SDK 不自动重连、续打、重放或因 UI 重建重新提交请求。
+
+页面观察稳定 owner 的状态；共享 owner 的页面离开只解绑 UI，不拆 SDK 接收者来等待清理。
+后台策略由 App 明确执行，返回前台不自动扫描、重连或补印。
+状态按四个可选字段去重；重复查询仍各有独立请求终态。查询写出后超时、取消或坏回复保守断开，
+隔离没有请求编号的迟到回复。自动 INFO 最多额外等待 1 秒；软失败保留可用连接和打印，
+但本连接后续 wire 查询不可用，需用户显式重连。

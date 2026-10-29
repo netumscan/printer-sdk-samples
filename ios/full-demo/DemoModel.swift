@@ -7,7 +7,7 @@ struct DemoPickerRequest: Identifiable, Sendable { let id: UUID; let kind: DemoP
 struct DemoLogExport: Identifiable, Sendable { let id: UUID; let text: String }
 
 @MainActor
-final class DemoModel: ObservableObject {
+final class DemoModel: ObservableObject, PrinterDelegate {
     enum Phase { case offline, connecting, ready, working, disconnecting, closed }
     @Published private(set) var devices: [DiscoveredPrinter] = []
     @Published var selected: UUID?
@@ -18,6 +18,7 @@ final class DemoModel: ObservableObject {
     @Published var media = PaperType.gapLabel { didSet { if media != oldValue { mediaInitialized = false } } }
     @Published private(set) var phase = Phase.offline
     @Published private(set) var scanning = false
+    @Published private(set) var scanStopping = false
     @Published private(set) var status = "请选择设备；连接不需要先填写图纸尺寸"
     @Published private(set) var connectionInfo: ConnectionInfo?
     @Published private(set) var printerInfo: PrinterInfo?
@@ -51,7 +52,7 @@ final class DemoModel: ObservableObject {
     private var logRequest: UUID?
     private var logClearRequest: UUID?
     private var presentedLogExport: UUID?
-    private var foreground = true
+    @Published private var foreground = true
     private var runtimeVerificationStarted = false
     private var requestNumbers: [RequestID: UInt64] = [:]
     private var nextRequestNumber: UInt64 = 0
@@ -67,11 +68,15 @@ final class DemoModel: ObservableObject {
     private var active: RequestID?
     private var scanRequest: RequestID?
     private var infoRequest: RequestID?
+    private var requestedMedia: PaperType?
+    private var showingStatus = false
+    private var connectionFailed = false
     private var statusNoticeTask: Task<Void, Never>?
     private var nextStatusNoticeID: UInt64 = 0
     private let statusNoticeLifetimeNanoseconds: UInt64
     private var imageBusy: Bool { imageRequest != nil || previewLoading }
-    var canConnect: Bool { phase == .offline && !scanning && active == nil && connectingRequest == nil && !imageBusy && !settingsBusy }
+    var canSelectDevice: Bool { foreground && phase == .offline && active == nil && connectingRequest == nil && !imageBusy && !settingsBusy }
+    var canConnect: Bool { canSelectDevice && !scanning }
     var canManageSettings: Bool { foreground && canConnect && configurationStore != nil }
     var canWork: Bool { phase == .ready && active == nil && connectingRequest == nil && !imageBusy }
     var canPrint: Bool { canWork && connectionInfo?.model != nil }
@@ -83,8 +88,9 @@ final class DemoModel: ObservableObject {
     var viewState: DemoViewState {
         let identity: SDKInfo?
         if case .identity(let result) = identityResult { identity = result.value } else { identity = nil }
-        return DemoViewState(devices: devices, selected: selected, scanning: scanning,
-            canScan: canConnect || scanning, canEditConnection: canConnect, canConnect: canConnect && selected != nil,
+        return DemoViewState(devices: devices, selected: selected, scanning: scanning, scanStopping: scanStopping,
+            canScan: canConnect || (scanning && !scanStopping && foreground), canSelectDevice: canSelectDevice,
+            canEditConnection: canConnect, canConnect: canConnect && selected != nil,
             canDisconnect: phase != .offline && phase != .disconnecting && phase != .closed,
             canWork: canWork, canCancel: phase == .connecting || (phase == .working && active != nil) || imageBusy,
             status: status, result: lastResult, cleanupResult: cleanupResult, connectionLoss: connectionLoss,
@@ -97,111 +103,59 @@ final class DemoModel: ObservableObject {
         self.manager = manager; self.imageStore = imageStore; self.imageWorkQueue = imageWorkQueue
         self.configurationStore = configurationStore; self.journal = journal
         self.statusNoticeLifetimeNanoseconds = statusNoticeLifetimeNanoseconds
+        manager.delegate = self
         appendLog("event=demo_started data_sent_is_not_printed=true automatic_replay=false")
     }
     func loadInfo() {
         guard infoRequest == nil, identityResult == nil, phase != .closed, phase != .disconnecting else { return }
-        infoRequest = manager.sdkInfo { [weak self] result in
-            guard let self, infoRequest == result.requestID, phase != .closed else { return }
-            infoRequest = nil; identityResult = .identity(result)
-            let arguments = ProcessInfo.processInfo.arguments
-            if !runtimeVerificationStarted, let index = arguments.firstIndex(of: "--psdk-offline-verification"),
-               arguments.indices.contains(index + 1), let nonce = UUID(uuidString: arguments[index + 1]), let journal {
-                runtimeVerificationStarted = true
-                let resource = Bundle.main.url(forResource: "printer-sdk-samples-build", withExtension: "json")
-                Task { @MainActor in await DemoOfflineRuntimeVerification.run(nonce: nonce, journal: journal, resourceURL: resource) }
-            }
-        }
+        infoRequest = manager.sdkInfo()
     }
     func selectConnectionMode(_ mode: DemoConnectionSettings.Mode) { guard canConnect else { return }; connectionSettings.selectMode(mode) }
-    func selectDevice(_ identifier: UUID?) { guard canConnect else { return }; selected = identifier }
+    func selectDevice(_ identifier: UUID?) {
+        guard canSelectDevice, identifier == nil || devices.contains(where: { $0.identifier == identifier }) else { return }
+        selected = identifier
+    }
     func toggleScan() { if scanning { stopScan() } else { scan() } }
     func scan() {
         guard canConnect else { return }
         appendLog("event=scan_requested")
-        inputError = nil; scanning = true; status = "扫描中…"
-        scanRequest = manager.scanBLE { [weak self] result in
-            guard let self, scanRequest == result.requestID else { return }
-            scanRequest = nil; scanning = false
-            guard phase != .closed else { return }
-            lastResult = .discovery(result)
-            guard phase == .offline else { return }
-            if result.isSuccess {
-                devices = result.value ?? []
-                if !devices.contains(where: { $0.identifier == self.selected }) { selected = nil }
-                status = "找到 \(devices.count) 个候选设备；请选择后连接"
-            } else { status = "扫描已结束；保留先前候选设备，详见原始结果" }
-        }
+        inputError = nil; devices = []; selected = nil; scanStopping = false; scanning = true; status = "扫描中…"
+        scanRequest = manager.scanBLE()
     }
-    func stopScan() { if let scanRequest { manager.cancel(scanRequest) } }
+    func stopScan() {
+        guard let scanRequest, !scanStopping else { return }
+        scanStopping = true; status = "正在停止扫描…"
+        manager.cancel(scanRequest)
+    }
     func connect() {
         guard canConnect, let selected else { return }
         let device = devices.first { $0.identifier == selected } ?? DiscoveredPrinter(identifier: selected)
         appendLog("event=connect_requested")
         stopStatusListening(); startStatusListening(); inputError = nil; printerInfo = nil; phase = .connecting; status = "正在连接…"
-        let callback: @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { [weak self] result in
-                guard let self, connectingRequest == result.requestID else { return }
-                connectingRequest = nil
-                guard phase != .closed else { return }
-                lastResult = .connection(.connect, result)
-                guard connection == result.requestID, phase == .connecting else { return }
-                if result.isSuccess {
-                    connectionInfo = result.value; printerInfo = result.value?.printerInfo; mediaInitialized = false; phase = .ready
-                    startStatusListening()
-                    status = "已连接；可设置纸张类型或直接打印，连接不发送纸张设置命令"
-                } else {
-                    connection = nil; connectionInfo = nil; phase = .disconnecting
-                    manager.disconnect { [weak self] cleanup in
-                        guard let self, phase == .disconnecting else { return }
-                        cleanupResult = .action(.disconnect, cleanup); phase = .offline
-                        status = "连接未成功；已清理，可手动重试"
-                    }
-                }
-            }
-        let onDisconnected: @MainActor @Sendable (ManagerResult<Void>) -> Void = { [weak self] result in
-                guard let self, connection == result.requestID else { return }
-                stopStatusListening()
-                connection = nil; connectionInfo = nil; printerInfo = nil; mediaInitialized = false; phase = .offline
-                connectionLoss = .action(.disconnected, result); cancelImageFlow()
-                status = "连接意外断开；请手动重新连接"
-            }
+        connectionFailed = false
         if let model = connectionSettings.model {
-            connection = manager.connectBle(device: device, model: model, completion: callback, onDisconnected: onDisconnected)
+            connection = manager.connectBle(device: device, model: model)
         } else {
-            connection = manager.connectBle(device: device, completion: callback, onDisconnected: onDisconnected)
+            connection = manager.connectBle(device: device)
         }
         connectingRequest = connection
     }
     func applyPrinterModel() {
         guard canWork else { return }
         inputError = nil; phase = .working; status = "正在采用已收录型号"
-        active = manager.setPrinterModel(.ltM90) { [weak self] result in
-            guard let self, active == result.requestID, phase != .closed else { return }
-            active = nil; configurationResult = .connection(.configure, result)
-            guard phase == .working, connection != nil else { return }
-            phase = .ready
-            if result.isSuccess, let info = result.value {
-                connectionInfo = info; printerInfo = info.printerInfo; mediaInitialized = false; invalidatePreview()
-                startStatusListening()
-                status = "已采用 LT-M90；纸张设置需单独执行"
-            } else { status = "型号未采用；保留原配置" }
-        }
+        active = manager.setPrinterModel(.ltM90)
     }
     func initializeMedia() {
         guard canWork, connectionInfo?.model != nil else { return }
-        let selectedMedia = media
+        requestedMedia = media
         mediaInitialized = false; inputError = nil; phase = .working; status = "正在设置纸张类型"
-        active = manager.setPaperType(selectedMedia) { [weak self] result in
-            guard let self, active == result.requestID, phase != .closed else { return }
-            active = nil; initializationResult = .action(.media, result)
-            guard phase == .working, connection != nil else { return }
-            phase = .ready
-            mediaInitialized = result.isSuccess && result.completion != .none && media == selectedMedia
-            status = mediaInitialized ? "纸张类型设置已发送；不代表设备确认" : "纸张类型设置未成功；可手动重试"
-        }
+        active = manager.setPaperType(media)
     }
     func printLabel() { submitPrint(imported: false) }
     func printImage() { submitPrint(imported: true) }
+    func printCurrentContent() {
+        if importedImage != nil { printImage() } else { printLabel() }
+    }
     private func submitPrint(imported: Bool) {
         guard canPrint else { return }
         do {
@@ -215,9 +169,7 @@ final class DemoModel: ObservableObject {
             }
             appendLog("event=print_requested imported=\(imported) width=\(settings.widthDots) height=\(settings.heightDots)")
             inputError = nil; phase = .working; status = "打印请求已登记；无需先生成预览"
-            active = manager.printEncodedImage(bytes, widthMm: settings.widthMm, heightMm: settings.heightMm) { [weak self] result in
-                self?.finish(.action(.printLabel, result))
-            }
+            active = manager.printEncodedImage(bytes, widthMm: settings.widthMm, heightMm: settings.heightMm)
         } catch { rejectInput(error) }
     }
     func printSettings() throws -> DemoPrintSettings {
@@ -228,24 +180,24 @@ final class DemoModel: ObservableObject {
         do {
             let bytes = try DemoPrintSample.rawBytes(rawHex)
             inputError = nil; mediaInitialized = false; phase = .working; status = "Raw 请求已登记；纸张设置可能改变"
-            active = manager.sendRaw(bytes) { [weak self] result in self?.finish(.action(.raw, result)) }
+            active = manager.sendRaw(bytes)
         } catch { rejectInput(error) }
     }
     func setMedia() { initializeMedia() }
     func feed() {
         guard canWork else { return }
         inputError = nil; phase = .working
-        active = manager.locateNextLabel { [weak self] result in self?.finish(.action(.feed, result)) }
+        active = manager.locateNextLabel()
     }
     func getStatus() {
         guard canWork else { return }
         inputError = nil; phase = .working; status = "正在查询状态；盖纸状态由状态监听更新"
-        active = manager.getStatus { [weak self] result in self?.finish(.action(.getStatus, result)) }
+        active = manager.getStatus()
     }
     func capabilities() {
         guard canWork else { return }
         inputError = nil; phase = .working
-        active = manager.capabilities { [weak self] result in self?.finish(.capabilities(result)) }
+        active = manager.capabilities()
     }
     @discardableResult func requestImageImport(_ kind: DemoPickerKind = .files) -> UUID? {
         guard canImport else { return nil }
@@ -350,22 +302,21 @@ final class DemoModel: ObservableObject {
         cancelSettingsWork()
         cancelImageFlow()
         guard phase != .closed, phase != .disconnecting else { return }
+        if scanning { scanStopping = true }
         appendLog("event=disconnect_requested")
         connection = nil; connectionInfo = nil; printerInfo = nil; mediaInitialized = false; phase = .disconnecting; status = "正在断开并清理…"
-        manager.disconnect { [weak self] result in
-            guard let self, phase == .disconnecting else { return }
-            cleanupResult = .action(.disconnect, result); phase = .offline; status = "已断开；不会自动重连或重放"
-        }
+        connectionFailed = false
+        manager.disconnect()
     }
     func close() {
         stopStatusListening()
         guard phase != .closed else { return }
         cancelFilePresentation(); logClearRequest = nil; logBusy = false
         appendLog("event=demo_closed"); journal?.close()
-        cancelImageFlow(); invalidatePreview(); importedImage = nil; manager.close { _ in }
-        connection = nil; connectionInfo = nil; printerInfo = nil; scanRequest = nil; mediaInitialized = false; phase = .closed; scanning = false
+        cancelImageFlow(); invalidatePreview(); importedImage = nil; manager.close()
+        connection = nil; connectionInfo = nil; printerInfo = nil; scanRequest = nil; mediaInitialized = false; phase = .closed; scanning = false; scanStopping = false
     }
-    deinit { statusNoticeTask?.cancel(); manager.setStatusListener(nil); imageCancellation?.cancel(); journal?.close(); manager.close { _ in } }
+    deinit { statusNoticeTask?.cancel(); manager.delegate = nil; imageCancellation?.cancel(); journal?.close(); manager.close() }
     private func finish(_ result: DemoResult) {
         guard active == result.evidence.requestID, phase != .closed else { return }
         active = nil
@@ -376,25 +327,105 @@ final class DemoModel: ObservableObject {
         inputError = error as? DemoInputError ?? DemoInputError(1000); status = "输入或前置条件校验失败；尚未登记 SDK 请求"
     }
 
-    // Listener registration performs no IO. Queried and spontaneous samples use
-    // this sole display path; request completions only control loading/errors.
-    private func startStatusListening() {
-        manager.setStatusListener { [weak self] value in
-            guard let self, foreground, connection != nil,
-                  phase == .ready || phase == .working else { return }
-            let previous = realtimeStatus
-            realtimeStatus = value
-            if let message = DemoResultText.statusRecovery(previous: previous, current: value) {
-                showStatusRecoveryNotice(message)
-            } else if value.coverOpen == nil || value.paperOut == nil ||
-                        (value.coverOpen == true && previous?.coverOpen != true) ||
-                        (value.paperOut == true && previous?.paperOut != true) {
-                clearStatusRecoveryNotice()
-            }
+    // The unified delegate is registered once. Foreground policy only controls
+    // display; it never replaces the SDK receiver while requests are outstanding.
+    private func startStatusListening() { showingStatus = true }
+    private func stopStatusListening() {
+        showingStatus = false; realtimeStatus = nil; clearStatusRecoveryNotice()
+    }
+
+    func printerManager(_ manager: PrinterManager, didDiscover device: DiscoveredPrinter, scanID: RequestID) {
+        guard scanRequest == scanID, scanning, !scanStopping, foreground, phase == .offline else { return }
+        if let index = devices.firstIndex(where: { $0.identifier == device.identifier }) { devices[index] = device }
+        else { devices.append(device) }
+    }
+    func printerManager(_ manager: PrinterManager, didFinishScanning result: ManagerResult<[DiscoveredPrinter]>) {
+        guard scanRequest == result.requestID else { return }
+        scanRequest = nil; scanning = false; scanStopping = false
+        guard phase != .closed else { return }
+        lastResult = .discovery(result)
+        guard phase == .offline else { return }
+        if result.isSuccess {
+            devices = result.value ?? []
+            if !devices.contains(where: { $0.identifier == selected }) { selected = nil }
+            status = "找到 \(devices.count) 个候选设备；请选择后连接"
+        } else { status = "扫描已结束；保留本轮已发现候选，详见原始结果" }
+    }
+    func printerManager(_ manager: PrinterManager, didFinishConnecting result: ManagerResult<ConnectionInfo>) {
+        guard connectingRequest == result.requestID else { return }
+        connectingRequest = nil
+        guard phase != .closed else { return }
+        lastResult = .connection(.connect, result)
+        guard connection == result.requestID, phase == .connecting else { return }
+        if result.isSuccess {
+            connectionInfo = result.value; printerInfo = result.value?.printerInfo; mediaInitialized = false; phase = .ready
+            startStatusListening()
+            status = "已连接；可设置纸张类型或直接打印，连接不发送纸张设置命令"
+        } else {
+            connection = nil; connectionInfo = nil; phase = .disconnecting; connectionFailed = true
+            manager.disconnect()
         }
     }
-    private func stopStatusListening() {
-        manager.setStatusListener(nil); realtimeStatus = nil; clearStatusRecoveryNotice()
+    func printerManager(_ manager: PrinterManager, didLoseConnection result: ManagerResult<Void>) {
+        guard connection == result.requestID else { return }
+        stopStatusListening()
+        connection = nil; connectionInfo = nil; printerInfo = nil; mediaInitialized = false; phase = .offline
+        connectionLoss = .action(.disconnected, result); cancelImageFlow()
+        status = "连接意外断开；请手动重新连接"
+    }
+    func printerManager(_ manager: PrinterManager, didFinishSettingPrinterModel result: ManagerResult<ConnectionInfo>) {
+        guard active == result.requestID, phase != .closed else { return }
+        active = nil; configurationResult = .connection(.configure, result)
+        guard phase == .working, connection != nil else { return }
+        phase = .ready
+        if result.isSuccess, let info = result.value {
+            connectionInfo = info; printerInfo = info.printerInfo; mediaInitialized = false; invalidatePreview()
+            startStatusListening()
+            status = "已采用 LT-M90；纸张设置需单独执行"
+        } else { status = "型号未采用；保留原配置" }
+    }
+    func printerManager(_ manager: PrinterManager, didFinishSettingPaperType result: ManagerResult<Void>) {
+        guard active == result.requestID, phase != .closed else { return }
+        active = nil; initializationResult = .action(.media, result)
+        let selectedMedia = requestedMedia; requestedMedia = nil
+        guard phase == .working, connection != nil else { return }
+        phase = .ready
+        mediaInitialized = result.isSuccess && result.completion != .none && media == selectedMedia
+        status = mediaInitialized ? "纸张类型设置已发送；不代表设备确认" : "纸张类型设置未成功；可手动重试"
+    }
+    func printerManager(_ manager: PrinterManager, didFinishPrinting result: ManagerResult<Void>) { finish(.action(.printLabel, result)) }
+    func printerManager(_ manager: PrinterManager, didFinishSendingRaw result: ManagerResult<Void>) { finish(.action(.raw, result)) }
+    func printerManager(_ manager: PrinterManager, didFinishPositioningLabel result: ManagerResult<Void>) { finish(.action(.feed, result)) }
+    func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<Void>) { finish(.action(.getStatus, result)) }
+    func printerManager(_ manager: PrinterManager, didFinishReadingCapabilities result: ManagerResult<PrinterCapabilities>) { finish(.capabilities(result)) }
+    func printerManager(_ manager: PrinterManager, didFinishReadingSDKInfo result: ManagerResult<SDKInfo>) {
+        guard infoRequest == result.requestID, phase != .closed else { return }
+        infoRequest = nil; identityResult = .identity(result)
+        let arguments = ProcessInfo.processInfo.arguments
+        if !runtimeVerificationStarted, let index = arguments.firstIndex(of: "--psdk-offline-verification"),
+           arguments.indices.contains(index + 1), let nonce = UUID(uuidString: arguments[index + 1]), let journal {
+            runtimeVerificationStarted = true
+            let resource = Bundle.main.url(forResource: "printer-sdk-samples-build", withExtension: "json")
+            Task { @MainActor in await DemoOfflineRuntimeVerification.run(nonce: nonce, journal: journal, resourceURL: resource) }
+        }
+    }
+    func printerManager(_ manager: PrinterManager, didFinishDisconnecting result: ManagerResult<Void>) {
+        guard phase == .disconnecting else { return }
+        cleanupResult = .action(.disconnect, result); phase = .offline
+        status = connectionFailed ? "连接未成功；已清理，可手动重试" : "已断开；不会自动重连或重放"
+        connectionFailed = false
+    }
+    func printerManager(_ manager: PrinterManager, didUpdateStatus value: StatusResult) {
+        guard showingStatus, foreground, connection != nil, phase == .ready || phase == .working else { return }
+        let previous = realtimeStatus
+        realtimeStatus = value
+        if let message = DemoResultText.statusRecovery(previous: previous, current: value) {
+            showStatusRecoveryNotice(message)
+        } else if value.coverOpen == nil || value.paperOut == nil ||
+                    (value.coverOpen == true && previous?.coverOpen != true) ||
+                    (value.paperOut == true && previous?.paperOut != true) {
+            clearStatusRecoveryNotice()
+        }
     }
     private func showStatusRecoveryNotice(_ message: String) {
         statusNoticeTask?.cancel()

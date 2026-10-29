@@ -21,6 +21,7 @@ import java.util.*;
  */
 public final class MainActivity extends Activity {
     private static final int PERMISSION = 10, IMPORT = 11, EXPORT = 12;
+    private static final int HOME = 0, DEVICE = 1, PAPER = 2, TOOLS = 3, LOGS = 4, RAW = 5;
     private static final int[] FIELDS = {R.id.address, R.id.service, R.id.characteristic, R.id.mtu,
         R.id.payload, R.id.label_width, R.id.height, R.id.copies,
         R.id.x_offset, R.id.origin_adjustment, R.id.trailing_blank};
@@ -30,16 +31,16 @@ public final class MainActivity extends Activity {
     private DemoModel model;
     private final Runnable listener = this::changed;
     private boolean started, applying, syncingCopies, showingLogs, showingRaw;
-    // 只有用户本次明确发起的发现/预览完成后才显示弹窗，普通重绘不会重复打开。
-    private boolean requestedDiscovery, requestedPreview;
+    private int destination = HOME;
+    // 只有用户本次明确发起的预览完成后才显示弹窗，普通重绘不会重复打开。
+    private boolean requestedPreview;
     private DemoLogView logView;
     private DemoPrintRequestsView printRequestsView;
     private DemoDeviceView deviceView;
     private DemoSections sections;
-    private DemoResult<?> discoveryBefore;
     private long previewBefore;
     private Runnable afterPermission, unregisterBack;
-    private AlertDialog devicePicker, previewDialog, utilityDialog;
+    private AlertDialog previewDialog, utilityDialog;
     private ImageView previewImage;
     private PopupMenu configMenu;
     private Toast statusRecoveryToast;
@@ -59,7 +60,12 @@ public final class MainActivity extends Activity {
         initializeFields(saved, retained instanceof DemoOwner);
         logView = new DemoLogView(this, owner.lines);
         printRequestsView = new DemoPrintRequestsView(this, model);
-        deviceView = new DemoDeviceView(this);
+        deviceView = new DemoDeviceView(this, address -> {
+            if (!idle() || !model.selectCandidate(address)) return;
+            edit(R.id.address).setText(address);
+            message(model.state().discovering ? "已选择；扫描结束后请手动连接" : "已选择，请连接");
+            owner.log("已选择候选设备；未连接");
+        });
         sections = new DemoSections(this, saved, this::render);
         bindInputChanges();
         bindConnectionActions();
@@ -67,7 +73,8 @@ public final class MainActivity extends Activity {
         bindDiagnostics();
         bindUtilities();
         bindNavigation();
-        if (saved != null) showPage(saved.getBoolean("logs"), saved.getBoolean("raw"));
+        if (saved != null) showDestination(saved.getInt("destination",
+            saved.getBoolean("logs") ? LOGS : saved.getBoolean("raw") ? RAW : HOME));
         render();
     }
 
@@ -128,7 +135,7 @@ public final class MainActivity extends Activity {
                     field.setTag(position);
                     if (!applying) {
                         if (owner.images.state().busy) owner.images.cancel();
-                        if (id == R.id.transport) { model.clearCandidates(); requestedDiscovery = false; }
+                        if (id == R.id.transport) model.clearCandidates();
                         render();
                     }
                 }
@@ -140,6 +147,7 @@ public final class MainActivity extends Activity {
     private void bindConnectionActions() {
         // 连接仅校验地址与传输参数，不要求先填写打印尺寸或导入图片。
         findViewById(R.id.connect).setOnClickListener(view -> withInput(() -> {
+            if (!offlineIdle() || !model.state().canConnect()) return;
             DiscoveredDevice device = connectionDevice();
             PrinterModel selectedModel = choice(R.id.ble_profile) == 1 ? PrinterModel.LT_M90 : null;
             permissions(() -> { owner.notice = null; owner.connectionNumber++; model.connect(device, ble(), selectedModel, selectedMedia()); },
@@ -152,8 +160,7 @@ public final class MainActivity extends Activity {
         findViewById(R.id.discover).setOnClickListener(view -> {
             if (model.state().discovering) { model.stopDiscovery(); return; }
             permissions(() -> {
-                owner.notice = null; requestedDiscovery = true;
-                discoveryBefore = model.state().discoveryResult; model.discover(ble());
+                owner.notice = null; model.discover(ble());
             }, ble() ? DemoPermissions.Operation.BLE_DISCOVERY : DemoPermissions.Operation.SPP_DISCOVERY);
         });
         findViewById(R.id.settings).setOnClickListener(view -> startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
@@ -172,9 +179,13 @@ public final class MainActivity extends Activity {
             // 直接提交 Bitmap 或已导入的 PNG/JPEG 编码字节；SDK 后台执行图像准备。
             LabelConfig config = readConfig();
             owner.notice = null;
+            model.print(owner.images.source(), config);
+        }));
+        findViewById(R.id.print_sample).setOnClickListener(view -> withInput(() -> {
+            owner.notice = null;
             DemoPixelSamples.Example example = pixelExample();
-            if (example == null) model.print(owner.images.source(), config);
-            else model.printSample(example, config);
+            if (example == null) model.print(owner.images.source(), readConfig());
+            else model.printSample(example, readConfig());
         }));
         findViewById(R.id.print_fifo).setOnClickListener(view -> withInput(() -> {
             owner.notice = null; model.printBatch(owner.images.source(), readConfig(), pixelExample());
@@ -188,6 +199,14 @@ public final class MainActivity extends Activity {
         findViewById(R.id.builtin_image).setOnClickListener(view -> withInput(() -> {
             if (idle()) { owner.notice = null; owner.images.useBuiltin(); }
         }));
+        findViewById(R.id.change_content).setOnClickListener(view -> {
+            if (!idle()) return;
+            showUtilityDialog(new AlertDialog.Builder(this).setTitle(R.string.change_content)
+                .setItems(new String[]{getString(R.string.builtin_summary), getString(R.string.import_image)},
+                    (dialog, index) -> { if (index == 0) findViewById(R.id.builtin_image).performClick();
+                        else findViewById(R.id.import_image).performClick(); })
+                .setNegativeButton("取消", null).create());
+        });
         findViewById(R.id.apply_media).setOnClickListener(view -> withInput(() -> {
             requireCpcl(); owner.notice = null;
             model.setMedia(selectedMedia());
@@ -208,7 +227,8 @@ public final class MainActivity extends Activity {
     }
 
     private void bindUtilities() {
-        findViewById(R.id.more_button).setOnClickListener(view -> showMenu());
+        findViewById(R.id.more_button).setOnClickListener(view -> showDestination(TOOLS));
+        findViewById(R.id.config_button).setOnClickListener(view -> showMenu());
         findViewById(R.id.export).setOnClickListener(view -> exportLogs());
         findViewById(R.id.clear_log).setOnClickListener(view -> clearLogs());
         findViewById(R.id.form_help_button).setOnClickListener(view -> help(R.string.form_help_title, R.string.form_help));
@@ -224,7 +244,11 @@ public final class MainActivity extends Activity {
         findViewById(R.id.go_canvas).setOnClickListener(view -> scrollTo(R.id.canvas_section_heading));
         findViewById(R.id.print_hint).setOnClickListener(view -> { if (hintTarget != 0) scrollTo(hintTarget); });
         findViewById(R.id.logs_button).setOnClickListener(view -> showPage(true, false));
-        findViewById(R.id.logs_back).setOnClickListener(view -> showPage(false, false));
+        findViewById(R.id.logs_back).setOnClickListener(view -> goBack());
+        findViewById(R.id.device_button).setOnClickListener(view -> showDestination(DEVICE));
+        findViewById(R.id.paper_button).setOnClickListener(view -> showDestination(PAPER));
+        findViewById(R.id.open_logs).setOnClickListener(view -> showDestination(LOGS));
+        findViewById(R.id.open_raw).setOnClickListener(view -> showDestination(RAW));
         findViewById(R.id.canvas_panel).addOnLayoutChangeListener((view, left, top, right, bottom, a, b, c, d) -> updateCanvasLayout());
     }
     private EditText edit(int id) { return findViewById(id); }
@@ -318,11 +342,6 @@ public final class MainActivity extends Activity {
         acceptImport();
         acceptExport();
         openExportPicker();
-        DemoResult<List<DiscoveredDevice>> found = model.state().discoveryResult;
-        if (requestedDiscovery && found != null && found != discoveryBefore && !model.state().discovering) {
-            requestedDiscovery = false;
-            if (found.raw.outcome == ManagerResult.Outcome.SUCCESS && model.state().canConnect()) showDevices();
-        }
         DemoImages.State image = owner.images.state();
         if (requestedPreview && !image.busy) {
             requestedPreview = false;
@@ -404,31 +423,32 @@ public final class MainActivity extends Activity {
         }
         boolean valid = config != null;
         DemoPixelSamples.Example example = pixelExample();
-        if (valid && example != null) {
+        boolean validSample = valid;
+        if (validSample && example != null) {
             try { DemoPixelSamples.validate(example, config); }
-            catch (IllegalArgumentException invalid) { valid = false; }
+            catch (IllegalArgumentException invalid) { validSample = false; }
         }
         boolean mediaReady = profile != null;
         boolean printReady = started && state.canSubmitPrint() && mediaReady && !image.busy && !pending;
         boolean current = valid && image.prepared != null && image.prepared.matches(config);
-        findViewById(R.id.connect).setEnabled(editDevice);
         findViewById(R.id.discover).setEnabled(started && state.canDiscover() && !image.busy && !pending);
         ((Button)findViewById(R.id.discover)).setText(state.discovering ? R.string.stop_discovery : ble() ? R.string.scan_ble : R.string.paired_devices);
         findViewById(R.id.settings).setEnabled(idle);
         findViewById(R.id.disconnect).setEnabled(started && (state.canDisconnect() || image.busy));
-        findViewById(R.id.preview).setEnabled(idle && example == null);
+        findViewById(R.id.preview).setEnabled(idle);
         findViewById(R.id.print).setEnabled(printReady && valid);
-        ((Button)findViewById(R.id.print)).setText(example == null ? R.string.print_test : R.string.print_pixel_example);
+        findViewById(R.id.print_sample).setEnabled(printReady && validSample);
         findViewById(R.id.pixel_example).setEnabled(idle || printReady);
-        findViewById(R.id.print_fifo).setEnabled(printReady && valid && state.canSubmitPrints(3));
+        findViewById(R.id.print_fifo).setEnabled(printReady && validSample && state.canSubmitPrints(3));
         printRequestsView.render(state);
         findViewById(R.id.import_image).setEnabled(idle);
+        findViewById(R.id.change_content).setEnabled(idle);
         findViewById(R.id.builtin_image).setEnabled(idle && image.imported);
         boolean cancel = state.canCancel() || image.busy;
         findViewById(R.id.cancel).setEnabled(started && cancel);
         ((Button)findViewById(R.id.cancel)).setText(!image.busy && state.pendingPrintCount() != 0 ? R.string.cancel_earliest_print : R.string.cancel);
         findViewById(R.id.cancel).setVisibility(cancel ? View.VISIBLE : View.GONE);
-        findViewById(R.id.action_bar).setVisibility((showingLogs || showingRaw) && !cancel ? View.GONE : View.VISIBLE);
+        findViewById(R.id.action_bar).setVisibility(destination != HOME && !cancel ? View.GONE : View.VISIBLE);
         for (int id : new int[]{R.id.send_raw, R.id.query_status, R.id.capabilities}) findViewById(id).setEnabled(idle && state.canWork());
         ((TextView)findViewById(R.id.printer_info)).setText(DemoFormatter.printerInfo(state));
         renderPrinterStatus(state);
@@ -438,7 +458,10 @@ public final class MainActivity extends Activity {
         findViewById(R.id.label_motion_group).setVisibility(receipt() ? View.GONE : View.VISIBLE);
         for (int id : new int[]{R.id.export, R.id.clear_log}) findViewById(id).setEnabled(idle);
         findViewById(R.id.go_canvas).setVisibility(state.canWork() ? View.VISIBLE : View.GONE);
-        deviceView.render(state, text(R.id.address));
+        deviceView.render(state, text(R.id.address), idle);
+        ((TextView)findViewById(R.id.home_device_summary)).setText(
+            ((TextView)findViewById(R.id.device_summary)).getText());
+        ((Button)findViewById(R.id.device_button)).setText(state.connected ? R.string.device_details : R.string.connect);
         ((TextView)findViewById(R.id.canvas_summary)).setText(valid ?
             config.widthMm() + " × " + config.heightMm() + " mm · 1 份" :
             state.connected && profile == null ? "请选择实际打印机型号" :
@@ -446,10 +469,13 @@ public final class MainActivity extends Activity {
         ((TextView)findViewById(R.id.image_summary)).setText(image.imported ? "已导入 PNG/JPEG" : receipt() ? "内置小票示例" : "内置校准图");
         ((TextView)findViewById(R.id.image_status)).setText(image.busy ? image.operation : current ? "预览已更新" : image.prepared == null ? "尚未预览" : "预览需更新");
         ImageView thumbnail = findViewById(R.id.thumbnail);
-        if (example != null) ((TextView)findViewById(R.id.image_status)).setText(getString(R.string.pixel_example_selected,
-            ((Spinner)findViewById(R.id.pixel_example)).getSelectedItem()));
-        thumbnail.setImageBitmap(current && example == null ? image.thumbnail : null);
-        thumbnail.setVisibility(!current || image.thumbnail == null || example != null ? View.GONE : View.VISIBLE);
+        thumbnail.setImageBitmap(current ? image.thumbnail : null);
+        thumbnail.setVisibility(!current || image.thumbnail == null ? View.GONE : View.VISIBLE);
+        findViewById(R.id.preview_placeholder).setVisibility(current && image.thumbnail != null ? View.GONE : View.VISIBLE);
+        DemoUiState.PrintRequest recent = state.printRequests.isEmpty() ? null : state.printRequests.get(state.printRequests.size() - 1);
+        ((TextView)findViewById(R.id.home_result)).setText(recent == null ? getString(R.string.no_print_result) :
+            recent.description + "\n" + (recent.result != null ? DemoFormatter.summary(recent.result) :
+                getString(recent.cancelling ? R.string.print_request_cancelling : R.string.print_request_waiting)));
         ((TextView)findViewById(R.id.raw_hint)).setText(state.canWork() ? "每次发送一次；请确认命令及命令内部份数" : "请先连接设备");
         String media = "纸张设置：未发送；普通打印不会自动设置";
         if (!receipt() && state.phase == DemoUiState.Phase.READY && state.mediaRequest != null && state.mediaRequest.result != null) {
@@ -501,20 +527,6 @@ public final class MainActivity extends Activity {
         if (panel == null || panel.getWidth() == 0) return;
         int widthDp = Math.round(panel.getWidth() / getResources().getDisplayMetrics().density);
         CanvasLayout.apply(findViewById(R.id.root), widthDp, getResources().getConfiguration().fontScale, receipt());
-    }
-    /** 用户选择候选后直接回填地址；选择不连接，也不自动判定设备型号兼容性。 */
-    private void showDevices() {
-        List<DiscoveredDevice> devices = model.state().candidates;
-        if (devices.isEmpty()) { message(ble() ? "未发现 BLE 设备，请确认打印机电源、蓝牙及扫描权限" : "没有已配对设备，请先打开系统蓝牙设置完成配对"); return; }
-        String[] labels = new String[devices.size()];
-        for (int i = 0; i < devices.size(); i++) labels[i] = (devices.get(i).name == null ? "未命名设备" : devices.get(i).name) + "\n" + devices.get(i).address;
-        devicePicker = new AlertDialog.Builder(this).setTitle("选择设备").setItems(labels, (dialog, index) -> {
-            if (!offlineIdle()) return;
-            DiscoveredDevice selected = devices.get(index);
-            if (model.selectCandidate(selected.address)) edit(R.id.address).setText(selected.address);
-            message("已选择，请连接"); owner.log("已选择候选设备；未连接");
-        }).setNegativeButton("取消", null).create();
-        devicePicker.setOnDismissListener(dialog -> devicePicker = null); devicePicker.show();
     }
     /** 完整预览位图仅用于显示；关闭预览不影响图片源和打印。 */
     private void showPreview(Bitmap bitmap) {
@@ -593,7 +605,7 @@ public final class MainActivity extends Activity {
         });
     }
     private void showMenu() {
-        configMenu = new PopupMenu(this, findViewById(R.id.more_button));
+        configMenu = new PopupMenu(this, findViewById(R.id.config_button));
         configMenu.getMenuInflater().inflate(R.menu.config_actions, configMenu.getMenu());
         configMenu.setOnMenuItemClickListener(item -> {
             int id = item.getItemId();
@@ -673,23 +685,31 @@ public final class MainActivity extends Activity {
         }
     }
     private void showPage(boolean logs,boolean raw) {
-        if (showingLogs && !logs) logView.onHide();
-        else if (logs && !showingLogs) logView.onShow();
-        showingLogs=logs; showingRaw=raw;
+        showDestination(logs ? LOGS : raw ? RAW : HOME);
+    }
+    /** 页面切换只改变展示；所有页面继续共享同一个 Owner 和 Manager。 */
+    private void showDestination(int page) {
+        if (page < HOME || page > RAW) page = HOME;
+        if (showingLogs && page != LOGS) logView.onHide();
+        else if (page == LOGS && !showingLogs) logView.onShow();
+        destination = page; showingLogs = page == LOGS; showingRaw = page == RAW;
         if(configMenu!=null) configMenu.dismiss();
         View focused=getCurrentFocus();
         if(focused!=null) { android.view.inputmethod.InputMethodManager keyboard=(android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
             if(keyboard!=null) keyboard.hideSoftInputFromWindow(focused.getWindowToken(),0); focused.clearFocus(); }
-        findViewById(R.id.print_page).setVisibility(logs||raw?View.GONE:View.VISIBLE);
-        findViewById(R.id.logs_page).setVisibility(logs?View.VISIBLE:View.GONE); findViewById(R.id.raw_page).setVisibility(raw?View.VISIBLE:View.GONE);
-        findViewById(R.id.print_actions).setVisibility(logs||raw?View.GONE:View.VISIBLE); findViewById(R.id.logs_back).setVisibility(logs||raw?View.VISIBLE:View.GONE);
-        findViewById(R.id.logs_button).setVisibility(logs?View.GONE:View.VISIBLE);
-        ((TextView)findViewById(R.id.app_title)).setText(logs?R.string.logs_title:raw?R.string.raw_title:R.string.screen_title);
+        int[] pages = {R.id.print_page, R.id.device_page, R.id.paper_page, R.id.tools_page, R.id.logs_page, R.id.raw_page};
+        for (int i = 0; i < pages.length; i++) findViewById(pages[i]).setVisibility(i == page ? View.VISIBLE : View.GONE);
+        findViewById(R.id.print_actions).setVisibility(page == HOME ? View.VISIBLE : View.GONE);
+        findViewById(R.id.logs_back).setVisibility(page == HOME ? View.GONE : View.VISIBLE);
+        findViewById(R.id.more_button).setVisibility(page == TOOLS ? View.GONE : View.VISIBLE);
+        int[] titles = {R.string.screen_title, R.string.device_section, R.string.paper_settings, R.string.tools_title, R.string.logs_title, R.string.raw_title};
+        ((TextView)findViewById(R.id.app_title)).setText(titles[page]);
         if(unregisterBack!=null) { unregisterBack.run(); unregisterBack=null; }
-        if((logs||raw) && Build.VERSION.SDK_INT>=33) unregisterBack=BackNavigation.register(this,() -> showPage(false,false));
+        if(page != HOME && Build.VERSION.SDK_INT>=33) unregisterBack=BackNavigation.register(this,this::goBack);
         render();
     }
-    @Override public void onBackPressed() { if(showingLogs||showingRaw) showPage(false,false); else super.onBackPressed(); }
+    private void goBack() { showDestination(showingLogs || showingRaw ? TOOLS : HOME); }
+    @Override public void onBackPressed() { if(destination != HOME) goBack(); else super.onBackPressed(); }
     @android.annotation.TargetApi(33) private static final class BackNavigation {
         static Runnable register(Activity activity,Runnable back) {
             android.window.OnBackInvokedDispatcher dispatcher=activity.getOnBackInvokedDispatcher();
@@ -699,20 +719,32 @@ public final class MainActivity extends Activity {
         }
     }
     private void scrollTo(int id) {
-        showPage(false,false);
         boolean channel = id == R.id.address || id == R.id.service || id == R.id.characteristic ||
             id == R.id.ble_profile || id == R.id.write_mode || id == R.id.mtu || id == R.id.payload;
         int destination = (id == R.id.service || id == R.id.characteristic) && choice(R.id.ble_profile) == 0 ? R.id.ble_profile : id;
         View target=findViewById(destination);
+        int page = isWithin(target, R.id.device_page) ? DEVICE : isWithin(target, R.id.paper_page) ? PAPER :
+            isWithin(target, R.id.tools_page) ? TOOLS : HOME;
+        showDestination(page);
         sections.reveal(target);
         if(channel) findViewById(R.id.transport_details).setVisibility(View.VISIBLE);
         // 用 ScrollView 的实际坐标定位；不依赖当前输入框焦点或 OEM 的请求矩形行为。
         target.post(() -> {
-            ScrollView scroll = findViewById(R.id.content_scroll);
+            int[] scrolls = {R.id.content_scroll, R.id.device_page, R.id.paper_page, R.id.tools_page};
+            ScrollView scroll = findViewById(scrolls[page]);
+            if (!isWithin(target, scroll.getId())) return;
             android.graphics.Rect rect = new android.graphics.Rect(); target.getDrawingRect(rect);
             scroll.offsetDescendantRectToMyCoords(target, rect);
             scroll.smoothScrollTo(0, Math.max(0, rect.top - Math.round(12 * getResources().getDisplayMetrics().density)));
         });
+    }
+    private boolean isWithin(View target, int ancestor) {
+        for (View current = target; current != null;) {
+            if (current.getId() == ancestor) return true;
+            android.view.ViewParent parent = current.getParent();
+            current = parent instanceof View ? (View)parent : null;
+        }
+        return false;
     }
     private void showUtilityDialog(AlertDialog dialog) {
         if(utilityDialog!=null) utilityDialog.dismiss();
@@ -779,7 +811,8 @@ public final class MainActivity extends Activity {
         } finally { applying = previous; }
     }
     @Override protected void onSaveInstanceState(Bundle saved) {
-        saved.putBundle("inputs",inputs()); saved.putBoolean("logs",showingLogs); saved.putBoolean("raw",showingRaw);
+        saved.putBundle("inputs",inputs()); saved.putInt("destination",destination);
+        saved.putBoolean("logs",showingLogs); saved.putBoolean("raw",showingRaw);
         sections.save(saved);
         super.onSaveInstanceState(saved);
     }
@@ -831,8 +864,7 @@ public final class MainActivity extends Activity {
         cancelStatusRecoveryToast();
         logView.onStop(showingLogs);
         if(isChangingConfigurations() && requestedPreview) owner.images.cancel();
-        started=false; afterPermission=null; requestedDiscovery=false; requestedPreview=false;
-        if(devicePicker!=null) devicePicker.dismiss();
+        started=false; afterPermission=null; requestedPreview=false;
         if(previewImage!=null) previewImage.setImageDrawable(null);
         if(previewDialog!=null) previewDialog.dismiss();
         owner.images.clearPreview();

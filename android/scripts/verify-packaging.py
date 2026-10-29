@@ -15,7 +15,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 from sdk_contract import jni_callbacks, jni_constructors, jni_methods, packaging_checks
 
-VERSION = "0.3.0-preview.16"
+VERSION = "0.3.0-preview.17"
 SDK_LOCK = json.loads((Path(__file__).resolve().parents[2] / "sdk-lock.json").read_text())
 AAR_SHA256 = SDK_LOCK["android"]["aar_sha256"]
 ABIS = ("arm64-v8a", "armeabi-v7a", "x86_64")

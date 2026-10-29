@@ -24,30 +24,38 @@ enum DemoResultText {
             }
         }
     }
-    static func result(_ value: DemoResult?) -> String {
-        guard let value else { return "尚无任务结果" }
-        let title: String, detail: String?
+    static func title(_ value: DemoResult) -> String {
         switch value {
         case .action(let action, _), .connection(let action, _):
             switch action {
-            case .connect: title = "连接"
-            case .configure: title = "采用型号"
-            case .printLabel: title = "CPCL 打印"
-            case .printReceipt: title = "ESC/POS 打印"
-            case .raw: title = "Raw"
-            case .media: title = "纸张类型"
-            case .feed: title = "走纸"
-            case .getStatus: title = "查询状态"
-            case .disconnected: title = "意外断连"
-            case .disconnect: title = "断开清理"
+            case .connect: return "连接"
+            case .configure: return "采用型号"
+            case .printLabel: return "CPCL 打印"
+            case .printReceipt: return "ESC/POS 打印"
+            case .raw: return "Raw"
+            case .media: return "纸张类型"
+            case .feed: return "走纸"
+            case .getStatus: return "查询状态"
+            case .disconnected: return "意外断连"
+            case .disconnect: return "断开清理"
             }
-            detail = nil
-        case .status(let result): title = "状态"; detail = status(result.value)
-        case .capabilities(let result): title = "能力"; detail = capabilities(result.value)
-        case .identity(let result): title = "SDK 身份"; detail = result.value.map(identity)
-        case .discovery(let result): title = "BLE 发现"; detail = result.value.map { "候选设备=\($0.count)" }
+        case .status: return "状态"
+        case .capabilities: return "能力"
+        case .identity: return "SDK 身份"
+        case .discovery: return "BLE 发现"
         }
-        return title + "\n" + terminal(value.evidence) + (detail.map { "\n" + $0 } ?? "")
+    }
+    static func result(_ value: DemoResult?) -> String {
+        guard let value else { return "尚无任务结果" }
+        let detail: String?
+        switch value {
+        case .action, .connection: detail = nil
+        case .status(let result): detail = status(result.value)
+        case .capabilities(let result): detail = capabilities(result.value)
+        case .identity(let result): detail = result.value.map(identity)
+        case .discovery(let result): detail = result.value.map { "候选设备=\($0.count)" }
+        }
+        return title(value) + "\n" + terminal(value.evidence) + (detail.map { "\n" + $0 } ?? "")
     }
     static func terminal<Value>(_ result: ManagerResult<Value>) -> String { terminal(DemoResultEvidence(result)) }
     private static func terminal(_ result: DemoResultEvidence) -> String {

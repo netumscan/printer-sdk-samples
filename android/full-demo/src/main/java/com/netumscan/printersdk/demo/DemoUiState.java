@@ -144,7 +144,7 @@ final class DemoUiState {
         this.mediaRequest = mediaRequest;
         this.printRequests = Collections.unmodifiableList(new ArrayList<>(printRequests));
     }
-    boolean canConnect() { return foreground && !preparing && phase == Phase.OFFLINE; }
+    boolean canConnect() { return foreground && !preparing && !discovering && phase == Phase.OFFLINE; }
     PrinterStatusLevel printerStatusLevel() { return printerStatusLevel(connected, liveStatus); }
     boolean canWork() { return foreground && phase == Phase.READY; }
     int pendingPrintCount() {
@@ -162,5 +162,5 @@ final class DemoUiState {
     boolean canDiscover() { return foreground && !preparing && phase == Phase.OFFLINE; }
     boolean canEditConnection() { return canConnect(); }
     boolean canEditDocument() { return foreground && (phase == Phase.OFFLINE || phase == Phase.READY); }
-    boolean canSelectCandidate() { return canEditConnection() && !candidates.isEmpty(); }
+    boolean canSelectCandidate() { return canDiscover() && !candidates.isEmpty(); }
 }

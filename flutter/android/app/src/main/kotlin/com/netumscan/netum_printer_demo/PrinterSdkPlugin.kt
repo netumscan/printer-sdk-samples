@@ -9,6 +9,7 @@ import com.netumscan.printersdk.ConnectionInfo
 import com.netumscan.printersdk.DiscoveredDevice
 import com.netumscan.printersdk.ManagerResult
 import com.netumscan.printersdk.PaperType
+import com.netumscan.printersdk.PrinterListener
 import com.netumscan.printersdk.PrinterManager
 import com.netumscan.printersdk.PrinterModel
 import com.netumscan.printersdk.RequestId
@@ -22,7 +23,7 @@ import io.flutter.plugin.common.PluginRegistry
 
 /** Sample adapter only. Discovery, preparation and printer IO remain in PrinterManager. */
 class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware,
-    PluginRegistry.RequestPermissionsResultListener {
+    PluginRegistry.RequestPermissionsResultListener, PrinterListener {
     private class Pending(val id: String, val result: MethodChannel.Result, val generation: Long) {
         var nativeId: RequestId? = null
     }
@@ -33,12 +34,19 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
     private var manager: PrinterManager? = null
     private var activityBinding: ActivityPluginBinding? = null
     private var generation = 0L
+    private var closing = false
+    private var closedResult: ManagerResult<Void>? = null
+    private val closeGenerations = mutableMapOf<RequestId, Long>()
+    private val closeReplies = mutableMapOf<String, Pending>()
     private val pending = mutableMapOf<String, Pending>()
     private var permissionRequest: PermissionRequest? = null
+    private val nativeReplies = mutableMapOf<RequestId, (ManagerResult<*>) -> Unit>()
+    private val connections = mutableMapOf<RequestId, Pair<String, Long>>()
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         generation++
-        manager = PrinterManager(binding.applicationContext)
+        closing = false; closedResult = null
+        manager = PrinterManager(binding.applicationContext).also { it.setListener(this) }
         channel = MethodChannel(binding.binaryMessenger, "com.netumscan/printer_sdk").also {
             it.setMethodCallHandler(this)
         }
@@ -56,8 +64,9 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
         manager = null
         val unfinished = pending.values.toList()
         pending.clear()
+        nativeReplies.clear(); connections.clear(); closeGenerations.clear(); closeReplies.clear()
         unfinished.forEach { owner?.cancel(it.nativeId) }
-        owner?.close { /* The detached engine no longer has a reply destination. */ }
+        owner?.close()
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -80,6 +89,20 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
             result.error("invalid_argument", "A nonempty requestId (at most 128 characters) is required", null)
             return
         }
+        val priorClose = closedResult
+        if (closing || priorClose != null) {
+            when (call.method) {
+                "cancel" -> result.success(null)
+                "close" -> {
+                    if (priorClose != null) result.success(envelope(id, priorClose, null))
+                    else if (pending.containsKey(id) || closeReplies.containsKey(id))
+                        result.error("duplicate_request", "requestId is already pending", mapOf("requestId" to id))
+                    else closeReplies[id] = Pending(id, result, generation)
+                }
+                else -> result.error("sdk_closed", "PrinterManager is permanently closing or closed", null)
+            }
+            return
+        }
         if (call.method == "cancel") {
             val target = pending[id]
             if (target?.nativeId != null) owner.cancel(target.nativeId)
@@ -97,16 +120,16 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
         pending[id] = request
         try {
             when (call.method) {
-                "sdkInfo" -> submit<SdkInfo>(request, { owner.sdkInfo(it) }) {
+                "sdkInfo" -> submit<SdkInfo>(request, { owner.sdkInfo() }) {
                     mapOf("distributionVersion" to it.distributionVersion)
                 }
                 "scanBle" -> withPermissions(request, true) {
-                    submit<List<DiscoveredDevice>>(request, { owner.scanBle(it) }) { devices ->
+                    submit<List<DiscoveredDevice>>(request, { owner.scanBle() }) { devices ->
                         devices.map(::deviceValue)
                     }
                 }
                 "bondedDevices" -> withPermissions(request, false) {
-                    submit<List<DiscoveredDevice>>(request, { owner.bondedDevices(it) }) { devices ->
+                    submit<List<DiscoveredDevice>>(request, { owner.bondedDevices() }) { devices ->
                         devices.map(::deviceValue)
                     }
                 }
@@ -125,22 +148,15 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
                     val modelValue = arguments["model"]
                     require(modelValue == null || modelValue == "LT_M90") { "Unsupported printer model" }
                     val model = if (modelValue == null) null else PrinterModel.LT_M90
-                    val eventChannel = channel
-                    val eventGeneration = generation
-                    val disconnected = PrinterManager.DisconnectedListener { response ->
-                        if (eventChannel != null && channel === eventChannel && generation == eventGeneration) {
-                            eventChannel.invokeMethod("disconnected", envelope(id, response, null))
-                        }
-                    }
                     withPermissions(request, false) {
-                        submit<ConnectionInfo>(request, { callback ->
-                            if (transport == "BLE") {
-                                if (model == null) owner.connectBle(discovered, callback, disconnected)
-                                else owner.connectBle(discovered, model, callback, disconnected)
+                        submit<ConnectionInfo>(request, {
+                            val nativeId = if (transport == "BLE") {
+                                if (model == null) owner.connectBle(discovered) else owner.connectBle(discovered, model)
                             } else {
-                                if (model == null) owner.connectSpp(discovered, callback, disconnected)
-                                else owner.connectSpp(discovered, model, callback, disconnected)
+                                if (model == null) owner.connectSpp(discovered) else owner.connectSpp(discovered, model)
                             }
+                            connections[nativeId] = request.id to request.generation
+                            nativeId
                         }) { info -> mapOf("device" to deviceValue(info.device), "model" to info.model?.name) }
                     }
                 }
@@ -148,7 +164,7 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
                     val value = arguments["paperType"] as? String
                         ?: throw IllegalArgumentException("paperType is required")
                     val paper = PaperType.valueOf(value)
-                    submit<Void>(request, { owner.setPaperType(paper, it) }) { null }
+                    submit<Void>(request, { owner.setPaperType(paper) }) { null }
                 }
                 "printEncodedImage" -> {
                     val bytes = arguments["imageBytes"] as? ByteArray
@@ -156,16 +172,21 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
                     require(bytes.isNotEmpty()) { "imageBytes cannot be empty" }
                     val width = dimension(arguments["widthMm"], "widthMm")
                     val height = dimension(arguments["heightMm"], "heightMm")
-                    submit<Void>(request, { owner.printEncodedImage(bytes, width, height, it) }) { null }
+                    submit<Void>(request, { owner.printEncodedImage(bytes, width, height) }) { null }
                 }
-                "locateNextLabel" -> submit<Void>(request, { owner.locateNextLabel(it) }) { null }
+                "locateNextLabel" -> submit<Void>(request, { owner.locateNextLabel() }) { null }
                 "disconnect" -> {
                     cancelPermissionWait("Cancelled by disconnect")
-                    submit<Void>(request, { owner.disconnect(it) }) { null }
+                    connections.entries.removeAll { it.value.second == request.generation }
+                    submit<Void>(request, { owner.disconnect() }) { null }
                 }
                 "close" -> {
                     cancelPermissionWait("Cancelled by close")
-                    submit<Void>(request, { owner.close(it) }) { null }
+                    connections.entries.removeAll { it.value.second == request.generation }
+                    closing = true
+                    submit<Void>(request, {
+                        owner.close().also { closeGenerations[it] = request.generation }
+                    }) { null }
                 }
             }
         } catch (error: IllegalArgumentException) {
@@ -177,12 +198,43 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
         }
     }
 
-    private fun <T> submit(request: Pending, start: (PrinterManager.Callback<T>) -> RequestId,
-                           value: (T) -> Any?) {
+    private fun <T> submit(request: Pending, start: () -> RequestId, value: (T) -> Any?) {
         if (!isPending(request)) return
-        request.nativeId = start(PrinterManager.Callback { response ->
-            finish(request, envelope(request.id, response, response.value?.let(value)))
-        })
+        val nativeId = start()
+        request.nativeId = nativeId
+        nativeReplies[nativeId] = { response ->
+            @Suppress("UNCHECKED_CAST")
+            val typed = response as ManagerResult<T>
+            finish(request, envelope(request.id, typed, typed.value?.let(value)))
+        }
+    }
+
+    private fun complete(result: ManagerResult<*>) { nativeReplies.remove(result.requestId)?.invoke(result) }
+    override fun onSdkInfoCompleted(result: ManagerResult<SdkInfo>) = complete(result)
+    override fun onScanCompleted(result: ManagerResult<List<DiscoveredDevice>>) = complete(result)
+    override fun onBondedDevicesCompleted(result: ManagerResult<List<DiscoveredDevice>>) = complete(result)
+    override fun onConnectionCompleted(result: ManagerResult<ConnectionInfo>) {
+        if (result.outcome != ManagerResult.Outcome.SUCCESS) connections.remove(result.requestId)
+        complete(result)
+    }
+    override fun onPaperTypeCompleted(result: ManagerResult<Void>) = complete(result)
+    override fun onPrintCompleted(result: ManagerResult<Void>) = complete(result)
+    override fun onLabelPositioningCompleted(result: ManagerResult<Void>) = complete(result)
+    override fun onDisconnectCompleted(result: ManagerResult<Void>) = complete(result)
+    override fun onCloseCompleted(result: ManagerResult<Void>) {
+        val current = closeGenerations.remove(result.requestId) == generation
+        val waiting = if (current) closeReplies.values.filter { it.generation == generation } else emptyList()
+        if (current) {
+            closedResult = result; closing = false
+            for (request in waiting) closeReplies.remove(request.id)
+        }
+        complete(result)
+        for (request in waiting) if (request.generation == generation && channel != null)
+            request.result.success(envelope(request.id, result, null))
+    }
+    override fun onDisconnected(result: ManagerResult<Void>) {
+        val target = connections.remove(result.requestId) ?: return
+        if (generation == target.second) channel?.invokeMethod("disconnected", envelope(target.first, result, null))
     }
 
     private fun withPermissions(request: Pending, scanning: Boolean, action: () -> Unit) {

@@ -13,10 +13,10 @@
     <string name="connected">已连接</string>
     <string name="connection_summary">%1$s · %2$s</string>
     <string name="logs_button">日志</string>
-    <string name="more_button">更多</string>
-    <string name="logs_back">返回打印</string>
+    <string name="more_button">更多工具</string>
+    <string name="logs_back">返回</string>
     <string name="go_canvas">前往打印设置</string>
-    <string name="device_section">1 · 设备连接</string>
+    <string name="device_section">连接与设备</string>
     <string name="canvas_section">打印尺寸</string>
     <string name="media_section_heading">纸张与独立定位</string>
     <string name="canvas_unset">尚未设置打印尺寸</string>
@@ -60,8 +60,8 @@
     <string name="copies_default">1</string>
     <string name="print_advanced_expand">打印高级设置 ▾</string>
     <string name="print_advanced_collapse">打印高级设置 ▴</string>
-    <string name="examples_expand">像素示例与多请求 ▾</string>
-    <string name="examples_collapse">像素示例与多请求 ▴</string>
+    <string name="examples_expand">开发示例与多请求 ▾</string>
+    <string name="examples_collapse">开发示例与多请求 ▴</string>
     <string name="diagnostics_expand">SDK 诊断 ▾</string>
     <string name="diagnostics_collapse">SDK 诊断 ▴</string>
     <string name="trailing_blank_label">结束留白（dots）</string>
@@ -76,17 +76,16 @@
     <string name="form_help">FORM 请求纸张定位，效果取决于介质与固件。关闭 FORM 仍受打印机当前介质设置影响；连续纸请关闭。</string>
     <string name="form_help_title">FORM 定位说明</string>
     <string name="help_button">说明</string>
-    <string name="image_section">3 · 图片与打印</string>
+    <string name="image_section">打印内容</string>
     <string name="builtin_summary">内置校准图</string>
     <string name="image_unprepared">尚未预览</string>
     <string name="thumbnail_description">按当前打印参数生成的缩略预览，尚未发送</string>
-    <string name="test_description">PNG / JPEG · ≤ 32 MiB · 导入时保持连接</string>
     <string name="connect">连接打印机</string>
     <string name="disconnect">断开连接</string>
     <string name="preview">预览图片</string>
     <string name="print_test">打印图片</string>
     <string name="cancel">取消当前任务</string>
-    <string name="initial_print_hint">连接设备 → 初始化介质 → 选择图片并打印</string>
+    <string name="initial_print_hint">连接设备 → 选择内容 → 打印</string>
     <string name="send_help">发送成功仅表示数据已传输，请检查纸面效果。</string>
     <string name="log_details">显示诊断详情</string>
     <string name="log_latest">到最新</string>
@@ -105,7 +104,6 @@
     <string name="load_legacy">读取旧参数（忽略设备地址）</string>
     <string name="import_image">导入 PNG / JPEG</string>
     <string name="builtin_image">切回内置校准图</string>
-    <string name="sdk_results_section">SDK 信息与请求结果</string>
     <string name="query_status">查询状态</string>
     <string name="query_status_help">主动查询一次设备状态；开盖、缺纸显示也会随设备上报更新。未知不等于正常。</string>
     <string name="printer_info_pending">连接后自动读取一次设备信息</string>
@@ -115,4 +113,14 @@
     <string name="apply_print_profile">选择打印机型号</string>
     <string name="retry_initialize">重试介质初始化</string>
     <string name="printer_model_label">打印机型号（名称推荐不认证硬件）</string>
+    <string name="preview_placeholder">点击“预览图片”查看当前内容
+预览可选，尚未发送</string>
+    <string name="change_content">选择内容</string>
+    <string name="paper_settings">纸张与尺寸</string>
+    <string name="device_details">设备详情</string>
+    <string name="tools_title">更多工具</string>
+    <string name="config_tools">配置与 SDK 信息</string>
+    <string name="recent_result">最近一次打印</string>
+    <string name="no_print_result">尚无打印请求</string>
+    <string name="print_developer_sample">打印所选开发示例</string>
 </resources>

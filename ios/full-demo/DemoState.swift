@@ -68,14 +68,34 @@ struct DemoResultEvidence: Sendable {
     }
 }
 
+struct DemoDeviceRow: Identifiable, Equatable {
+    let id: UUID
+    let title: String
+    let detail: String
+    let isSelected: Bool
+    init(_ device: DiscoveredPrinter, selected: UUID?) {
+        id = device.identifier
+        title = device.name ?? "未命名 BLE 设备"
+        let signal = device.signalStrength.map { "\($0) dBm" } ?? "信号未知"
+        detail = "\(device.identifier.uuidString.prefix(8)) · \(signal)"
+        isSelected = device.identifier == selected
+    }
+}
+
 /// A read has no effects: repeated SwiftUI rendering never consumes a result or candidates.
 struct DemoViewState {
     let devices: [DiscoveredPrinter]
     let selected: UUID?
-    let scanning: Bool
-    let canScan, canEditConnection, canConnect, canDisconnect, canWork, canCancel: Bool
+    let scanning, scanStopping: Bool
+    let canScan, canSelectDevice, canEditConnection, canConnect, canDisconnect, canWork, canCancel: Bool
     let status: String
     let result, cleanupResult, connectionLoss, identityResult: DemoResult?
     let inputError: DemoInputError?
     let identity: SDKInfo?
+    var deviceRows: [DemoDeviceRow] { devices.map { DemoDeviceRow($0, selected: selected) } }
+    var scanMessage: String {
+        if scanStopping { return "正在停止扫描；保留本轮已发现的 \(devices.count) 个候选" }
+        if scanning { return "扫描中 · 已发现 \(devices.count) 个候选" }
+        return devices.isEmpty ? "尚无候选设备，点击扫描开始" : "\(devices.count) 个候选设备；请选择后手动连接"
+    }
 }

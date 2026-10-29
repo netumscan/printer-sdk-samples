@@ -12,8 +12,8 @@ Open [`../PrinterSamples.xcodeproj`](../PrinterSamples.xcodeproj), select the
 | Field | Value |
 | --- | --- |
 | Repository | `https://github.com/netumscan/printer-sdk-ios.git` |
-| Exact version | `0.3.0-preview.16` |
-| Release commit | `c7c00f40855a998c4f408c01323f8ce6d6816ee7` |
+| Exact version | `0.3.0-preview.17` |
+| Release commit | `98bf75c66370d1b85f165ca297a9b4fa299e0fde` |
 
 ## Running the sample
 
@@ -26,3 +26,7 @@ See the [iOS guide](../README.md) for setup, known firmware limitations, licensi
 and complete online verification. This sample is MIT; the downloaded SDK remains
 closed commercial software under its own license. `DATA_SENT` is transfer
 completion, not physical print confirmation. `hardware_verified=false`.
+
+## Delegate and live discovery
+
+`DemoModel` implements `PrinterDelegate` and sets `manager.delegate = self`. The delegate is weak; keep the owner alive until cleanup completes. Every request returns an ID. `printerManager(_:didDiscover:scanID:)` adds visible rows while scanning; the terminal result refreshes merged names and RSSI. Select a row, stop or wait for scanning to end, then connect explicitly. The model rejects late events for old IDs. Replacing or clearing the delegate drops queued old notifications.

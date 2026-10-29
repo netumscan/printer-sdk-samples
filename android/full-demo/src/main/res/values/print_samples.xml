@@ -1,5 +1,5 @@
 <resources>
-    <string name="pixel_example_label">本次打印内容</string>
+    <string name="pixel_example_label">开发示例内容</string>
     <string-array name="pixel_examples">
         <item>当前图片（PNG/JPEG 或 Bitmap）</item>
         <item>Bitmap 彩色渐变</item>
@@ -7,9 +7,7 @@
         <item>App 阈值 / 有序抖动对照</item>
         <item>App 多图合成</item>
     </string-array>
-    <string name="pixel_example_help">示例由 App 合成一张 Bitmap，不替换原图；预览仅支持当前图片。</string>
-    <string name="pixel_example_selected">示例：%1$s</string>
-    <string name="print_pixel_example">打印示例</string>
+    <string name="pixel_example_help">示例由 App 合成一张 Bitmap，仅由下方开发按钮打印；不替换主页内容。</string>
     <string name="print_fifo">提交 3 个请求（FIFO）</string>
     <string name="print_fifo_help">每条请求一份，共用 SDK FIFO，可分别取消。</string>
     <string name="print_requests_title">打印请求记录</string>

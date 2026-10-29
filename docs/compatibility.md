@@ -1,11 +1,18 @@
 # 兼容性与分发身份
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.16`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.17`
 
-当前移动API相对 `.11` 增加设备信息与统一状态监听，并将 queryStatus 替换为 getStatus；调用方需要重新编译并按[迁移](migration.md)接入。应用成套使用同一版本的Java／Swift包装和native库。
+相对 `.16`，本版将移动控制接口改为统一 Listener／Delegate；旧逐调用回调、状态监听和断连闭包不再公开。
+调用方必须按[迁移](migration.md)修改并重新编译。操作仍保留原始请求 ID、完整 ManagerResult、稳定错误码和完成证据。
+实时设备发现是独立进度通知，最终扫描结果仍保留最终合并设备列表。
 
-native `0.3.0`／C ABI `3/r3`：生产使用单一printer_sdk.h、28个动态C导出、23个Android JNI导出和27个具体结构；header inline初始化器不在动态导出表中。r3保留r1/r2入口和自然对齐布局，利用原execute union的预留空间加入INFO描述，并增加psdk_operation_get_printer_info；需要新INFO功能时要求major==3、revision>=3。C ABI3与ABI2不兼容；不得混用不同身份的头、库、包装和句柄。
+native `0.3.0`／C ABI `3/r3` 保持：单一 `printer_sdk.h`、28 个动态 C 导出、23 个 Android JNI 导出和27个具体结构；
+header inline 初始化器不计入动态导出。本次不增加 r4，不改变现有 `ConnectionInfo`、C 布局或 JNI ABI。
+C ABI3 与 ABI2 不兼容；App 成套使用同一版本的 Java／Swift 包装和 native 库。
 
-本次冻结当前r3，不增加r4，不调整现有ConnectionInfo。移动API、C ABI、SDK分发版本和硬件验证分别核对。
+本版 iOS 产品、Swift 模块和 CocoaPods Pod 均为 `XLPrinterSDK`；从 `.14` 或更早升级还需将
+`PrinterSDK` 的 import 和产品依赖改为 `XLPrinterSDK`。已使用 `.16` 模块的调用方无需再次更名。
 
-`0.3.0-preview.16` 的状态以随包契约为准。冻结候选不等于制品已上传，实际发布以精确制品及在线收据确认。公开历史的anchors／proofs／seals、旧候选、旧开发快照和旧SDK lock保持独立，不能为新API重写旧pins。旧在线Samples和消费者使用各自精确版本，回退选择完整旧版本及匹配依赖锁；不移动旧标签，不覆盖旧二进制，不自动重放失败打印。
+冻结候选不等于制品已上传；实际发布状态、精确公开 revision、制品 SHA-256 和独立消费者结果分别核对。
+旧在线制品、历史 anchors／proofs／seals、旧候选、开发快照与 SDK lock 不为新接口重写。
+回退选择完整旧版本及匹配依赖锁，不移动标签或覆盖二进制，不自动重放失败打印。

@@ -6,6 +6,8 @@
         <TextView style="@style/FieldLabel" android:text="@string/transport_label" android:labelFor="@id/transport" />
         <Spinner android:id="@+id/transport" style="@style/Selector" />
         <Button android:id="@+id/discover" style="@style/SecondaryButton" android:text="@string/paired_devices" />
+        <TextView android:id="@+id/discovery_status" style="@style/HelpText" android:accessibilityLiveRegion="polite" android:saveEnabled="false" />
+        <LinearLayout android:id="@+id/discovery_devices" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:saveEnabled="false" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="4dp">
             <Button android:id="@+id/connect" style="@style/SecondaryButton" android:text="@string/connect" android:layout_width="0dp" android:layout_weight="1" android:layout_marginEnd="8dp" />
             <Button android:id="@+id/disconnect" style="@style/QuietButton" android:text="@string/disconnect" android:enabled="false" android:layout_width="0dp" android:layout_weight="1" />

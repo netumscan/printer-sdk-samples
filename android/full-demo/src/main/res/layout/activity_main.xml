@@ -3,7 +3,7 @@
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
             <ImageButton android:id="@+id/logs_back" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginEnd="8dp" android:padding="12dp" android:src="@drawable/ic_back" android:tint="@color/secondary_button_text" android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/logs_back" android:tooltipText="@string/logs_back" android:visibility="gone" />
             <TextView android:id="@+id/app_title" style="@style/AppTitle" android:text="@string/screen_title" android:layout_width="0dp" android:layout_weight="1" />
-            <ImageButton android:id="@+id/logs_button" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginStart="8dp" android:padding="12dp" android:src="@drawable/ic_logs" android:tint="@color/secondary_button_text" android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/logs_button" android:tooltipText="@string/logs_button" />
+            <ImageButton android:id="@+id/logs_button" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:src="@drawable/ic_logs" android:tint="@color/secondary_button_text" android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/logs_button" android:visibility="gone" />
             <ImageButton android:id="@+id/more_button" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:src="@drawable/ic_more" android:tint="@color/secondary_button_text" android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/more_button" android:tooltipText="@string/more_button" />
         </LinearLayout>
         <TextView android:id="@+id/connection_status" style="@style/StatusLabel" android:accessibilityLiveRegion="polite" android:text="@string/offline" android:layout_marginTop="0dp" />
@@ -12,26 +12,53 @@
             <TextView android:id="@+id/live_status" style="@style/PrinterStatusLabel" android:layout_width="0dp" android:layout_weight="1" android:text="@string/live_status_unknown" android:accessibilityLiveRegion="polite" android:saveEnabled="false" />
             <Button android:id="@+id/query_status" style="@style/TextButton" android:layout_width="wrap_content" android:text="@string/query_status" android:contentDescription="@string/query_status_help" android:enabled="false" />
         </LinearLayout>
-        <TextView android:id="@+id/sdk_version" style="@style/HelpText" android:text="@string/sdk_version_unknown" android:saveEnabled="false" />
         <TextView android:id="@+id/status" style="@style/FieldLabel" android:accessibilityLiveRegion="polite" android:layout_marginTop="4dp" android:visibility="gone" />
     </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:orientation="vertical" android:id="@+id/print_page" android:layout_weight="1">
-        <ScrollView android:id="@+id/content_scroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp" android:paddingBottom="24dp">
-                <include layout="@layout/section_device" />
-                <include layout="@layout/section_media" />
+        <ScrollView android:id="@+id/content_scroll" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingBottom="16dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:id="@+id/home_device_summary" style="@style/FieldLabel" android:layout_width="0dp" android:layout_weight="1" android:layout_marginTop="0dp" android:text="@string/no_device" />
+                    <Button android:id="@+id/device_button" style="@style/TextButton" android:layout_width="wrap_content" android:text="@string/connect" />
+                </LinearLayout>
                 <include layout="@layout/section_image" />
-                <include layout="@layout/section_examples_diagnostics" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="12dp">
+                    <TextView android:id="@+id/canvas_summary" style="@style/FieldLabel" android:layout_width="0dp" android:layout_weight="1" android:layout_marginTop="0dp" android:text="@string/canvas_unset" android:accessibilityLiveRegion="polite" />
+                    <Button android:id="@+id/paper_button" style="@style/TextButton" android:layout_width="wrap_content" android:text="@string/paper_settings" />
+                </LinearLayout>
+                <TextView style="@style/Section" android:text="@string/recent_result" android:layout_marginTop="16dp" />
+                <TextView android:id="@+id/home_result" style="@style/FieldLabel" android:text="@string/no_print_result" android:accessibilityLiveRegion="polite" android:textIsSelectable="true" />
+                <TextView style="@style/HelpText" android:text="@string/send_help" />
             </LinearLayout>
         </ScrollView>
     </LinearLayout>
+    <ScrollView android:id="@+id/device_page" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:visibility="gone">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <include layout="@layout/section_device" />
+            <TextView android:id="@+id/sdk_version" style="@style/HelpText" android:text="@string/sdk_version_unknown" android:saveEnabled="false" />
+        </LinearLayout>
+    </ScrollView>
+    <ScrollView android:id="@+id/paper_page" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:visibility="gone">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <include layout="@layout/section_dimensions" />
+            <include layout="@layout/section_media" />
+        </LinearLayout>
+    </ScrollView>
+    <ScrollView android:id="@+id/tools_page" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:visibility="gone">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <Button android:id="@+id/open_logs" style="@style/SecondaryButton" android:text="@string/logs_title" />
+            <Button android:id="@+id/open_raw" style="@style/SecondaryButton" android:text="@string/raw_title" />
+            <Button android:id="@+id/config_button" style="@style/SecondaryButton" android:text="@string/config_tools" />
+            <include layout="@layout/section_examples_diagnostics" />
+        </LinearLayout>
+    </ScrollView>
     <ScrollView android:id="@+id/raw_page" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:visibility="gone">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
             <TextView style="@style/HelpText" android:text="@string/raw_help" />
             <TextView style="@style/FieldLabel" android:text="@string/raw_hex_label" android:labelFor="@id/raw_hex" />
             <EditText android:id="@+id/raw_hex" style="@style/Field" android:inputType="textMultiLine|textNoSuggestions" android:gravity="top|start" android:minLines="4" android:hint="@string/raw_hex_hint" android:fontFamily="monospace" android:saveEnabled="false" android:importantForAutofill="no" android:nextFocusForward="@id/raw_copies" />
-            <TextView style="@style/FieldLabel" android:text="@string/raw_copies_label" android:labelFor="@id/raw_copies" />
-            <EditText android:id="@+id/raw_copies" style="@style/Field" android:inputType="number" android:text="@string/copies_default" android:nextFocusForward="@id/send_raw" />
+            <TextView style="@style/FieldLabel" android:text="@string/raw_copies_label" android:labelFor="@id/raw_copies" android:visibility="gone" />
+            <EditText android:id="@+id/raw_copies" style="@style/Field" android:inputType="number" android:text="@string/copies_default" android:nextFocusForward="@id/send_raw" android:visibility="gone" />
             <Button android:id="@+id/send_raw" style="@style/PrimaryButton" android:text="@string/send_raw" android:enabled="false" />
             <TextView android:id="@+id/raw_hint" style="@style/HelpText" android:accessibilityLiveRegion="polite" />
         </LinearLayout>
@@ -52,9 +79,8 @@
     </LinearLayout>
     <LinearLayout android:id="@+id/action_bar" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="8dp" android:paddingBottom="8dp" android:background="@color/action_surface" android:elevation="6dp">
         <TextView android:id="@+id/print_hint" style="@style/FieldLabel" android:layout_marginTop="0dp" android:minHeight="48dp" android:gravity="center_vertical" android:background="?android:attr/selectableItemBackground" android:text="@string/initial_print_hint" android:accessibilityLiveRegion="polite" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:id="@+id/print_actions">
-            <Button android:id="@+id/preview" style="@style/SecondaryButton" android:layout_width="0dp" android:layout_weight="1" android:layout_marginEnd="8dp" android:text="@string/preview" />
-            <Button android:id="@+id/print" style="@style/PrimaryButton" android:layout_width="0dp" android:layout_weight="1" android:text="@string/print_test" android:enabled="false" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:id="@+id/print_actions">
+            <Button android:id="@+id/print" style="@style/PrimaryButton" android:text="@string/print_test" android:enabled="false" />
         </LinearLayout>
         <Button android:id="@+id/cancel" style="@style/SecondaryButton" android:text="@string/cancel" android:enabled="false" android:visibility="gone" />
     </LinearLayout>

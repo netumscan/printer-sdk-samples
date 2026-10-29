@@ -1,6 +1,6 @@
 # Flutter Quick Start
 
-NETUM Printer SDK `0.3.0-preview.16` 的 Android／iOS 快速示例。Android 精确依赖 Maven Central，iOS 精确依赖公开 Swift Package；克隆本示例仓库即可构建，无需 SDK 私有源码。
+NETUM Printer SDK `0.3.0-preview.17` 的 Android／iOS 快速示例。Android 精确依赖 Maven Central，iOS 精确依赖公开 Swift Package；克隆本示例仓库即可构建，无需 SDK 私有源码。
 
 ## 运行
 
@@ -25,7 +25,9 @@ iOS 真机运行时在 Xcode 中为 Runner 选择自己的签名团队；仓库�
 
 ## 接入自己的页面
 
-`lib/printer_bridge.dart` 封装通道，`lib/demo_controller.dart` 管理页面状态。每个 engine 的原生适配层持有独立 `PrinterManager`，SDK RequestId 和平台句柄不出原生层。普通方法在 SDK 最终回调时回复一次；取消仅确认控制信号，原请求仍需等待终态。
+`lib/printer_bridge.dart` 封装通道，`lib/demo_controller.dart` 管理页面状态。每个 engine 的原生适配层持有独立 `PrinterManager`，SDK RequestId 和平台句柄不出原生层。Android bridge 实现 `PrinterListener` 并设置 `manager.setListener(this)`；iOS bridge 实现 `PrinterDelegate` 并设置 `manager.delegate = self`，由 Flutter engine 持有 bridge 以维持弱 delegate 的寿命。原生层保留每个 SDK 请求 ID，按统一结果回调完成对应的 Dart Future；不向 SDK 传逐调用回调。取消仅确认控制信号，原请求仍需等待终态。
+
+Flutter 的设备列表在扫描终态返回后更新。需要边扫边显示的原生接入方式见 Android／iOS Quick Start 和 Full Demo；它们通过 Listener／Delegate 的设备发现事件实时更新列表。
 
 ```dart
 final bridge = PrinterBridge(); // 由 App owner 创建并持有
@@ -75,6 +77,6 @@ xcodebuild -project flutter/ios/Runner.xcodeproj -scheme Runner \
   ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
 ```
 
-18 项 Flutter 测试覆盖参数、typed bytes、取消终态、后台竞态、无自动重连／重播、非法尺寸和窄屏布局；5 项 iOS RunnerTests 覆盖原生桥接边界及真实 engine detach。CI 入口见 [验证说明](../VERIFICATION.md)。软件检查不替代实体蓝牙、纸面、固件或手机峰值内存验收，`hardware_verified=false`。
+18 项 Flutter 测试覆盖参数、typed bytes、取消终态、后台竞态、无自动重连／重播、非法尺寸和窄屏布局；6 项 iOS RunnerTests 覆盖原生桥接边界、异步请求与重复 token、关闭屏障及真实 engine detach。CI 入口见 [验证说明](../VERIFICATION.md)。软件检查不替代实体蓝牙、纸面、固件或手机峰值内存验收，`hardware_verified=false`。
 
 更多说明见 [SDK 接入](../docs/integration.md)、[API 与生命周期](../docs/api-lifecycle.md)、[设备与纸张](../docs/configuration.md)。

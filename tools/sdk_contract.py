@@ -6,9 +6,10 @@ import re
 
 MINIMAL_API_ABI = {"0.3.0-preview.10": (3, 2), "0.3.0-preview.11": (3, 2),
                    "0.3.0-preview.14": (3, 3), "0.3.0-preview.15": (3, 3),
-                   "0.3.0-preview.16": (3, 3)}
+                   "0.3.0-preview.16": (3, 3), "0.3.0-preview.17": (3, 3)}
 MINIMAL_API_VERSIONS = frozenset(MINIMAL_API_ABI)
-UNIFIED_FLUTTER_VERSIONS = frozenset({"0.3.0-preview.11", "0.3.0-preview.14", "0.3.0-preview.16"})
+UNIFIED_RECEIVER_VERSIONS = frozenset({"0.3.0-preview.17"})
+UNIFIED_FLUTTER_VERSIONS = frozenset({"0.3.0-preview.11", "0.3.0-preview.14", "0.3.0-preview.16"}) | UNIFIED_RECEIVER_VERSIONS
 IOS_OVERLAY_VERSIONS = frozenset({"0.3.0-preview.15", "0.3.0-preview.16"})
 
 
@@ -65,6 +66,8 @@ def c_export_count(lock):
 
 def ios_test_count(lock):
     identity = abi_identity(lock)
+    if lock.get("version") in UNIFIED_RECEIVER_VERSIONS:
+        return 20
     if lock.get("version") in MINIMAL_API_VERSIONS:
         return 18
     return 15 if identity == (3, 2) else 10 if identity[0] == 3 else 4
@@ -174,6 +177,11 @@ def validate_ios_runtime_api(value, lock):
     expected_lifecycle = {"operations": ["sdkInfo", "disconnect", "disconnect", "sdkInfo", "close", "close", "sdkInfo"],
         "codes": [0, 0, 0, 0, 0, 0, 1002], "callbacks_on_main_thread": True, "callbacks_asynchronous": True,
         "exactly_once": True, "completion_none": True, "output_may_have_occurred": False}
+    if lock.get("version") in UNIFIED_RECEIVER_VERSIONS:
+        # The final close releases the single delegate registration. Requests
+        # after permanent close cannot be used as callback evidence for .17.
+        expected_lifecycle.update(operations=["sdkInfo", "disconnect", "disconnect", "sdkInfo", "close", "close"],
+                                  codes=[0, 0, 0, 0, 0, 0])
     if (lifecycle != expected_lifecycle or not isinstance(lifecycle, dict)
             or any(type(code) is not int for code in lifecycle.get("codes", []))
             or any(type(lifecycle.get(name)) is not bool for name in ("callbacks_on_main_thread",

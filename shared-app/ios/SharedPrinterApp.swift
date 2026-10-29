@@ -3,7 +3,8 @@ import XLPrinterSDK
 
 // The application owns this object. Pages subscribe to App state, never SDK internals.
 @MainActor
-final class SharedPrinterApp {
+final class SharedPrinterApp: PrinterDelegate {
+    enum LifecycleError: Error { case closed, noSavedDevice }
     enum Phase: Sendable { case disconnected, connecting, connected, disconnecting, closed }
     enum BackgroundPolicy { case keepConnection, disconnect }
     struct ViewState: Sendable {
@@ -28,7 +29,16 @@ final class SharedPrinterApp {
     private var endpoint: DiscoveredPrinter?
     private var endpointModel: PrinterModel?
     private var foreground = true
-    init(manager: PrinterManager = PrinterManager()) { self.manager = manager }
+    private var connections: [RequestID: @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void] = [:]
+    private var cleanup: [RequestID: @MainActor @Sendable (ManagerResult<Void>) -> Void] = [:]
+    private var closeRequest: RequestID?
+    private var closeResult: ManagerResult<Void>?
+    private var closeWaiters: [@MainActor @Sendable (ManagerResult<Void>) -> Void] = []
+    private var closingOwner: SharedPrinterApp?
+    init(manager: PrinterManager = PrinterManager()) { self.manager = manager; manager.delegate = self }
+    private func requireOpen() throws {
+        guard phase != .closed else { throw LifecycleError.closed }
+    }
     var viewState: ViewState {
         ViewState(phase: phase, pendingPrintCount: pending.count, completed: completed, errorCode: errorCode)
     }
@@ -44,64 +54,80 @@ final class SharedPrinterApp {
     }
     @discardableResult
     func connect(_ device: DiscoveredPrinter, model: PrinterModel? = nil,
-                 completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { _ in }) -> RequestID {
+                 completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { _ in }) throws -> RequestID {
+        try requireOpen()
+        let id = model.map { manager.connectBle(device: device, model: $0) } ?? manager.connectBle(device: device)
+        connections[id] = completion
         endpoint = device
         endpointModel = model
         if phase == .disconnected { phase = .connecting; errorCode = nil; publish() }
-        let completed: @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void = { [weak self] result in
-            if let self, phase != .closed {
-                if result.isSuccess { phase = .connected }
-                else if phase == .connecting { phase = .disconnected }
-                errorCode = result.isSuccess ? nil : result.code
-                publish()
-            }
-            completion(result)
+        return id
+    }
+    func printerManager(_ manager: PrinterManager, didFinishConnecting result: ManagerResult<ConnectionInfo>) {
+        if phase != .closed {
+            if result.isSuccess { phase = .connected }
+            else if phase == .connecting { phase = .disconnected }
+            errorCode = result.isSuccess ? nil : result.code
+            publish()
         }
-        let disconnected: @MainActor @Sendable (ManagerResult<Void>) -> Void = { [weak self] result in
-            guard let self, phase != .closed else { return }
-            phase = .disconnected; errorCode = result.code; publish()
-        }
-        if let model {
-            return manager.connectBle(device: device, model: model, completion: completed, onDisconnected: disconnected)
-        }
-        return manager.connectBle(device: device, completion: completed, onDisconnected: disconnected)
+        connections.removeValue(forKey: result.requestID)?(result)
+    }
+    func printerManager(_ manager: PrinterManager, didLoseConnection result: ManagerResult<Void>) {
+        guard phase != .closed else { return }
+        phase = .disconnected; errorCode = result.code; publish()
     }
     // Explicit retry reconnects only; it never resubmits a previous print.
-    func retryConnection(completion: @escaping @MainActor @Sendable (ManagerResult<ConnectionInfo>) -> Void) {
-        guard let endpoint else { return }
+    func retryConnection(completion: @escaping @MainActor @Sendable (Result<ManagerResult<ConnectionInfo>, LifecycleError>) -> Void) throws {
+        try requireOpen()
+        guard let endpoint else { throw LifecycleError.noSavedDevice }
         let model = endpointModel
-        disconnect { [weak self] _ in self?.connect(endpoint, model: model, completion: completion) }
+        try disconnect { [self] _ in
+            do { try connect(endpoint, model: model) { completion(.success($0)) } }
+            catch { completion(.failure(.closed)) }
+        }
     }
     @discardableResult
-    func printLabel(pngJpeg: Data, widthMm: Double, heightMm: Double) -> RequestID {
-        let id = manager.printEncodedImage(pngJpeg, widthMm: widthMm, heightMm: heightMm) { [weak self] result in
-            guard let self else { return }
-            pending.remove(result.requestID); completed = result
-            errorCode = result.isSuccess ? nil : result.code
-            publish() // A retired print updates history, not connection readiness.
-        }
+    func printLabel(pngJpeg: Data, widthMm: Double, heightMm: Double) throws -> RequestID {
+        try requireOpen()
+        let id = manager.printEncodedImage(pngJpeg, widthMm: widthMm, heightMm: heightMm)
         pending.insert(id); publish(); return id
+    }
+    func printerManager(_ manager: PrinterManager, didFinishPrinting result: ManagerResult<Void>) {
+        pending.remove(result.requestID); completed = result
+        errorCode = result.isSuccess ? nil : result.code
+        publish() // A retired print updates history, not connection readiness.
     }
     func cancelPrint() { for id in pending { manager.cancel(id) } }
     func cancel(_ id: RequestID) { manager.cancel(id) }
-    func disconnect(_ completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) {
-        if phase != .closed { phase = .disconnecting; publish() }
-        manager.disconnect { [weak self] result in
-            if let self, phase != .closed { phase = .disconnected; publish() }
-            completion(result)
-        }
+    func disconnect(_ completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) throws {
+        try requireOpen()
+        cleanup[manager.disconnect()] = completion
+        phase = .disconnecting; publish()
+    }
+    func printerManager(_ manager: PrinterManager, didFinishDisconnecting result: ManagerResult<Void>) {
+        if phase != .closed { phase = .disconnected; publish() }
+        cleanup.removeValue(forKey: result.requestID)?(result)
     }
     func applicationActive(_ active: Bool, background policy: BackgroundPolicy,
-                           completion: @escaping @MainActor @Sendable () -> Void = {}) {
+                           completion: @escaping @MainActor @Sendable () -> Void = {}) throws {
+        try requireOpen()
         foreground = active
-        if !active && policy == .disconnect { disconnect { _ in completion() } }
+        if !active && policy == .disconnect { try disconnect { _ in completion() } }
         else { completion() }
     }
     func close(_ completion: @escaping @MainActor @Sendable (ManagerResult<Void>) -> Void = { _ in }) {
+        if let closeResult { DispatchQueue.main.async { completion(closeResult) }; return }
         phase = .closed
-        manager.close { [weak self] result in
-            self?.publish(); self?.pages.removeAll(); completion(result)
-        }
+        closeWaiters.append(completion)
+        if closeRequest == nil { closingOwner = self; closeRequest = manager.close() }
+    }
+    func printerManager(_ manager: PrinterManager, didFinishClosing result: ManagerResult<Void>) {
+        guard closeRequest == result.requestID else { return }
+        closeResult = result; closeRequest = nil
+        publish(); pages.removeAll()
+        let waiters = closeWaiters; closeWaiters.removeAll()
+        for completion in waiters { completion(result) }
+        closingOwner = nil
     }
 }
 

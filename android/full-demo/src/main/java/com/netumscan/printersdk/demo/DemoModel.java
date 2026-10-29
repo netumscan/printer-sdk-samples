@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
  * 按 connect → print → cancel / disconnect 阅读即可了解主要用法，后面是可选诊断与状态维护。
  * Manager 负责后台准备、请求生命周期和设备 IO；本类不另建打印队列，也不持有原生句柄。
  */
-final class DemoModel implements AutoCloseable {
+final class DemoModel implements AutoCloseable, PrinterListener {
     private final PrinterManager manager;
     interface SampleFactory { DemoPrintData create(DemoPixelSamples.Example example, LabelConfig config, ImageCancellation cancelled); }
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -41,7 +41,7 @@ final class DemoModel implements AutoCloseable {
     // 分别跟踪普通请求、设备发现和当前连接，避免迟到回调修改后续请求的状态。
     private RequestId active, discovery, connection;
     private DemoResult.Kind activeKind;
-    private boolean connected, disconnecting, foreground, closed, cancelling;
+    private boolean connected, disconnecting, foreground, closed, cancelling, discoveryStopping;
     private boolean connectionBle;
     private StatusResult liveStatus;
     private String inputError, selectedID;
@@ -60,6 +60,10 @@ final class DemoModel implements AutoCloseable {
     private DemoResult<Void> disconnectedResult, cleanupResult;
     private DemoGeometry printProfile;
     private ConnectionInfo connectionInfo;
+    private DemoGeometry configurationPreviousProfile;
+    private ConnectionInfo configurationPreviousInfo;
+    private boolean configurationPreviousConfigured;
+    private long configurationVersion;
     private boolean configured;
     private long connectionVersion;
     private PaperType selectedMedia = PaperType.GAP_LABEL;
@@ -86,15 +90,8 @@ final class DemoModel implements AutoCloseable {
     private DemoModel(PrinterManager manager, ExecutorService worker, SampleFactory samples, boolean ownsWorker) {
         this.manager = manager; imageWorker = worker; this.samples = samples; ownsImageWorker = ownsWorker;
         publish();
-        manager.setStatusListener(status -> {
-            if (connected && foreground && !disconnecting && !closed) { liveStatus = status; publish(); }
-        });
-        RequestId identity = manager.sdkInfo(result -> {
-            pending.remove(result.requestId);
-            identityResult = new DemoResult<>(DemoResult.Kind.IDENTITY, result); record(identityResult);
-            if (closed) return;
-            publish();
-        });
+        manager.setListener(this);
+        RequestId identity = manager.sdkInfo();
         track(identity, RequestGroup.INDEPENDENT);
     }
     DemoUiState state() { return state; }
@@ -111,37 +108,10 @@ final class DemoModel implements AutoCloseable {
         connectionBle = ble;
         selectedMedia = media;
         mediaRequest = null; configured = false; printProfile = null; connectionInfo = null;
-        final long version = ++connectionVersion;
+        ++connectionVersion;
         begin(DemoResult.Kind.CONNECT);
-        PrinterManager.Callback<ConnectionInfo> completion = result -> {
-            pending.remove(result.requestId);
-            DemoResult<ConnectionInfo> completed = new DemoResult<>(DemoResult.Kind.CONNECT, result);
-            record(completed); lastRequest = completed; latestResult = completed;
-            if (closed || version != connectionVersion || active != result.requestId) { publish(); return; }
-            active = null; cancelling = false;
-            if (!disconnecting) {
-                connected = result.outcome == ManagerResult.Outcome.SUCCESS;
-                if (!connected) { connection = null; disconnect(); }
-                else {
-                    connectionInfo = result.value;
-                    printProfile = geometry(connectionInfo);
-                    configured = printProfile != null;
-                }
-            }
-            publish();
-        };
-        PrinterManager.DisconnectedListener disconnected = result -> {
-            // SDK 已停止 IO、清理旧连接并安排请求终态，无需再调用一次 disconnect。
-            if (closed || version != connectionVersion || disconnecting) return;
-            ++connectionVersion; cancelPreparation();
-            connection = null; connected = false; mediaRequest = null;
-            configured = false; printProfile = null; connectionInfo = null;
-            disconnectedResult = new DemoResult<>(DemoResult.Kind.DISCONNECTED, result); record(disconnectedResult);
-            publish();
-        };
-        active = ble ? model == null ? manager.connectBle(target, completion, disconnected) :
-            manager.connectBle(target, model, completion, disconnected) : model == null ?
-            manager.connectSpp(target, completion, disconnected) : manager.connectSpp(target, model, completion, disconnected);
+        active = ble ? model == null ? manager.connectBle(target) : manager.connectBle(target, model) :
+            model == null ? manager.connectSpp(target) : manager.connectSpp(target, model);
         connection = active;
         track(active, RequestGroup.LIFECYCLE);
         publish();
@@ -151,27 +121,13 @@ final class DemoModel implements AutoCloseable {
     /** 型号选择只更新连接配置，不隐式发送纸张设置。 */
     void configureModel(PrinterModel model) {
         if (!state.canWork()) return;
-        final DemoGeometry previous = printProfile;
-        final ConnectionInfo previousInfo = connectionInfo;
-        final boolean previousConfigured = configured;
-        final long version = connectionVersion;
+        configurationPreviousProfile = printProfile;
+        configurationPreviousInfo = connectionInfo;
+        configurationPreviousConfigured = configured;
+        configurationVersion = connectionVersion;
         configured = false;
         begin(DemoResult.Kind.PROFILE);
-        active = manager.setPrinterModel(model, result -> {
-            DemoResult<ConnectionInfo> completed = new DemoResult<>(DemoResult.Kind.PROFILE, result); record(completed);
-            if (!takeResult(result)) { publish(); return; }
-            lastRequest = completed; latestResult = lastRequest;
-            if (version == connectionVersion && connected && !disconnecting) {
-                if (result.outcome == ManagerResult.Outcome.SUCCESS) {
-                    connectionInfo = result.value;
-                    printProfile = geometry(connectionInfo); mediaRequest = null;
-                    configured = printProfile != null;
-                } else {
-                    printProfile = previous; connectionInfo = previousInfo; configured = previousConfigured;
-                }
-            }
-            publish();
-        });
+        active = manager.setPrinterModel(model);
         track(active, RequestGroup.DEVICE);
         publish();
     }
@@ -264,8 +220,8 @@ final class DemoModel implements AutoCloseable {
     private void submitPrint(DemoPrintData print, String description, boolean notify) {
         begin(DemoResult.Kind.PRINT);
         RequestId requestId = print.encoded == null
-            ? manager.printImage(print.bitmap, print.config.widthMm(), print.config.heightMm(), this::completedPrint)
-            : manager.printEncodedImage(print.encoded, print.config.widthMm(), print.config.heightMm(), this::completedPrint);
+            ? manager.printImage(print.bitmap, print.config.widthMm(), print.config.heightMm())
+            : manager.printEncodedImage(print.encoded, print.config.widthMm(), print.config.heightMm());
         track(requestId, RequestGroup.DEVICE);
         trimPrintHistory();
         printRequests.add(new DemoUiState.PrintRequest(++nextPrintSequence, requestId, description, false, null));
@@ -336,15 +292,7 @@ final class DemoModel implements AutoCloseable {
         disconnecting = true; ++connectionVersion; connection = null; inputError = null; mediaRequest = null;
         configured = false; printProfile = null; connectionInfo = null;
         publish();
-        RequestId cleanup = manager.disconnect(result -> {
-            pending.remove(result.requestId);
-            DemoResult<Void> completed = new DemoResult<>(DemoResult.Kind.DISCONNECT, result); record(completed);
-            if (closed) return;
-            active = null; discovery = null; connected = false; disconnecting = false; cancelling = false;
-            cleanupResult = completed;
-            // 单独记录清理结果，保留原打印/取消终态及 outputMayHaveOccurred。
-            publish();
-        });
+        RequestId cleanup = manager.disconnect();
         track(cleanup, RequestGroup.LIFECYCLE);
     }
 
@@ -357,7 +305,7 @@ final class DemoModel implements AutoCloseable {
         // 任意 Raw 可能改变设备介质模式，不能继续展示先前介质请求为当前状态。
         mediaRequest = null; configured = printProfile != null;
         begin(DemoResult.Kind.RAW);
-        active = manager.sendRaw(bytes, result -> completed(DemoResult.Kind.RAW, result));
+        active = manager.sendRaw(bytes);
         track(active, RequestGroup.DEVICE);
         publish();
     }
@@ -367,7 +315,7 @@ final class DemoModel implements AutoCloseable {
         if (mode == null) throw new IllegalArgumentException("请选择介质类型");
         begin(DemoResult.Kind.MEDIA);
         selectedMedia = mode;
-        active = manager.setPaperType(mode, result -> completed(DemoResult.Kind.MEDIA, result));
+        active = manager.setPaperType(mode);
         track(active, RequestGroup.DEVICE);
         // 所有输入校验完成、请求已提交后才替换快照，失败输入不能重标旧成功结果。
         mediaRequest = new DemoUiState.MediaRequest(mode, connection, active, null);
@@ -377,7 +325,7 @@ final class DemoModel implements AutoCloseable {
     void feed() {
         if (!state.canWork()) return;
         begin(DemoResult.Kind.FEED);
-        active = manager.locateNextLabel( result -> completed(DemoResult.Kind.FEED, result));
+        active = manager.locateNextLabel();
         track(active, RequestGroup.DEVICE);
         publish();
     }
@@ -385,12 +333,7 @@ final class DemoModel implements AutoCloseable {
     void getStatus() {
         if (!state.canWork()) return;
         begin(DemoResult.Kind.STATUS);
-        active = manager.getStatus(result -> {
-            DemoResult<Void> completed = new DemoResult<>(DemoResult.Kind.STATUS, result); record(completed);
-            if (!takeResult(result)) { publish(); return; }
-            statusResult = completed; latestResult = statusResult;
-            publish();
-        });
+        active = manager.getStatus();
         track(active, RequestGroup.DEVICE);
         publish();
     }
@@ -398,12 +341,7 @@ final class DemoModel implements AutoCloseable {
     void capabilities() {
         if (!state.canWork()) return;
         begin(DemoResult.Kind.CAPABILITIES);
-        active = manager.capabilities(result -> {
-            DemoResult<PrinterCapabilities> completed = new DemoResult<>(DemoResult.Kind.CAPABILITIES, result); record(completed);
-            if (!takeResult(result)) { publish(); return; }
-            capabilitiesResult = completed; latestResult = capabilitiesResult;
-            publish();
-        });
+        active = manager.capabilities();
         track(active, RequestGroup.DEVICE);
         publish();
     }
@@ -412,29 +350,21 @@ final class DemoModel implements AutoCloseable {
     void discover(boolean ble) {
         if (!state.canDiscover() || discovery != null) return;
         inputError = null;
-        DemoResult.Kind kind = ble ? DemoResult.Kind.SCAN : DemoResult.Kind.BONDED;
-        PrinterManager.Callback<List<DiscoveredDevice>> completion = result -> {
-            pending.remove(result.requestId);
-            DemoResult<List<DiscoveredDevice>> completed = new DemoResult<>(kind, result); record(completed);
-            if (closed || discovery != result.requestId) { publish(); return; }
-            discovery = null;
-            discoveryResult = completed; latestResult = discoveryResult;
-            if (result.outcome == ManagerResult.Outcome.SUCCESS && foreground && !disconnecting) {
-                candidates = result.value == null ? Collections.emptyList() : new ArrayList<>(result.value);
-                if (selectedID != null && !containsCandidate(selectedID)) selectedID = null;
-            }
-            publish();
-        };
-        discovery = ble ? manager.scanBle(completion) : manager.bondedDevices(completion);
+        candidates = Collections.emptyList(); selectedID = null; discoveryResult = null; discoveryStopping = false;
+        discovery = ble ? manager.scanBle() : manager.bondedDevices();
         track(discovery, RequestGroup.INDEPENDENT);
         publish();
     }
-    void stopDiscovery() { if (discovery != null) manager.cancel(discovery); }
+    void stopDiscovery() {
+        if (discovery == null || discoveryStopping) return;
+        discoveryStopping = true;
+        manager.cancel(discovery);
+    }
     /** 切换传输或加载配置时清除候选与选择，不因此扫描、连接或发送。 */
     void clearCandidates() {
-        if (!state.canEditConnection()) return;
+        if (!state.canDiscover()) return;
         if (discovery != null) { manager.cancel(discovery); discovery = null; }
-        selectedID = null; candidates = Collections.emptyList(); discoveryResult = null;
+        selectedID = null; candidates = Collections.emptyList(); discoveryResult = null; discoveryStopping = false;
         publish();
     }
     /** 仅记录用户明确选中的候选，地址回填和后续连接由界面显式操作。 */
@@ -451,16 +381,118 @@ final class DemoModel implements AutoCloseable {
     void background() { foreground = false; publish(); disconnect(); }
     /** 永久结束本 Model，先停止向界面回调，再交给 Manager 异步释放设备资源。 */
     @Override public void close() {
-        manager.setStatusListener(null);
         if (closed) return;
         closed = true; foreground = false; changed = null; mediaRequest = null;
         cancelPreparation(); if (ownsImageWorker) imageWorker.shutdown();
         connected = false; configured = false; printProfile = null; connectionInfo = null;
-        RequestId cleanup = manager.close(result -> {
-            pending.remove(result.requestId);
-            record(new DemoResult<>(DemoResult.Kind.CLOSE, result));
-        });
+        RequestId cleanup = manager.close();
         track(cleanup, RequestGroup.LIFECYCLE);
+        publish();
+    }
+    @Override public void onStatusChanged(StatusResult status) {
+        if (connected && foreground && !disconnecting && !closed) { liveStatus = status; publish(); }
+    }
+    @Override public void onSdkInfoCompleted(ManagerResult<SdkInfo> result) {
+        pending.remove(result.requestId);
+        identityResult = new DemoResult<>(DemoResult.Kind.IDENTITY, result); record(identityResult);
+        if (!closed) publish();
+    }
+    @Override public void onConnectionCompleted(ManagerResult<ConnectionInfo> result) {
+        pending.remove(result.requestId);
+        DemoResult<ConnectionInfo> completed = new DemoResult<>(DemoResult.Kind.CONNECT, result);
+        record(completed); lastRequest = completed; latestResult = completed;
+        if (closed || connection != result.requestId || active != result.requestId) { publish(); return; }
+        active = null; cancelling = false;
+        if (!disconnecting) {
+            connected = result.outcome == ManagerResult.Outcome.SUCCESS;
+            if (!connected) { connection = null; disconnect(); }
+            else {
+                connectionInfo = result.value;
+                printProfile = geometry(connectionInfo);
+                configured = printProfile != null;
+            }
+        }
+        publish();
+    }
+    @Override public void onDisconnected(ManagerResult<Void> result) {
+        // SDK 已停止 IO、清理旧连接并安排请求终态，无需再调用一次 disconnect。
+        if (closed || connection != result.requestId || disconnecting) return;
+        ++connectionVersion; cancelPreparation();
+        connection = null; connected = false; mediaRequest = null;
+        configured = false; printProfile = null; connectionInfo = null;
+        disconnectedResult = new DemoResult<>(DemoResult.Kind.DISCONNECTED, result); record(disconnectedResult);
+        publish();
+    }
+    @Override public void onModelConfigurationCompleted(ManagerResult<ConnectionInfo> result) {
+        DemoResult<ConnectionInfo> completed = new DemoResult<>(DemoResult.Kind.PROFILE, result); record(completed);
+        if (!takeResult(result)) { publish(); return; }
+        lastRequest = completed; latestResult = lastRequest;
+        if (configurationVersion == connectionVersion && connected && !disconnecting) {
+            if (result.outcome == ManagerResult.Outcome.SUCCESS) {
+                connectionInfo = result.value;
+                printProfile = geometry(connectionInfo); mediaRequest = null;
+                configured = printProfile != null;
+            } else {
+                printProfile = configurationPreviousProfile; connectionInfo = configurationPreviousInfo; configured = configurationPreviousConfigured;
+            }
+        }
+        publish();
+    }
+    @Override public void onDisconnectCompleted(ManagerResult<Void> result) {
+        pending.remove(result.requestId);
+        DemoResult<Void> completed = new DemoResult<>(DemoResult.Kind.DISCONNECT, result); record(completed);
+        if (closed) return;
+        active = null; discovery = null; connected = false; disconnecting = false; cancelling = false;
+        cleanupResult = completed;
+        // 单独记录清理结果，保留原打印/取消终态及 outputMayHaveOccurred。
+        publish();
+    }
+    @Override public void onCloseCompleted(ManagerResult<Void> result) {
+        pending.remove(result.requestId);
+        record(new DemoResult<>(DemoResult.Kind.CLOSE, result));
+    }
+    @Override public void onPrintCompleted(ManagerResult<Void> result) { completedPrint(result); }
+    @Override public void onRawCompleted(ManagerResult<Void> result) { completed(DemoResult.Kind.RAW, result); }
+    @Override public void onPaperTypeCompleted(ManagerResult<Void> result) { completed(DemoResult.Kind.MEDIA, result); }
+    @Override public void onLabelPositioningCompleted(ManagerResult<Void> result) { completed(DemoResult.Kind.FEED, result); }
+    @Override public void onStatusQueryCompleted(ManagerResult<Void> result) {
+        DemoResult<Void> completed = new DemoResult<>(DemoResult.Kind.STATUS, result); record(completed);
+        if (!takeResult(result)) { publish(); return; }
+        statusResult = completed; latestResult = statusResult;
+        publish();
+    }
+    @Override public void onCapabilitiesCompleted(ManagerResult<PrinterCapabilities> result) {
+        DemoResult<PrinterCapabilities> completed = new DemoResult<>(DemoResult.Kind.CAPABILITIES, result); record(completed);
+        if (!takeResult(result)) { publish(); return; }
+        capabilitiesResult = completed; latestResult = capabilitiesResult;
+        publish();
+    }
+    @Override public void onScanCompleted(ManagerResult<List<DiscoveredDevice>> result) {
+        discoveryCompleted(DemoResult.Kind.SCAN, result);
+    }
+    @Override public void onBondedDevicesCompleted(ManagerResult<List<DiscoveredDevice>> result) {
+        discoveryCompleted(DemoResult.Kind.BONDED, result);
+    }
+    private void discoveryCompleted(DemoResult.Kind kind, ManagerResult<List<DiscoveredDevice>> result) {
+        pending.remove(result.requestId);
+        DemoResult<List<DiscoveredDevice>> completed = new DemoResult<>(kind, result); record(completed);
+        if (closed || discovery != result.requestId) { publish(); return; }
+        discovery = null;
+        discoveryStopping = false;
+        discoveryResult = completed; latestResult = discoveryResult;
+        if (result.outcome == ManagerResult.Outcome.SUCCESS && foreground && !disconnecting) {
+            candidates = result.value == null ? Collections.emptyList() : new ArrayList<>(result.value);
+            if (selectedID != null && !containsCandidate(selectedID)) selectedID = null;
+        }
+        publish();
+    }
+    @Override public void onDeviceDiscovered(RequestId scanId, DiscoveredDevice device) {
+        if (closed || discovery != scanId || discoveryStopping || !foreground || disconnecting) return;
+        ArrayList<DiscoveredDevice> updated = new ArrayList<>(candidates);
+        int index = -1;
+        for (int i = 0; i < updated.size(); ++i) if (updated.get(i).address.equals(device.address)) { index = i; break; }
+        if (index < 0) updated.add(device); else updated.set(index, device);
+        candidates = updated;
         publish();
     }
     /** 仅接收当前请求的终态；关闭后的回调和旧请求的结果不再改变界面状态。 */

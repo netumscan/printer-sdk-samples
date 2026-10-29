@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 NETUM
 import CPrinterSDK
+import Combine
 import Foundation
 import CoreBluetooth
 @testable import XLPrinterSDK
@@ -25,6 +26,7 @@ final class PrinterSamplesTests: XCTestCase {
     func testModelCloseIsPermanentAndImmediatelyStopsManagerAdmission() async {
         let manager = PrinterManager(), model = QuickStartModel(manager: manager)
         model.close(); model.close(); model.selected = UUID(); model.connect()
+        // Internal admission/identity probe; public sample calls use PrinterDelegate.
         let result: ManagerResult<SDKInfo> = await withCheckedContinuation { continuation in
             manager.sdkInfo { continuation.resume(returning: $0) }
         }
@@ -48,6 +50,7 @@ final class PrinterSamplesTests: XCTestCase {
     }
     func testDevelopmentRuntimeIdentity() async {
         let manager = PrinterManager()
+        // Internal admission/identity probe; public sample calls use PrinterDelegate.
         let result: ManagerResult<SDKInfo> = await withCheckedContinuation { continuation in
             manager.sdkInfo { continuation.resume(returning: $0) }
         }
@@ -267,6 +270,12 @@ private final class QuickStartScanFixture: @unchecked Sendable {
             let central = Central(); self.centrals.append(central); return central
         }, scheduleDeadline: { _, _, action in self.deadlines.append(action); return Deadline() })
     }
+    func discover(_ device: DiscoveredPrinter) {
+        queue.sync {
+            let central = centrals.last!
+            central.stateChanged?(central, .poweredOn); central.discovered?(central, device)
+        }
+    }
     func complete(with device: DiscoveredPrinter) {
         queue.sync {
             let central = centrals.last!
@@ -427,6 +436,46 @@ extension PrinterSamplesTests {
         XCTAssertEqual(channel.openCount, 2); XCTAssertEqual(channel.sent, written)
     }
     @MainActor
+    func testConsumerLiveDiscoveryPrecedesTerminalAndFinalListRefreshesMergedValues() async throws {
+        let channel = QuickStartMemoryChannel(), scan = QuickStartScanFixture()
+        let manager = PrinterManager(makePrinter: { _, _ in try MobilePrinter(channel: channel) }, makeScanner: { scan.scanner() })
+        let model = QuickStartModel(manager: manager); defer { model.close() }
+        let identifier = UUID()
+        let first = DiscoveredPrinter(identifier: identifier, name: nil, advertisedServices: [], rssi: -70)
+        let updated = DiscoveredPrinter(identifier: identifier, name: "LT-M90_A1B2", advertisedServices: ["FF00"], rssi: -45)
+        let other = DiscoveredPrinter(identifier: UUID(), name: updated.name)
+        XCTAssertTrue(model.deviceRows.isEmpty); XCTAssertEqual(model.scanMessage, "尚无候选设备，点击扫描开始")
+        model.scan(); try await until { scan.count == 1 }
+        scan.discover(first)
+        try await until { model.devices.count == 1 }
+        XCTAssertTrue(model.scanning); XCTAssertNil(model.scanResult)
+        XCTAssertEqual(model.devices.first?.identifier, identifier); XCTAssertNil(model.devices.first?.name)
+        XCTAssertTrue(model.canSelectDevice); XCTAssertFalse(model.canConnect)
+        XCTAssertTrue(model.deviceRows[0].title.contains("未命名 BLE 设备")); XCTAssertEqual(model.deviceRows[0].signal, "-70 dBm")
+        model.selectDevice(identifier); model.selectDevice(UUID()); model.connect()
+        XCTAssertEqual(model.deviceRows.map(\.isSelected), [true]); XCTAssertEqual(channel.openCount, 0)
+        scan.discover(updated); scan.discover(other)
+        try await until { model.deviceRows.count == 2 }
+        for _ in 0..<5 {
+            XCTAssertEqual(model.deviceRows.map(\.id), [identifier, other.identifier])
+            XCTAssertEqual(model.deviceRows.map(\.isSelected), [true, false])
+            XCTAssertTrue(model.scanMessage.contains("扫描中 · 已发现 2")); await Task.yield()
+        }
+        XCTAssertEqual(model.devices.count, 2)
+        scan.expire(0); try await until { !model.scanning }
+        XCTAssertEqual(model.scanResult?.code, 0)
+        XCTAssertEqual(model.devices.first?.name, updated.name)
+        XCTAssertEqual(model.devices.first?.signalStrength, -45)
+        XCTAssertTrue(model.deviceRows[0].title.contains(updated.name!)); XCTAssertEqual(model.deviceRows[0].signal, "-45 dBm")
+        XCTAssertNotEqual(model.deviceRows[0].title, model.deviceRows[1].title)
+        XCTAssertEqual(model.selected, identifier); XCTAssertTrue(model.deviceRows[0].isSelected)
+        XCTAssertTrue(model.canConnect); XCTAssertTrue(model.scanMessage.contains("手动连接"))
+        let late = DiscoveredPrinter(identifier: UUID(), name: "late")
+        scan.discover(late)
+        for _ in 0..<5 { await Task.yield() }
+        XCTAssertEqual(model.devices.map(\.identifier), [identifier, other.identifier]); XCTAssertEqual(channel.openCount, 0)
+    }
+    @MainActor
     func testConsumerScanCleanupKeepsTypedCancellationCandidatesAndIgnoresLateDeadline() async throws {
         let channel = QuickStartMemoryChannel(), scan = QuickStartScanFixture()
         let manager = PrinterManager(makePrinter: { _, _ in try MobilePrinter(channel: channel) }, makeScanner: { scan.scanner() })
@@ -439,11 +488,20 @@ extension PrinterSamplesTests {
         model.scan(); try await until { scan.count == 1 }; scan.complete(with: first)
         try await until { !model.scanning }; model.selected = first.identifier
         XCTAssertEqual(model.scanResult?.value?.first?.identifier, first.identifier)
-        model.scan(); try await until { scan.count == 2 }; model.disconnect()
+        let oldResult = try XCTUnwrap(model.scanResult)
+        model.scan(); try await until { scan.count == 2 }
+        XCTAssertTrue(model.deviceRows.isEmpty); XCTAssertNil(model.selected); XCTAssertNil(model.scanResult)
+        model.printerManager(manager, didDiscover: first, scanID: oldResult.requestID)
+        model.printerManager(manager, didFinishScanning: oldResult); scan.expire(0)
+        for _ in 0..<5 { await Task.yield() }
+        XCTAssertTrue(model.scanning); XCTAssertTrue(model.deviceRows.isEmpty); XCTAssertNil(model.scanResult)
+        scan.discover(other); try await until { model.deviceRows.count == 1 }; model.selectDevice(other.identifier)
+        XCTAssertEqual(model.deviceRows[0].signal, "信号未知")
+        model.disconnect()
         try await until { model.canConnect }
         XCTAssertEqual(model.scanResult?.outcome, .cancelled); XCTAssertEqual(model.scanResult?.code, 1005)
         XCTAssertEqual(model.cleanupResult?.code, 0); XCTAssertNil(model.lastResult)
-        XCTAssertEqual(model.devices.map(\.identifier), [first.identifier]); XCTAssertEqual(model.selected, first.identifier)
+        XCTAssertEqual(model.devices.map(\.identifier), [other.identifier]); XCTAssertEqual(model.selected, other.identifier)
         let cancelledID = model.scanResult?.requestID
         scan.expire(0); scan.expire(1)
         for _ in 0..<5 { await Task.yield() }
@@ -451,13 +509,52 @@ extension PrinterSamplesTests {
         XCTAssertEqual(channel.openCount, 0)
     }
     @MainActor
+    func testConsumerStopBackgroundAndCloseRejectLateRowsAndRequireExplicitRestart() async throws {
+        let channel = QuickStartMemoryChannel(), scan = QuickStartScanFixture()
+        let manager = PrinterManager(makePrinter: { _, _ in try MobilePrinter(channel: channel) }, makeScanner: { scan.scanner() })
+        let model = QuickStartModel(manager: manager); defer { model.close() }
+        let current = DiscoveredPrinter(identifier: UUID(), name: "LT-M90_A1B2")
+        let late = DiscoveredPrinter(identifier: UUID(), name: "late")
+        model.scan(); try await until { scan.count == 1 }; scan.discover(current)
+        try await until { model.deviceRows.count == 1 }; model.selectDevice(current.identifier)
+        scan.discover(late); model.stopScan(); model.stopScan()
+        XCTAssertTrue(model.scanStopping); XCTAssertTrue(model.scanning)
+        XCTAssertFalse(model.canScan); XCTAssertFalse(model.canConnect); XCTAssertTrue(model.scanMessage.contains("正在停止"))
+        try await until { !model.scanning }
+        let cancelled = try XCTUnwrap(model.scanResult)
+        XCTAssertEqual(cancelled.code, 1005); XCTAssertNil(cancelled.value)
+        model.printerManager(manager, didDiscover: late, scanID: cancelled.requestID); scan.expire(0)
+        for _ in 0..<5 { await Task.yield() }
+        XCTAssertEqual(model.deviceRows.map(\.id), [current.identifier]); XCTAssertEqual(model.selected, current.identifier)
+        XCTAssertTrue(model.canConnect); XCTAssertEqual(channel.openCount, 0)
+        model.scan(); try await until { scan.count == 2 }; scan.discover(current)
+        try await until { model.deviceRows.count == 1 }; model.selectDevice(current.identifier)
+        scan.discover(late); model.background()
+        XCTAssertFalse(model.canSelectDevice); XCTAssertFalse(model.canScan)
+        try await until { model.phase == .offline && !model.scanning }
+        XCTAssertEqual(model.deviceRows.map(\.id), [current.identifier]); XCTAssertEqual(model.scanResult?.code, 1005)
+        model.scan(); model.connect(); XCTAssertEqual(scan.count, 2); XCTAssertEqual(channel.openCount, 0)
+        var availabilityChanges = 0
+        let observation = model.objectWillChange.sink { availabilityChanges += 1 }
+        model.foregroundEntry(); observation.cancel()
+        XCTAssertEqual(availabilityChanges, 1, "Foreground availability must invalidate the observed View")
+        XCTAssertTrue(model.canScan); XCTAssertEqual(scan.count, 2)
+        model.scan(); try await until { scan.count == 3 }; scan.discover(current)
+        try await until { model.deviceRows.count == 1 }; scan.discover(late); model.close(); scan.expire(2)
+        try await until { model.closeResult != nil }
+        XCTAssertEqual(model.phase, .closed); XCTAssertFalse(model.scanning)
+        XCTAssertEqual(model.deviceRows.map(\.id), [current.identifier]); XCTAssertFalse(model.canSelectDevice)
+        model.foregroundEntry(); model.scan(); model.connect()
+        XCTAssertEqual(scan.count, 3); XCTAssertEqual(channel.openCount, 0)
+    }
+    @MainActor
     func testConsumerCloseDoesNotReactivateFromAnOutstandingPrintCallback() async throws {
-        let channel = QuickStartMemoryChannel(), (model, manager) = consumer(channel)
+        let channel = QuickStartMemoryChannel(), (model, _) = consumer(channel)
         model.connect(); try await until { model.canPrint }; let priorID = model.connectionResult?.requestID
         channel.configure(holdWriteAfter: 3); model.printSample()
         try await until { channel.blockedWrite.wait(timeout: .now()) == .success }
         model.close()
-        await withCheckedContinuation { continuation in manager.close { _ in continuation.resume() } }
+        try await until { model.closeResult != nil }
         for _ in 0..<5 { await Task.yield() }
         model.connect(); model.printSample()
         XCTAssertEqual(model.phase, .closed); XCTAssertFalse(model.canConnect); XCTAssertFalse(model.canPrint)

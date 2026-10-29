@@ -12,6 +12,9 @@ import com.netumscan.printersdk.*;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import java.util.IdentityHashMap;
+import java.util.function.Supplier;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -110,27 +113,44 @@ public final class RuntimeGate extends Instrumentation {
         create.setAccessible(true);Handler main=new Handler(Looper.getMainLooper());
         return create.newInstance(getTargetContext().getApplicationContext(),factory,(Executor) action->main.post(action),pool(),pool());
     }
-    private static final class Reply<T> implements PrinterManager.Callback<T> {
+    private static final class Reply<T> {
         final CountDownLatch done=new CountDownLatch(1);ManagerResult<T> result;
         final AtomicInteger count=new AtomicInteger();boolean mainThread;
         public void onComplete(ManagerResult<T> value){result=value;mainThread=Looper.myLooper()==Looper.getMainLooper();count.incrementAndGet();done.countDown();}
         ManagerResult<T> await()throws Exception{require(done.await(8,TimeUnit.SECONDS),"Manager callback missing");require(count.get()==1&&mainThread,"Expected exactly one main-thread callback");return result;}
+    }
+    private static final class Replies implements PrinterListener {
+        private final IdentityHashMap<RequestId, Reply<?>> pending = new IdentityHashMap<>();
+        synchronized <T> void submit(Supplier<RequestId> start, Reply<T> reply) { pending.put(start.get(), reply); }
+        private <T> void complete(ManagerResult<T> result) {
+            Reply<?> reply;
+            synchronized (this) { reply = pending.remove(result.requestId); }
+            if (reply != null) deliver(reply, result);
+        }
+        @SuppressWarnings("unchecked") private static <T> void deliver(Reply<?> reply, ManagerResult<T> result) {
+            ((Reply<T>)reply).onComplete(result);
+        }
+        @Override public void onSdkInfoCompleted(ManagerResult<SdkInfo> result) { complete(result); }
+        @Override public void onConnectionCompleted(ManagerResult<ConnectionInfo> result) { complete(result); }
+        @Override public void onRawCompleted(ManagerResult<Void> result) { complete(result); }
+        @Override public void onCloseCompleted(ManagerResult<Void> result) { complete(result); }
     }
     private static int nativeAbi(SdkInfo info,String name)throws Exception {
         Field value=SdkInfo.class.getDeclaredField(name);value.setAccessible(true);return value.getInt(info);
     }
     private JSONObject nativeGate() throws Exception {
         Fake fake=new Fake();PrinterManager manager=memoryManager(fake);SdkInfo info;
+        Replies replies = new Replies(); manager.setListener(replies);
         try {
-            Reply<SdkInfo> identity=new Reply<>();manager.sdkInfo(identity);info=identity.await().value;
-            require(nativeAbi(info,"abiVersion")==Integer.parseInt("3")&&nativeAbi(info,"abiRevision")==Integer.parseInt("3")&&"0.3.0".equals(info.nativeVersion)&&"0.3.0-preview.16".equals(info.distributionVersion),"Loaded SDK identity differs");
-            Reply<ConnectionInfo> connection=new Reply<>();manager.connectSpp(new DiscoveredDevice("AA:BB:CC:DD:EE:01","Memory transport"),connection,null);require(connection.await().code==0,"Connect failed");
+            Reply<SdkInfo> identity=new Reply<>();replies.submit(manager::sdkInfo,identity);info=identity.await().value;
+            require(nativeAbi(info,"abiVersion")==Integer.parseInt("3")&&nativeAbi(info,"abiRevision")==Integer.parseInt("3")&&"0.3.0".equals(info.nativeVersion)&&"0.3.0-preview.17".equals(info.distributionVersion),"Loaded SDK identity differs");
+            Reply<ConnectionInfo> connection=new Reply<>();replies.submit(()->manager.connectSpp(new DiscoveredDevice("AA:BB:CC:DD:EE:01","Memory transport")),connection);require(connection.await().code==0,"Connect failed");
             require(fake.calls==0&&fake.bytes.size()==0,"Unmodelled Raw fixture unexpectedly sent connection INFO or another command");
-            Reply<Void> first=new Reply<>(),second=new Reply<>();manager.sendRaw(new byte[]{1,2,3,4,5,6,7,8,9},first);
-            require(fake.firstWrite.await(5,TimeUnit.SECONDS),"First write missing");manager.sendRaw(new byte[]{10,11,12,13,14},second);fake.release.countDown();
+            Reply<Void> first=new Reply<>(),second=new Reply<>();replies.submit(()->manager.sendRaw(new byte[]{1,2,3,4,5,6,7,8,9}),first);
+            require(fake.firstWrite.await(5,TimeUnit.SECONDS),"First write missing");replies.submit(()->manager.sendRaw(new byte[]{10,11,12,13,14}),second);fake.release.countDown();
             require(first.await().completion==ManagerResult.Completion.DATA_SENT&&second.await().completion==ManagerResult.Completion.DATA_SENT,"Native result is not DATA_SENT");
             require(Arrays.equals(fake.bytes.toByteArray(),new byte[]{1,2,3,4,5,6,7,8,9,10,11,12,13,14})&&fake.calls==5&&fake.partialWrites==3,"Raw FIFO or partial writes differ");
-        } finally {fake.release.countDown();Reply<Void> close=new Reply<>();manager.close(close);require(close.await().code==0,"Cleanup failed");}
+        } finally {fake.release.countDown();Reply<Void> close=new Reply<>();replies.submit(manager::close,close);require(close.await().code==0,"Cleanup failed");}
         return new JSONObject().put("jni_loaded",true).put("abi_handshake_passed",true)
             .put("abi_expected_version",nativeAbi(info,"abiVersion")).put("abi_minimum_revision",nativeAbi(info,"abiRevision"))
             .put("native_version",info.nativeVersion).put("distribution_version",info.distributionVersion)
@@ -170,14 +190,24 @@ public final class RuntimeGate extends Instrumentation {
                 } catch (Throwable error) { failure[0] = error; }
             });
             if (failure[0] != null) throw new AssertionError("Full Demo launch check failed", failure[0]);
-            Reply<SdkInfo> identity = new Reply<>(); owner[0].sdkInfo(identity);
+            Reply<SdkInfo> identity = new Reply<>(); Replies replies = new Replies();
+            runOnMainSync(() -> { owner[0].setListener(replies); replies.submit(owner[0]::sdkInfo, identity); });
             SdkInfo loaded = identity.await().value;
             require(loaded != null && nativeAbi(loaded,"abiVersion") == Integer.parseInt("3") && nativeAbi(loaded,"abiRevision") == Integer.parseInt("3") &&
-                    "0.3.0".equals(loaded.nativeVersion) && "0.3.0-preview.16".equals(loaded.distributionVersion),
+                    "0.3.0".equals(loaded.nativeVersion) && "0.3.0-preview.17".equals(loaded.distributionVersion),
                     "Demo Manager runtime identity differs");
+            owner[0].setListener((PrinterListener)field(current, "model"));
             runOnMainSync(current::finish); waitForIdleSync();
-            Reply<Void> cleanup = new Reply<>(); owner[0].close(cleanup);
-            require(cleanup.await().code == 0, "Demo Manager cleanup failed");
+            long cleanupDeadline = SystemClock.uptimeMillis() + 10000;
+            boolean cleaned = false;
+            while (!cleaned && SystemClock.uptimeMillis() < cleanupDeadline) {
+                synchronized (field(owner[0], "lock")) {
+                    cleaned = Boolean.TRUE.equals(field(owner[0], "closed")) &&
+                        Boolean.FALSE.equals(field(owner[0], "cleaning")) && field(owner[0], "receiver") == null;
+                }
+                if (!cleaned) SystemClock.sleep(20);
+            }
+            require(cleaned, "Demo Manager cleanup failed");
             synchronized (field(owner[0], "lock")) {
                 require(field(owner[0], "session") == null && Boolean.TRUE.equals(field(owner[0], "closed")),
                         "Demo Manager remained active after destruction");

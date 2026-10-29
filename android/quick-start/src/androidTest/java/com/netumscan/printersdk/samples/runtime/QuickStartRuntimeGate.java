@@ -11,6 +11,7 @@ import android.os.SystemClock;
 import android.widget.TextView;
 import com.netumscan.printersdk.ManagerResult;
 import com.netumscan.printersdk.PrinterManager;
+import com.netumscan.printersdk.PrinterListener;
 import com.netumscan.printersdk.SdkInfo;
 import java.io.FileOutputStream;
 import java.lang.reflect.Field;
@@ -88,12 +89,22 @@ public final class QuickStartRuntimeGate extends Instrumentation {
             CountDownLatch identity = new CountDownLatch(1);
             final SdkInfo[] loaded = new SdkInfo[1];
             final int[] identityCode = new int[]{-1};
-            owner[0].sdkInfo(value -> { loaded[0] = value.value; identityCode[0] = value.code; identity.countDown(); });
+            onMainChecked(() -> {
+                owner[0].setListener(new PrinterListener() {
+                    @Override public void onSdkInfoCompleted(ManagerResult<SdkInfo> value) {
+                        loaded[0] = value.value; identityCode[0] = value.code; identity.countDown();
+                    }
+                });
+                owner[0].sdkInfo();
+            });
             if (!identity.await(8, TimeUnit.SECONDS) || identityCode[0] != 0 || loaded[0] == null || !Integer.valueOf(3).equals(field(loaded[0], "abiVersion")) ||
-                    !Integer.valueOf(3).equals(field(loaded[0], "abiRevision")) || !"0.3.0-preview.16".equals(loaded[0].distributionVersion) ||
+                    !Integer.valueOf(3).equals(field(loaded[0], "abiRevision")) || !"0.3.0-preview.17".equals(loaded[0].distributionVersion) ||
                     !"0.3.0".equals(loaded[0].nativeVersion))
                 throw new AssertionError("Quick Start Manager runtime identity differs");
-            onMainChecked(() -> noPrinterWork(model[0], owner[0]));
+            onMainChecked(() -> {
+                owner[0].setListener((PrinterListener)model[0]);
+                noPrinterWork(model[0], owner[0]);
+            });
             runOnMainSync(current::finish); waitForIdleSync();
             // Observe the application's own close callback. Calling close from this gate
             // would hide a missing Activity cleanup path.

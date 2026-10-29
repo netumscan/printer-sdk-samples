@@ -1,11 +1,11 @@
 # 支持与安全
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.16`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.17`
 
 报告问题时记录以下身份及可复现步骤：
 
 ```text
-SDK distribution version: 0.3.0-preview.16
+SDK distribution version: 0.3.0-preview.17
 Native SDK: 0.3.0
 C ABI: 3/r3
 Contract status: read from the exact distribution manifest
@@ -15,7 +15,7 @@ Stable SDK error code: supplied by ManagerResult
 Completion and possible output: supplied by ManagerResult
 ```
 
-通过 `manager.sdkInfo` 的完成回调读取运行库身份。不要将客户内容、完整像素、连接地址、
+调用 `manager.sdkInfo()`，通过 Android `onSdkInfoCompleted`／iOS `didFinishReadingSDKInfo` 读取运行库身份。不要将客户内容、完整像素、连接地址、
 凭据或未经清理的日志写入公共问题报告。移动公开 API 不暴露平台原生句柄。
 
 当前软件门禁检查 C 声明/导出/布局、Java/Swift 公共 Manager API、取消、部分写入、设备 FIFO、
