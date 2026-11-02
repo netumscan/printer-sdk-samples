@@ -83,13 +83,13 @@ hardware.
 The separate **Flutter** workflow pins Flutter 3.41.9 to upstream commit
 `00b0c91f06209d9e4a41f71b7a512d6eb3b9c694`. Its `flutter-android` and
 `flutter-ios` jobs use the public [Flutter Quick Start](flutter/README.md), its
-committed Dart dependency lock, and exact SDK 0.3.0-preview.17 pins.
+committed Dart dependency lock, and exact SDK 0.3.0-preview.20 pins.
 
 The unified sample synchronization requires both workflows on the same candidate
 commit before updating main, then verifies both workflows again on that exact
 main commit. Native and Flutter results remain separate in the sync receipt.
 
-Both jobs run static analysis and the 18 Dart/widget tests. Android builds a
+Both jobs run static analysis and the 22 Dart/widget tests. Android builds a
 debug APK, validates the AAR SHA-256 from `flutter/sdk-lock.json`, and compares
 the packaged SDK libraries and notices with that exact AAR. iOS builds without
 production signing and runs the 6 RunnerTests on an available simulator,
@@ -119,3 +119,9 @@ For iOS simulator architecture notes and the unsigned Xcode command, see the
 [Flutter README](flutter/README.md). Native SDK build/runtime evidence remains
 scoped to the corresponding native workflow and version. Hardware acceptance
 remains deferred (`hardware_verified=false`).
+
+## `.20` 接口与迁移
+
+Android `PrinterListener` 的16个方法和 iOS `PrinterDelegate` 的15个方法全部必需实现，没有默认空实现。查询完成为 `ManagerResult<StatusResult>`，成功值来自本次事务，相同状态连续查询也分别返回；独立状态变化通知仍去重。
+
+正常停止调用 `stopScan`，原扫描请求成功返回最新合并列表；bridge 只确认停止信号，Dart 仍等待原 Future。取消／后台清理保持取消语义。连接结果保留 `printerInfoReadStatus`、`printerInfoReadCode`、`printerInfoReadMessage`；普通信息读取失败显示原因且保持连接和打印。换型号保留读取结果，重连重新读取。

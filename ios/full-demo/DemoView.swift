@@ -317,7 +317,7 @@ struct DemoView: View {
             if let text = DemoResultText.printerInfo(model.printerInfo) {
                 Text(text).font(.footnote).textSelection(.enabled)
                     .accessibilityIdentifier("demo.printerInfo")
-            } else { Text("尚无本次连接的设备信息").foregroundStyle(.secondary) }
+            } else { Text(DemoResultText.printerInfoRead(model.connectionInfo)).foregroundStyle(.secondary) }
             Text("每次连接后自动读取一次；未读到信息仍可打印。信息为连接快照，部分字段含义待确认；未知字段为空，实时开盖、缺纸见状态区。").font(.footnote)
         }
     }

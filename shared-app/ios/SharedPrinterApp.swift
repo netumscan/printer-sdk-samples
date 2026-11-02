@@ -129,6 +129,18 @@ final class SharedPrinterApp: PrinterDelegate {
         for completion in waiters { completion(result) }
         closingOwner = nil
     }
+
+    // This owner explicitly ignores callbacks outside its observed workflow.
+    func printerManager(_ manager: PrinterManager, didDiscover device: DiscoveredPrinter, scanID: RequestID) {}
+    func printerManager(_ manager: PrinterManager, didFinishScanning result: ManagerResult<[DiscoveredPrinter]>) {}
+    func printerManager(_ manager: PrinterManager, didFinishSettingPrinterModel result: ManagerResult<ConnectionInfo>) {}
+    func printerManager(_ manager: PrinterManager, didFinishSettingPaperType result: ManagerResult<Void>) {}
+    func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<StatusResult>) {}
+    func printerManager(_ manager: PrinterManager, didFinishPositioningLabel result: ManagerResult<Void>) {}
+    func printerManager(_ manager: PrinterManager, didFinishSendingRaw result: ManagerResult<Void>) {}
+    func printerManager(_ manager: PrinterManager, didFinishReadingCapabilities result: ManagerResult<PrinterCapabilities>) {}
+    func printerManager(_ manager: PrinterManager, didFinishReadingSDKInfo result: ManagerResult<SDKInfo>) {}
+    func printerManager(_ manager: PrinterManager, didUpdateStatus status: StatusResult) {}
 }
 
 @MainActor

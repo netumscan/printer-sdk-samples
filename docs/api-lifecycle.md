@@ -1,11 +1,13 @@
 # API 与生命周期
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.17`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.20`
+
+App 的具体接收者必须显式实现 Android `PrinterListener` 的全部16个方法或 iOS `PrinterDelegate` 的全部15个方法；没有默认空实现或 optional 要求。应用未使用的事件可在自己的方法中明确忽略。Java／Kotlin／Swift 编译器会拒绝任何缺少方法的实现。
 
 App 的稳定 owner 先创建 `PrinterManager` 并注册接收者：Android `setListener(this)`，
 iOS `manager.delegate = self`。Android owner 实现 `PrinterListener`，iOS owner 实现
-类约束、`@MainActor` 的 `PrinterDelegate`。公共操作不再逐调用传闭包或 Callback，立即返回
-`RequestId`／`RequestID`，异步在主线程／MainActor 通知完整 `ManagerResult`。
+类约束、`@MainActor` 的 `PrinterDelegate`。业务请求不再逐调用传闭包或 Callback，立即返回
+`RequestId`／`RequestID`，异步在主线程／MainActor 通知完整 `ManagerResult`。注册、`stopScan` 和 `cancel` 不创建请求。
 
 | 事件 | Android Listener | iOS Delegate 方法标签 |
 | --- | --- | --- |
@@ -15,6 +17,7 @@ iOS `manager.delegate = self`。Android owner 实现 `PrinterListener`，iOS own
 | 图片打印终态 | `onPrintCompleted` | `printerManager(_:didFinishPrinting:)` |
 | 主动断开终态 | `onDisconnectCompleted` | `printerManager(_:didFinishDisconnecting:)` |
 | 永久关闭终态 | `onCloseCompleted` | `printerManager(_:didFinishClosing:)` |
+| 状态查询终态（ManagerResult<StatusResult>） | `onStatusQueryCompleted` | `printerManager(_:didFinishQueryingStatus:)` |
 | 状态更新 | `onStatusChanged` | `printerManager(_:didUpdateStatus:)` |
 | 意外断连 | `onDisconnected` | `printerManager(_:didLoseConnection:)` |
 
@@ -27,7 +30,9 @@ completion、`outputMayHaveOccurred` 和可选 value；参数、状态、准备�
 
 `scanBle()`／`scanBLE()` 返回本轮请求 ID。实时通知携带同一 ID，每个唯一设备首见通知一次；
 App 立即将候选加入可见列表。终态成功列表包含最终合并的名称、信号等信息，App 按地址／UUID 刷新并保留有效选择。
-取消或失败不会把已显示的部分候选变成成功列表。停止扫描调用 `cancel(scanId)`，仍等待一次真实终态。
+正常停止调用 `stopScan(scanId)`，原扫描完成回调成功返回停止时最新合并列表（可为空），仍用原请求 ID。
+重复、外部、已完成或非扫描 ID 无操作；停止与截止、取消或失败竞争只交付一次终态。
+`cancel(scanId)` 保持取消且无列表的语义，取消或失败不会把已显示的部分候选变成成功列表。
 App 过滤旧轮次和自身已停止显示的事件，SDK 也隔离取消、关闭和旧接收者的迟到通知。
 设备发现不自动连接；连接也不会自动停止扫描，App 应明确安排停止和连接顺序。
 Android `bondedDevices()` 返回系统已配对列表；iOS 不提供经典蓝牙列表或 SPP。
@@ -49,3 +54,5 @@ SDK 不自动重连、续打、重放或因 UI 重建重新提交请求。
 状态按四个可选字段去重；重复查询仍各有独立请求终态。查询写出后超时、取消或坏回复保守断开，
 隔离没有请求编号的迟到回复。自动 INFO 最多额外等待 1 秒；软失败保留可用连接和打印，
 但本连接后续 wire 查询不可用，需用户显式重连。
+
+后台离开和清理仍应使用取消。自动信息读取的状态和诊断见[设备与图片](configuration.md)。

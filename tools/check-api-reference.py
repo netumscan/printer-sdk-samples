@@ -17,7 +17,10 @@ APPROVED_BASELINES = {
     "android": "8ad69087e4a965f7df4aa56f84b33dc6cfcf340ed3e8395f57155dfe449390a2",
     "apple": "62ccd5c542c02285429d8942b7eb69a68555180ddb3b9d335780e30009f2fd65",
 }
-DEVELOPMENT_BASELINES = {'0.3.0-preview.17-dev': {
+DEVELOPMENT_BASELINES = {"0.3.0-preview.20-dev": {'android': 'ee1388c3baa02cc2da6a1667577dfb124daa6a0a978f52b98689d714a510d360', 'apple': '403105fad5cc346e027032f04ba65d01451db7eff3d81ad1bde1c309d4125591'}, "0.3.0-preview.19-dev": {'android': '3eaa3a7fd97492701c18e59eaef40bf471c9c8de0dccbca4547c8ce87c62d144', 'apple': '6c33284b388625770752178939b0652c561c2efc3d1860c2b595429a74cc7159'}, "0.3.0-preview.18-dev": {
+    "android": "b5a56d52218ebd4585cff53bdb05989d12d738f10e8a29f6c6af1f16864f568a",
+    "apple": "d50412c91f4d867db823a52c4e39ddce7baf4e67a1e5d8ba08e66c0e4094994c",
+}, '0.3.0-preview.17-dev': {
     "android": '024cbe0df93a115d9ca83fd55e450dcbee9bb4da3505a95e66922b2d18e8f894',
     "apple": '7b1c77683ba68efba97058edb0aa38bc4996c17655670c678d3eb82b90164cff',
 }, "0.3.0-preview.16-dev": {
@@ -64,6 +67,9 @@ DEVELOPMENT_BASELINES = {'0.3.0-preview.17-dev': {
     "apple": "24046a0889ac83a9d96bac1220867005edbd2ce50684f972f30c691d8429fe42",
 }}
 DEVELOPMENT_IDENTITIES = {
+    "0.3.0-preview.20-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3}},
+    "0.3.0-preview.19-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3}},
+    "0.3.0-preview.18-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3}},
     '0.3.0-preview.17-dev': {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3}},
     "0.3.0-preview.16-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3}},
     "0.3.0-preview.15-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3}},
@@ -81,7 +87,7 @@ DEVELOPMENT_IDENTITIES = {
     "0.2.0-preview.5-dev": {"native_sdk_version": "0.2.0", "abi": {"version": 2, "revision": 13}},
     "0.3.0-preview.1-dev": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 1}},
 }
-CANDIDATE_BASELINES = {"0.3.0-preview.17": {
+CANDIDATE_BASELINES = {"0.3.0-preview.20": {'android': 'ee1388c3baa02cc2da6a1667577dfb124daa6a0a978f52b98689d714a510d360', 'apple': '403105fad5cc346e027032f04ba65d01451db7eff3d81ad1bde1c309d4125591'}, "0.3.0-preview.17": {
     "android": "024cbe0df93a115d9ca83fd55e450dcbee9bb4da3505a95e66922b2d18e8f894",
     "apple": "7b1c77683ba68efba97058edb0aa38bc4996c17655670c678d3eb82b90164cff",
 }, "0.3.0-preview.16": {
@@ -115,7 +121,7 @@ CANDIDATE_BASELINES = {"0.3.0-preview.17": {
     "android": "4dcc42d4069e03b42c9922027e4d44811d07cf9362d1dc7a62c17ecc09350ded",
     "apple": "8e3d0c3c52682ea9285c363cd9fa7dc574f4321fe17ef8460b523dc7f1778d97",
 }}
-CANDIDATE_IDENTITIES = {"0.3.0-preview.17": {
+CANDIDATE_IDENTITIES = {"0.3.0-preview.20": {"native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3}}, "0.3.0-preview.17": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3},
 }, "0.3.0-preview.16": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 3},
@@ -138,7 +144,7 @@ CANDIDATE_IDENTITIES = {"0.3.0-preview.17": {
 }, "0.3.0-preview.8": {
     "native_sdk_version": "0.3.0", "abi": {"version": 3, "revision": 2},
 }}
-CANDIDATE_ANNOTATIONS = {"0.3.0-preview.17": {
+CANDIDATE_ANNOTATIONS = {"0.3.0-preview.20": {'android': '0350801d6fa8ae011108862c9c02cb6400d561edb6ca1fb99e8e22dadf905cd6', 'apple': '19be96b72046b38c1ad8707dde28210f7d242f39200093d7b909db46e0dd87fa'}, "0.3.0-preview.17": {
     "android": "66b6250c56572bbc0bb983c8d1a638be8c0bccf166bfb5fb4f950c6417cb96ae",
     "apple": "912c090da6442d219f5e9856f00878c7d6a9e7a59816df5961cc02ba651071fe",
 }, "0.3.0-preview.16": {

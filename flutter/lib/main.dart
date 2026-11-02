@@ -336,6 +336,12 @@ class _DemoPageState extends State<DemoPage> with WidgetsBindingObserver {
                   const SizedBox(height: 8),
                   if (model.busy) ...[
                     const LinearProgressIndicator(minHeight: 2),
+                    if (model.scanning)
+                      TextButton.icon(
+                        onPressed: model.scanStopping ? null : model.stopScan,
+                        icon: const Icon(Icons.stop_outlined),
+                        label: Text(model.scanStopping ? '正在停止…' : '停止扫描并显示结果'),
+                      ),
                     TextButton.icon(
                       onPressed: model.cancel,
                       icon: const Icon(Icons.stop_circle_outlined),

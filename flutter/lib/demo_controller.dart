@@ -25,6 +25,8 @@ class DemoController extends ChangeNotifier {
   }
   final PrinterBridge _bridge;
   PrinterRequest? _active;
+  String? _activeMethod;
+  bool _scanStopping = false;
   bool _cleaning = false;
   bool _disposed = false;
   bool _foreground = true;
@@ -42,6 +44,8 @@ class DemoController extends ChangeNotifier {
   PrinterResult? lastResult;
   PrinterResult? cleanupResult;
   final List<String> logs = [];
+  bool get scanning => _active != null && _activeMethod == 'scanBle';
+  bool get scanStopping => _scanStopping;
   bool get busy => _active != null || _cleaning;
   bool get canPrint =>
       connected && adoptedModel != null && !busy && _foreground;
@@ -72,9 +76,15 @@ class DemoController extends ChangeNotifier {
     if (_disposed || busy || !_foreground) return null;
     final request = _bridge.start(method, args);
     _active = request;
+    _activeMethod = method;
+    _scanStopping = false;
     _notify();
     final result = await request.result;
-    if (_active == request) _active = null;
+    if (_active == request) {
+      _active = null;
+      _activeMethod = null;
+      _scanStopping = false;
+    }
     _record(label, result);
     return result;
   }
@@ -134,8 +144,16 @@ class DemoController extends ChangeNotifier {
         !_cleaning &&
         epoch == _sessionEpoch) {
       connected = true;
-      adoptedModel =
-          (result!.value as Map<Object?, Object?>)['model'] as String?;
+      final connection = result!.value as Map<Object?, Object?>;
+      adoptedModel = connection['model'] as String?;
+      if (connection['printerInfoReadStatus'] == 'FAILED') {
+        logs.insert(
+          0,
+          '设备信息读取失败（${connection['printerInfoReadCode']}）：'
+          '${connection['printerInfoReadMessage']}；连接仍可用于打印',
+        );
+        if (logs.length > 30) logs.removeLast();
+      }
       _notify();
     }
   }
@@ -172,6 +190,23 @@ class DemoController extends ChangeNotifier {
 
   Future<void> locateNextLabel() async {
     if (connected) await _run('locateNextLabel', '定位下一张');
+  }
+
+  Future<void> stopScan() async {
+    final request = _active;
+    if (!scanning || request == null || _scanStopping) return;
+    _scanStopping = true;
+    _notify();
+    try {
+      await _bridge.stopScan(request.id);
+    } catch (error) {
+      _scanStopping = false;
+      if (!_disposed) {
+        logs.insert(0, '停止信号未送达：$error');
+        if (logs.length > 30) logs.removeLast();
+        _notify();
+      }
+    }
   }
 
   Future<void> cancel() async {

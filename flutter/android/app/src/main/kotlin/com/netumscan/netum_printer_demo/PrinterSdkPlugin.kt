@@ -9,6 +9,8 @@ import com.netumscan.printersdk.ConnectionInfo
 import com.netumscan.printersdk.DiscoveredDevice
 import com.netumscan.printersdk.ManagerResult
 import com.netumscan.printersdk.PaperType
+import com.netumscan.printersdk.PrinterCapabilities
+import com.netumscan.printersdk.StatusResult
 import com.netumscan.printersdk.PrinterListener
 import com.netumscan.printersdk.PrinterManager
 import com.netumscan.printersdk.PrinterModel
@@ -26,6 +28,7 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
     PluginRegistry.RequestPermissionsResultListener, PrinterListener {
     private class Pending(val id: String, val result: MethodChannel.Result, val generation: Long) {
         var nativeId: RequestId? = null
+        var stopScanRequested = false
     }
 
     private class PermissionRequest(val pending: Pending, val action: () -> Unit)
@@ -92,7 +95,7 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
         val priorClose = closedResult
         if (closing || priorClose != null) {
             when (call.method) {
-                "cancel" -> result.success(null)
+                "cancel", "stopScan" -> result.success(null)
                 "close" -> {
                     if (priorClose != null) result.success(envelope(id, priorClose, null))
                     else if (pending.containsKey(id) || closeReplies.containsKey(id))
@@ -102,6 +105,13 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
                 else -> result.error("sdk_closed", "PrinterManager is permanently closing or closed", null)
             }
             return
+        }
+        if (call.method == "stopScan") {
+            pending[id]?.let { target ->
+                target.stopScanRequested = true
+                target.nativeId?.let { owner.stopScan(it) }
+            }
+            result.success(null); return
         }
         if (call.method == "cancel") {
             val target = pending[id]
@@ -157,7 +167,9 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
                             }
                             connections[nativeId] = request.id to request.generation
                             nativeId
-                        }) { info -> mapOf("device" to deviceValue(info.device), "model" to info.model?.name) }
+                        }) { info -> mapOf("device" to deviceValue(info.device), "model" to info.model?.name,
+                            "printerInfoReadStatus" to info.printerInfoReadStatus.name,
+                            "printerInfoReadCode" to info.printerInfoReadCode, "printerInfoReadMessage" to info.printerInfoReadMessage) }
                     }
                 }
                 "setPaperType" -> {
@@ -207,9 +219,19 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
             val typed = response as ManagerResult<T>
             finish(request, envelope(request.id, typed, typed.value?.let(value)))
         }
+        if (request.stopScanRequested) manager?.stopScan(nativeId)
     }
 
     private fun complete(result: ManagerResult<*>) { nativeReplies.remove(result.requestId)?.invoke(result) }
+    // Dart currently exposes terminal scan results and no status/Raw/configuration requests.
+    // Every SDK callback is still declared explicitly so interface changes require a decision here.
+    override fun onModelConfigurationCompleted(result: ManagerResult<ConnectionInfo>) { }
+    override fun onStatusQueryCompleted(result: ManagerResult<StatusResult>) { }
+    override fun onRawCompleted(result: ManagerResult<Void>) { }
+    override fun onCapabilitiesCompleted(result: ManagerResult<PrinterCapabilities>) { }
+    override fun onStatusChanged(status: StatusResult) { }
+    override fun onDeviceDiscovered(scanId: RequestId, device: DiscoveredDevice) { }
+
     override fun onSdkInfoCompleted(result: ManagerResult<SdkInfo>) = complete(result)
     override fun onScanCompleted(result: ManagerResult<List<DiscoveredDevice>>) = complete(result)
     override fun onBondedDevicesCompleted(result: ManagerResult<List<DiscoveredDevice>>) = complete(result)
@@ -320,7 +342,7 @@ class PrinterSdkPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
     private companion object {
         const val PERMISSION_CODE = 4972
         val METHODS = setOf("sdkInfo", "scanBle", "bondedDevices", "connect", "setPaperType",
-            "printEncodedImage", "locateNextLabel", "disconnect", "close", "cancel")
+            "printEncodedImage", "locateNextLabel", "disconnect", "close", "cancel", "stopScan")
 
         fun requiredPermissions(scanning: Boolean): List<String> = when {
             Build.VERSION.SDK_INT >= 31 -> if (scanning)

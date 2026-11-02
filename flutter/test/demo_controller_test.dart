@@ -73,6 +73,71 @@ void main() {
   }
 
   test(
+    'normal scan stop stays busy until original latest list arrives',
+    () async {
+      final pending = Completer<Map<String, Object?>>();
+      MethodCall? scan;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        if (call.method == 'scanBle') {
+          scan = call;
+          return pending.future;
+        }
+        if (call.method == 'stopScan') return null;
+        return _result(call);
+      });
+      final scanning = controller.discover();
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.scanning, isTrue);
+      await controller.stopScan();
+      await controller.stopScan();
+      expect(controller.busy, isTrue);
+      expect(controller.scanStopping, isTrue);
+      expect(calls.where((call) => call.method == 'stopScan'), hasLength(1));
+      expect(calls.last.arguments['requestId'], scan!.arguments['requestId']);
+      pending.complete(
+        _result(
+          scan!,
+          value: [
+            {'id': 'AA:01', 'name': 'Latest', 'rssi': -42},
+          ],
+        ),
+      );
+      await scanning;
+      expect(controller.busy, isFalse);
+      expect(controller.scanStopping, isFalse);
+      expect(controller.devices.single.name, 'Latest');
+    },
+  );
+
+  test(
+    'optional info failure remains visible without failing the connection',
+    () async {
+      await controller.discover();
+      controller.selectDevice(controller.devices.single);
+      pendingConnect = Completer<Map<String, Object?>>();
+      final connecting = controller.connect();
+      await Future<void>.delayed(Duration.zero);
+      pendingConnect!.complete(
+        _result(
+          connectCall!,
+          value: {
+            'model': 'LT_M90',
+            'printerInfoReadStatus': 'FAILED',
+            'printerInfoReadCode': 3000,
+            'printerInfoReadMessage': 'Invalid INFO frame',
+          },
+        ),
+      );
+      await connecting;
+      expect(controller.connected, isTrue);
+      expect(controller.canPrint, isTrue);
+      expect(controller.logs.first, contains('3000'));
+      expect(controller.logs.first, contains('Invalid INFO frame'));
+    },
+  );
+
+  test(
     'connection and image printing do not implicitly change paper or position it',
     () async {
       await connect();

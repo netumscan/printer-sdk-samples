@@ -42,7 +42,8 @@ public final class MainActivity extends Activity {
             "本例连接时明确选择 LT-M90 型号；请先确认实物型号，其他型号不要使用本例。");
         text(content, "固定示例：Bitmap 条纹，页面 48 × 8 mm、1 份、不追加标签定位；连接与打印不会自动设置纸张。");
         scan = button(content, "1. 扫描 BLE 设备（5 秒）", view -> {
-            if (!permissionPending && model.canSelect()) withPermission(true, model::scan);
+            if (model.scanRequest != null) model.stopScan();
+            else if (!permissionPending && model.canSelect()) withPermission(true, model::scan);
         });
         deviceList = new LinearLayout(this);
         deviceList.setOrientation(LinearLayout.VERTICAL);
@@ -75,7 +76,8 @@ public final class MainActivity extends Activity {
             if (selected) selection.setText("已选择：" + label +
                 "；连接时采用 LT-M90，请确认实物型号");
         }
-        scan.setEnabled(selectable && model.scanRequest == null);
+        scan.setEnabled(selectable && !model.scanStopping);
+        scan.setText(model.scanStopping ? "正在停止…" : model.scanRequest != null ? "停止扫描并显示结果" : "1. 扫描 BLE 设备（5 秒）");
         connect.setEnabled(!permissionPending && model.canConnect());
         print.setEnabled(!permissionPending && model.canPrint());
         cancel.setEnabled(!permissionPending && model.canCancel());

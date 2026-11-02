@@ -1,13 +1,13 @@
 # Android Java API 参考
 
-发布候选版本 **0.3.0-preview.17**；原生 SDK **0.3.0**；C ABI **3/r3**。
+发布候选版本 **0.3.0-preview.20**；原生 SDK **0.3.0**；C ABI **3/r3**。
 
-本页逐项覆盖审定的编译器公共 API 基线，共 **121** 个文档条目。
+本页逐项覆盖审定的编译器公共 API 基线，共 **131** 个文档条目。
 声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。
 机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行
 `python3 tools/check-api-reference.py` 可检查覆盖范围、审定 SHA-256 和本页字节一致性。
 
-基线 SHA-256：`024cbe0df93a115d9ca83fd55e450dcbee9bb4da3505a95e66922b2d18e8f894`
+基线 SHA-256：`ee1388c3baa02cc2da6a1667577dfb124daa6a0a978f52b98689d714a510d360`
 
 运行约束与错误处理见 [API 与生命周期](api-lifecycle.md) 和 [错误码与排障](errors-troubleshooting.md)。
 本页是未发布的发布候选契约，不代表发布制品或公开历史证明。硬件验收仍暂缓，`hardware_verified=false`。
@@ -15,6 +15,7 @@
 ## 类型导航
 
 - [ConnectionInfo](#api-bf113bf34fa7893fb410)
+- [ConnectionInfo.PrinterInfoReadStatus](#api-2258c2c32a57978898d1)
 - [DiscoveredDevice](#api-b790baf5c321454d18b7)
 - [ManagerResult](#api-98f169a3e4c7b889744f)
 - [ManagerResult.Completion](#api-1721ae5f9f8202edb30d)
@@ -46,6 +47,24 @@ public final class com.netumscan.printersdk.ConnectionInfo
 包含设备目标、已采用的可选型号和本次自动查询得到的可选printerInfo。型号来自本地配置，printerInfo来自设备回读，二者不能互相替代。信息未知或可选查询失败为空；重新连接重新查询，不继承旧设备信息。
 
 文档 ID：`android:type:com.netumscan.printersdk.ConnectionInfo`
+
+<a id="api-fc8563846936653e1bd3"></a>
+
+### public final com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus printerInfoReadStatus
+
+本次连接自动信息读取的状态。
+
+```java
+public final com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus printerInfoReadStatus;
+```
+
+区分未尝试、成功、失败；无已采用的信息协议为未尝试，超时／无效回复／不支持保留失败码和原因。换型号沿用本连接结果，重连重新读取。
+
+文档 ID：`android:member:com.netumscan.printersdk.ConnectionInfo:7d25ee5504af0e52`
+
+JVM descriptor：`Lcom/netumscan/printersdk/ConnectionInfo$PrinterInfoReadStatus;`
+
+编译器注解：`@androidx.annotation.NonNull`。
 
 <a id="api-422195db5e432566d0fb"></a>
 
@@ -100,6 +119,148 @@ public final com.netumscan.printersdk.PrinterModel model;
 JVM descriptor：`Lcom/netumscan/printersdk/PrinterModel;`
 
 编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-38b327c15ca09d0da87b"></a>
+
+### public final java.lang.Integer printerInfoReadCode
+
+本次自动信息读取失败的稳定错误码。
+
+```java
+public final java.lang.Integer printerInfoReadCode;
+```
+
+仅FAILED/failed状态有值，保留本次原生读取的SDK错误码；未尝试或成功时为空。此值不替代连接请求的结果码，普通读取失败仍可连接和打印。
+
+文档 ID：`android:member:com.netumscan.printersdk.ConnectionInfo:028925fdffa52c32`
+
+JVM descriptor：`Ljava/lang/Integer;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-3d305b5a0044c84e74b6"></a>
+
+### public final java.lang.String printerInfoReadMessage
+
+本次自动信息读取失败的诊断摘要。
+
+```java
+public final java.lang.String printerInfoReadMessage;
+```
+
+仅失败时有值，来自本次读取的有界诊断或稳定错误说明，不是旧连接缓存。读取失败后的后续查询仍按自己的请求结果处理，不自动重连。
+
+文档 ID：`android:member:com.netumscan.printersdk.ConnectionInfo:b224fe4ae335fba9`
+
+JVM descriptor：`Ljava/lang/String;`
+
+编译器注解：`@androidx.annotation.Nullable`。
+
+<a id="api-2258c2c32a57978898d1"></a>
+
+## ConnectionInfo.PrinterInfoReadStatus
+
+自动信息读取状态。
+
+```java
+public final class com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus extends java.lang.Enum<com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus>
+```
+
+NOT_ATTEMPTED/notAttempted、SUCCEEDED/succeeded、FAILED/failed分别表示未尝试、成功和失败；失败不等于通信连接失败。
+
+文档 ID：`android:type:com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus`
+
+枚举声明顺序（`ordinal()` 从 0 起；不作为持久化协议值）：
+
+| ordinal | 枚举项 |
+| --- | --- |
+| 0 | `NOT_ATTEMPTED` |
+| 1 | `SUCCEEDED` |
+| 2 | `FAILED` |
+
+<a id="api-87fcd6a55d914460dcd0"></a>
+
+### public static com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus valueOf(java.lang.String)
+
+按精确名称取得读取状态。
+
+```java
+public static com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus valueOf(java.lang.String);
+```
+
+Java枚举生成的方法，区分大小写，未知名抛IllegalArgumentException，null抛NullPointerException，不进行设备IO。
+
+文档 ID：`android:member:com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus:f9c5bd789f89872e`
+
+JVM descriptor：`(Ljava/lang/String;)Lcom/netumscan/printersdk/ConnectionInfo$PrinterInfoReadStatus;`
+
+这是 Java 编译器为枚举生成的公共方法。
+
+<a id="api-f72c24a5c8183f679f12"></a>
+
+### public static com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus[] values()
+
+返回全部自动信息读取状态。
+
+```java
+public static com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus[] values();
+```
+
+Java枚举生成的方法，返回声明顺序的新数组；枚举ordinal不是SDK稳定错误码。
+
+文档 ID：`android:member:com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus:c3a13d77aab3c68c`
+
+JVM descriptor：`()[Lcom/netumscan/printersdk/ConnectionInfo$PrinterInfoReadStatus;`
+
+这是 Java 编译器为枚举生成的公共方法。
+
+<a id="api-b8e20f18f11c37392c05"></a>
+
+### public static final com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus FAILED
+
+本次自动信息读取失败。
+
+```java
+public static final com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus FAILED;
+```
+
+printerInfo为空，错误码和消息保留本次失败；普通读取失败仍保持连接及打印可用，后续查询可能要求显式重连。
+
+文档 ID：`android:member:com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus:69ef3320d1de860c`
+
+JVM descriptor：`Lcom/netumscan/printersdk/ConnectionInfo$PrinterInfoReadStatus;`
+
+<a id="api-19af909aa82544692ce3"></a>
+
+### public static final com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus NOT_ATTEMPTED
+
+本次连接未尝试读取信息。
+
+```java
+public static final com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus NOT_ATTEMPTED;
+```
+
+未选择受支持信息协议；printerInfo、读取错误码和消息均为空，不推断信息读取失败。
+
+文档 ID：`android:member:com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus:612f1dce54e53b0f`
+
+JVM descriptor：`Lcom/netumscan/printersdk/ConnectionInfo$PrinterInfoReadStatus;`
+
+<a id="api-b3ca33c954758a9e6fe9"></a>
+
+### public static final com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus SUCCEEDED
+
+本次自动信息读取成功。
+
+```java
+public static final com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus SUCCEEDED;
+```
+
+printerInfo保存本次已校验数据，读取错误码和消息为空；信息仍不是型号认证或打印完成证据。
+
+文档 ID：`android:member:com.netumscan.printersdk.ConnectionInfo$PrinterInfoReadStatus:dfcb9bc8e350f20a`
+
+JVM descriptor：`Lcom/netumscan/printersdk/ConnectionInfo$PrinterInfoReadStatus;`
 
 <a id="api-b790baf5c321454d18b7"></a>
 
@@ -213,7 +374,7 @@ public final class com.netumscan.printersdk.ManagerResult<T>
 public final T value;
 ```
 
-连接、能力、身份和发现请求成功时使用对应类型；getStatus、打印等Void操作以及失败／取消为空。状态值经setStatusListener通知，不在getStatus结果中重复返回。
+连接、状态查询、能力、身份和发现成功时使用各自类型；状态查询返回本次校验的StatusResult。打印等Void操作以及失败／取消的value为空。独立状态变化事件可以去重，不影响每次查询返回。
 
 文档 ID：`android:member:com.netumscan.printersdk.ManagerResult:60258455367224f8`
 
@@ -1235,97 +1396,97 @@ JVM descriptor：`Ljava/lang/String;`
 public interface com.netumscan.printersdk.PrinterListener
 ```
 
-每个Manager同时控制一台设备，公开动作返回关联请求ID，统一接收接口在主线程锁外交付强类型结果。内部每请求终态一次；接收者失效不重放通知，所有设备IO仍经原执行器。
+每个Manager同时控制一台设备，公开动作返回关联请求ID，统一接收接口在主线程锁外交付强类型结果。内部每请求终态一次；接收者失效不重放通知，所有设备IO仍经原执行器。 本版要求调用者显式实现全部回调，不提供默认空实现；未完整实现的类型无法通过编译。
 
 文档 ID：`android:type:com.netumscan.printersdk.PrinterListener`
 
 编译器注解：`@androidx.annotation.MainThread`。
 
-<a id="api-8b9e5bfee9dad90e48a6"></a>
+<a id="api-fd5fe0a10486ff7659e0"></a>
 
-### public default void onBondedDevicesCompleted(com.netumscan.printersdk.ManagerResult<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>)
+### public abstract void onBondedDevicesCompleted(com.netumscan.printersdk.ManagerResult<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>)
 
 读取Android已配对设备快照。
 
 ```java
-public default void onBondedDevicesCompleted(com.netumscan.printersdk.ManagerResult<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>);
+public abstract void onBondedDevicesCompleted(com.netumscan.printersdk.ManagerResult<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>);
 ```
 
-返回请求ID，经统一接收接口交付只读设备列表；不开始扫描、不自动配对或连接，未知名称与RSSI保持空值。
+返回请求ID，经统一接收接口交付只读设备列表；不开始扫描、不自动配对或连接，未知名称与RSSI保持空值。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:3dfb8bc6327ef01e`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:94cd983336595bcb`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-3b2ea71efc12dd727fea"></a>
+<a id="api-0f171ded2c2f2bf1326b"></a>
 
-### public default void onCapabilitiesCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.PrinterCapabilities>)
+### public abstract void onCapabilitiesCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.PrinterCapabilities>)
 
 读取当前能力描述。
 
 ```java
-public default void onCapabilitiesCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.PrinterCapabilities>);
+public abstract void onCapabilitiesCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.PrinterCapabilities>);
 ```
 
-返回PrinterCapabilities，支持度使用未知/不支持/支持三态；未知范围为空。查询和上报分别描述，能力不等于硬件认证。
+返回PrinterCapabilities，支持度使用未知/不支持/支持三态；未知范围为空。查询和上报分别描述，能力不等于硬件认证。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:9cc1394b422dc976`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:dbe3303f344244ea`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-7214f044be684929430b"></a>
+<a id="api-ef1b78df153f3fae8bb4"></a>
 
-### public default void onCloseCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
+### public abstract void onCloseCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
 
 永久关闭并完成异步资源清理。
 
 ```java
-public default void onCloseCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
+public abstract void onCloseCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
 ```
 
-返回请求ID；必要状态重置和关闭结果交付后释放统一接收者。重复清理共享原屏障，不在UI线程同步等待，不承诺关闭后的历史补交。
+返回请求ID；必要状态重置和关闭结果交付后释放统一接收者。重复清理共享原屏障，不在UI线程同步等待，不承诺关闭后的历史补交。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:7fbc9e7060a727de`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:53a926a383af83ac`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-50657d65597827419f28"></a>
+<a id="api-c999d64a295633da9017"></a>
 
-### public default void onConnectionCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.ConnectionInfo>)
+### public abstract void onConnectionCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.ConnectionInfo>)
 
 完成显式设备连接。
 
 ```java
-public default void onConnectionCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.ConnectionInfo>);
+public abstract void onConnectionCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.ConnectionInfo>);
 ```
 
-返回请求ID，成功值为ConnectionInfo。已知名称只推荐收录型号，可用显式型号重载；可选设备信息在原FIFO有界查询一次。意外断连通过独立事件通知，不自动停扫、重连或重放。
+返回请求ID，成功值为ConnectionInfo。已知名称只推荐收录型号，可用显式型号重载；可选设备信息在原FIFO有界查询一次。意外断连通过独立事件通知，不自动停扫、重连或重放。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:2860ec639f88ddb2`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:251b8057bee13f35`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-8776079cb630287ac3af"></a>
+<a id="api-e2683057658709000059"></a>
 
-### public default void onDeviceDiscovered(com.netumscan.printersdk.RequestId, com.netumscan.printersdk.DiscoveredDevice)
+### public abstract void onDeviceDiscovered(com.netumscan.printersdk.RequestId, com.netumscan.printersdk.DiscoveredDevice)
 
 通知本轮首次发现的唯一设备。
 
 ```java
-public default void onDeviceDiscovered(com.netumscan.printersdk.RequestId, com.netumscan.printersdk.DiscoveredDevice);
+public abstract void onDeviceDiscovered(com.netumscan.printersdk.RequestId, com.netumscan.printersdk.DiscoveredDevice);
 ```
 
-携带所属扫描请求ID与SDK设备值；每轮地址或UUID首次出现通知一次，最终列表保留后续合并信息。旧扫描、取消和接收者失效后的进度不派发，不暴露平台句柄。
+携带所属扫描请求ID与SDK设备值；每轮地址或UUID首次出现通知一次，最终列表保留后续合并信息。旧扫描、取消和接收者失效后的进度不派发，不暴露平台句柄。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:ac19a6b84771ef8b`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:200ee4868af6f1d6`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/RequestId;Lcom/netumscan/printersdk/DiscoveredDevice;)V`
 
@@ -1333,199 +1494,199 @@ JVM descriptor：`(Lcom/netumscan/printersdk/RequestId;Lcom/netumscan/printersdk
 
 参数 1（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-1b917ea06626364196dc"></a>
+<a id="api-5c8da4819de0fb28bd33"></a>
 
-### public default void onDisconnectCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
+### public abstract void onDisconnectCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
 
 完成当前连接的异步清理。
 
 ```java
-public default void onDisconnectCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
+public abstract void onDisconnectCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
 ```
 
-返回请求ID；请求处理、必要状态重置和清理屏障完成后交付Void结果。接收者保留，实例可显式重新连接，不自动恢复任务。
+返回请求ID；请求处理、必要状态重置和清理屏障完成后交付Void结果。接收者保留，实例可显式重新连接，不自动恢复任务。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:800a51894513758a`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:af75bd7b0cde719e`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-7ae6b440497908244ad6"></a>
+<a id="api-05414977c48aea7060f2"></a>
 
-### public default void onDisconnected(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
+### public abstract void onDisconnected(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
 
 通知本连接的意外断开。
 
 ```java
-public default void onDisconnected(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
+public abstract void onDisconnected(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
 ```
 
-关联原成功连接的请求ID，每连接最多一次；主动断开和关闭走自己的完成方法。注册代次失效不把旧连接事件改投新接收者，不自动重连或重放。
+关联原成功连接的请求ID，每连接最多一次；主动断开和关闭走自己的完成方法。注册代次失效不把旧连接事件改投新接收者，不自动重连或重放。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:73727feb4049b908`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:bec808a8d85c7ee3`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-55a6a47f695c6fe9999b"></a>
+<a id="api-62399f6d549e2526568b"></a>
 
-### public default void onLabelPositioningCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
+### public abstract void onLabelPositioningCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
 
 完成显式下一标签定位。
 
 ```java
-public default void onLabelPositioningCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
+public abstract void onLabelPositioningCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
 ```
 
-返回请求ID并按设备配置经原FIFO执行；可能走纸，不由普通图片打印隐式追加。不支持返回稳定错误码，终态为Void结果。
+返回请求ID并按设备配置经原FIFO执行；可能走纸，不由普通图片打印隐式追加。不支持返回稳定错误码，终态为Void结果。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:3d3360e78045c1b2`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:61790daeec7399ac`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-21c2e5f2aa467150f17c"></a>
+<a id="api-8caac5205ade514210e8"></a>
 
-### public default void onModelConfigurationCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.ConnectionInfo>)
+### public abstract void onModelConfigurationCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.ConnectionInfo>)
 
 更新连接采用的内置型号配置。
 
 ```java
-public default void onModelConfigurationCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.ConnectionInfo>);
+public abstract void onModelConfigurationCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.ConnectionInfo>);
 ```
 
-仅连接空闲时允许；成功返回更新的ConnectionInfo并失效介质证据，失败保留原配置。不重新执行设备信息查询。结果与连接完成使用不同方法。
+仅连接空闲时允许；成功返回更新的ConnectionInfo并失效介质证据，失败保留原配置。不重新执行设备信息查询。结果与连接完成使用不同方法。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:c6564ae9304c1ce9`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:320b2a047770cee5`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-5eeacdc07b31162e32a8"></a>
+<a id="api-2d8118da02cdb699d297"></a>
 
-### public default void onPaperTypeCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
+### public abstract void onPaperTypeCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
 
 完成显式纸张定位类型设置。
 
 ```java
-public default void onPaperTypeCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
+public abstract void onPaperTypeCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
 ```
 
-这是独立设备FIFO请求，不由连接、页面尺寸或打印隐式触发；不自动校准或持久化。返回Void结果，保留错误码和完成证据。
+这是独立设备FIFO请求，不由连接、页面尺寸或打印隐式触发；不自动校准或持久化。返回Void结果，保留错误码和完成证据。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:b1356b078894877e`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:90d7aabc48316f46`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-c74256087d36fcdee761"></a>
+<a id="api-16b1be894dcfb880cfe0"></a>
 
-### public default void onPrintCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
+### public abstract void onPrintCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
 
 交付一次图像打印请求结果。
 
 ```java
-public default void onPrintCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
+public abstract void onPrintCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
 ```
 
-输入为Bitmap/UIImage或完整PNG/JPEG字节，页面宽高为有限正数mm；返回请求ID，后台准备及原FIFO执行。两种入口共用打印终态；保留completion与outputMayHaveOccurred，DATA_SENT不代表纸面完成。
+输入为Bitmap/UIImage或完整PNG/JPEG字节，页面宽高为有限正数mm；返回请求ID，后台准备及原FIFO执行。两种入口共用打印终态；保留completion与outputMayHaveOccurred，DATA_SENT不代表纸面完成。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:5077631e283e7021`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:cc9f346e633ef367`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-fa7238c354fc9ecc71c1"></a>
+<a id="api-b52cdb10f3009c4b6418"></a>
 
-### public default void onRawCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
+### public abstract void onRawCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
 
 完成一次原始命令发送。
 
 ```java
-public default void onRawCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
+public abstract void onRawCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
 ```
 
-非空原始字节上限1MiB，固定发送一次，仍使用设备原FIFO；不解析命令语义、不绕过队列。保留部分输出和完成级别，不自动重试。
+非空原始字节上限1MiB，固定发送一次，仍使用设备原FIFO；不解析命令语义、不绕过队列。保留部分输出和完成级别，不自动重试。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:df9055ac05eba2c1`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:2798e99024eeffb3`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-f5c057f9a8714c46b63a"></a>
+<a id="api-2b30282aad853dad540f"></a>
 
-### public default void onScanCompleted(com.netumscan.printersdk.ManagerResult<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>)
+### public abstract void onScanCompleted(com.netumscan.printersdk.ManagerResult<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>)
 
 完成本次有限窗口BLE扫描。
 
 ```java
-public default void onScanCompleted(com.netumscan.printersdk.ManagerResult<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>);
+public abstract void onScanCompleted(com.netumscan.printersdk.ManagerResult<java.util.List<com.netumscan.printersdk.DiscoveredDevice>>);
 ```
 
-立即返回原有请求ID，终态经统一接收接口交付；成功值为最新合并候选列表。实时首见事件另行提供。失败或取消无部分成功列表，不自动连接设备。
+立即返回原有请求ID，终态经统一接收接口交付；成功值为最新合并候选列表。实时首见事件另行提供。失败或取消无部分成功列表，不自动连接设备。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:4508167a6a571217`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:92144f37e8a043a5`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-a7876a701c84a4f72cb2"></a>
+<a id="api-8fcd616cfe31115c8331"></a>
 
-### public default void onSdkInfoCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.SdkInfo>)
+### public abstract void onSdkInfoCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.SdkInfo>)
 
 读取实际SDK身份信息。
 
 ```java
-public default void onSdkInfoCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.SdkInfo>);
+public abstract void onSdkInfoCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.SdkInfo>);
 ```
 
-返回SdkInfo或SDKInfo，包括原生版本、分发版本和可空构建标识；不是打印机固件版本，不执行打印机IO。
+返回SdkInfo或SDKInfo，包括原生版本、分发版本和可空构建标识；不是打印机固件版本，不执行打印机IO。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:412af23e46c3e448`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:61f4c26be9c90c3e`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-50acbaf07c36b145b3d5"></a>
+<a id="api-3e3fc8f3aeee5da14eed"></a>
 
-### public default void onStatusChanged(com.netumscan.printersdk.StatusResult)
+### public abstract void onStatusChanged(com.netumscan.printersdk.StatusResult)
 
 通知当前设备状态快照。
 
 ```java
-public default void onStatusChanged(com.netumscan.printersdk.StatusResult);
+public abstract void onStatusChanged(com.netumscan.printersdk.StatusResult);
 ```
 
-注册时先异步交付当前快照；无证据时四项未知。连接成功通知执行后发布初始化样本，断开或换型号重置，重复状态可合并。不是某次getStatus的完成通知。
+注册时先异步交付当前快照；无证据时四项未知。连接成功通知执行后发布初始化样本，断开或换型号重置，重复状态可合并。不是某次getStatus的完成通知。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:22d36b55f77acbef`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:c29f013b0bab9ed7`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/StatusResult;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.NonNull`。
 
-<a id="api-db6bf7d11fc7c6ed1d8a"></a>
+<a id="api-730959f7d96be5db3418"></a>
 
-### public default void onStatusQueryCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>)
+### public abstract void onStatusQueryCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.StatusResult>)
 
 完成一次主动状态查询。
 
 ```java
-public default void onStatusQueryCompleted(com.netumscan.printersdk.ManagerResult<java.lang.Void>);
+public abstract void onStatusQueryCompleted(com.netumscan.printersdk.ManagerResult<com.netumscan.printersdk.StatusResult>);
 ```
 
-通过原FIFO发命令并验证本次应答，结果为Void；状态值只从统一状态事件交付。同值可能不再通知状态，所以不能等待下一次状态事件来结束请求。
+通过原FIFO验证本次应答；成功经统一查询完成回调返回ManagerResult<StatusResult>，value为本次事务已校验状态，不是全局缓存。相同状态连续查询仍各自返回独立请求ID和数据；失败或取消value为空。状态变化事件独立去重、合并，不代替查询结果。调用者必须显式实现回调。
 
-文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:1faffe67b1b2e64a`
+文档 ID：`android:member:com.netumscan.printersdk.PrinterListener:f06ff5d7caecf199`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/ManagerResult;)V`
 
@@ -1731,7 +1892,7 @@ JVM descriptor：`()Lcom/netumscan/printersdk/RequestId;`
 public com.netumscan.printersdk.RequestId getStatus();
 ```
 
-通过原FIFO发命令并验证本次应答，结果为Void；状态值只从统一状态事件交付。同值可能不再通知状态，所以不能等待下一次状态事件来结束请求。
+通过原FIFO验证本次应答；成功经统一查询完成回调返回ManagerResult<StatusResult>，value为本次事务已校验状态，不是全局缓存。相同状态连续查询仍各自返回独立请求ID和数据；失败或取消value为空。状态变化事件独立去重、合并，不代替查询结果。调用者必须显式实现回调。
 
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:c2941347c8570279`
 
@@ -1926,6 +2087,24 @@ Android持有当前Listener，Swift弱引用Delegate。注册代次与请求绑�
 文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:7f0132476bbec266`
 
 JVM descriptor：`(Lcom/netumscan/printersdk/PrinterListener;)V`
+
+参数 0（从 0 起）注解：`@androidx.annotation.Nullable`。
+
+<a id="api-d8f8056ae65ecf5c6464"></a>
+
+### public void stopScan(com.netumscan.printersdk.RequestId)
+
+正常停止当前扫描并返回最终列表。
+
+```java
+public void stopScan(com.netumscan.printersdk.RequestId);
+```
+
+只接受本Manager当前扫描ID，不生成新请求。原扫描完成回调成功交付停止时最新合并的设备列表，可为空。重复、外部、非扫描或已结束ID无操作；平台失败、显式cancel及清理仍保留其失败／取消结果。生命周期和注册代次保持。
+
+文档 ID：`android:member:com.netumscan.printersdk.PrinterManager:a831518248a509bf`
+
+JVM descriptor：`(Lcom/netumscan/printersdk/RequestId;)V`
 
 参数 0（从 0 起）注解：`@androidx.annotation.Nullable`。
 

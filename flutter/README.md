@@ -1,6 +1,6 @@
 # Flutter Quick Start
 
-NETUM Printer SDK `0.3.0-preview.17` 的 Android／iOS 快速示例。Android 精确依赖 Maven Central，iOS 精确依赖公开 Swift Package；克隆本示例仓库即可构建，无需 SDK 私有源码。
+NETUM Printer SDK `0.3.0-preview.20` 的 Android／iOS 快速示例。Android 精确依赖 Maven Central，iOS 精确依赖公开 Swift Package；克隆本示例仓库即可构建，无需 SDK 私有源码。
 
 ## 运行
 
@@ -80,3 +80,9 @@ xcodebuild -project flutter/ios/Runner.xcodeproj -scheme Runner \
 18 项 Flutter 测试覆盖参数、typed bytes、取消终态、后台竞态、无自动重连／重播、非法尺寸和窄屏布局；6 项 iOS RunnerTests 覆盖原生桥接边界、异步请求与重复 token、关闭屏障及真实 engine detach。CI 入口见 [验证说明](../VERIFICATION.md)。软件检查不替代实体蓝牙、纸面、固件或手机峰值内存验收，`hardware_verified=false`。
 
 更多说明见 [SDK 接入](../docs/integration.md)、[API 与生命周期](../docs/api-lifecycle.md)、[设备与纸张](../docs/configuration.md)。
+
+## `.20` 接口与迁移
+
+Android `PrinterListener` 的16个方法和 iOS `PrinterDelegate` 的15个方法全部必需实现，没有默认空实现。查询完成为 `ManagerResult<StatusResult>`，成功值来自本次事务，相同状态连续查询也分别返回；独立状态变化通知仍去重。
+
+正常停止调用 `stopScan`，原扫描请求成功返回最新合并列表；bridge 只确认停止信号，Dart 仍等待原 Future。取消／后台清理保持取消语义。连接结果保留 `printerInfoReadStatus`、`printerInfoReadCode`、`printerInfoReadMessage`；普通信息读取失败显示原因且保持连接和打印。换型号保留读取结果，重连重新读取。

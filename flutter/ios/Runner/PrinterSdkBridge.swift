@@ -67,7 +67,7 @@ final class PrinterSdkBridge: NSObject, FlutterPlugin, PrinterDelegate {
   private func handleOnMain(_ call: FlutterMethodCall, reply: @escaping FlutterResult) {
     guard attached else { return }
     let methods = ["sdkInfo", "scanBle", "bondedDevices", "connect", "setPaperType",
-                   "printEncodedImage", "locateNextLabel", "disconnect", "close", "cancel"]
+                   "printEncodedImage", "locateNextLabel", "disconnect", "close", "cancel", "stopScan"]
     guard methods.contains(call.method) else { reply(FlutterMethodNotImplemented); return }
     let args = call.arguments as? [String: Any] ?? [:]
     guard let token = args["requestId"] as? String, !token.isEmpty, token.utf8.count <= 128 else {
@@ -76,7 +76,7 @@ final class PrinterSdkBridge: NSObject, FlutterPlugin, PrinterDelegate {
     }
     if closing || closed {
       switch call.method {
-      case "cancel": reply(nil)
+      case "cancel", "stopScan": reply(nil)
       case "close":
         if let closeResult { reply(Self.envelope(closeResult, token: token)) }
         else if replies[token] != nil || closeReplies[token] != nil {
@@ -86,6 +86,10 @@ final class PrinterSdkBridge: NSObject, FlutterPlugin, PrinterDelegate {
         reply(FlutterError(code: "sdk_closed", message: "PrinterManager is permanently closing or closed", details: nil))
       }
       return
+    }
+    if call.method == "stopScan" {
+      if let id = requests[token] { manager.stopScan(id) }
+      reply(nil); return
     }
     if call.method == "cancel" {
       if let id = requests[token] { manager.cancel(id) }
@@ -184,7 +188,10 @@ final class PrinterSdkBridge: NSObject, FlutterPlugin, PrinterDelegate {
       if result.isSuccess { connectedToken = token; connectedRequest = result.requestID }
     }
     deliver(result, value: result.value.map { info in
-      ["device": Self.deviceValue(info.device), "model": info.model == .ltM90 ? "LT_M90" as Any : NSNull()]
+      ["device": Self.deviceValue(info.device), "model": info.model == .ltM90 ? "LT_M90" as Any : NSNull(),
+       "printerInfoReadStatus": Self.infoReadStatus(info.printerInfoReadStatus),
+       "printerInfoReadCode": info.printerInfoReadCode.map { $0 as Any } ?? NSNull(),
+       "printerInfoReadMessage": info.printerInfoReadMessage.map { $0 as Any } ?? NSNull()]
     } ?? NSNull())
   }
   func printerManager(_ manager: PrinterManager, didLoseConnection result: ManagerResult<Void>) {
@@ -245,4 +252,20 @@ final class PrinterSdkBridge: NSObject, FlutterPlugin, PrinterDelegate {
     let value = number.doubleValue
     return value.isFinite && value > 0 ? value : nil
   }
+
+  private static func infoReadStatus(_ value: ConnectionInfo.PrinterInfoReadStatus) -> String {
+    switch value {
+    case .notAttempted: return "NOT_ATTEMPTED"
+    case .succeeded: return "SUCCEEDED"
+    case .failed: return "FAILED"
+    }
+  }
+
+  // This owner explicitly ignores callbacks outside its observed workflow.
+  func printerManager(_ manager: PrinterManager, didDiscover device: DiscoveredPrinter, scanID: RequestID) {}
+  func printerManager(_ manager: PrinterManager, didFinishSettingPrinterModel result: ManagerResult<ConnectionInfo>) {}
+  func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<StatusResult>) {}
+  func printerManager(_ manager: PrinterManager, didFinishSendingRaw result: ManagerResult<Void>) {}
+  func printerManager(_ manager: PrinterManager, didFinishReadingCapabilities result: ManagerResult<PrinterCapabilities>) {}
+  func printerManager(_ manager: PrinterManager, didUpdateStatus status: StatusResult) {}
 }

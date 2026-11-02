@@ -15,6 +15,67 @@ void main() {
   });
 
   test(
+    'normal stop acknowledges a signal and keeps the original scan result',
+    () async {
+      final pending = Completer<Map<String, Object?>>();
+      final calls = <MethodCall>[];
+      MethodCall? scan;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        if (call.method == 'scanBle') {
+          scan = call;
+          return pending.future;
+        }
+        return null;
+      });
+      final bridge = PrinterBridge(channel: channel);
+      final request = bridge.start('scanBle');
+      var completed = false;
+      unawaited(request.result.then((_) => completed = true));
+      await Future<void>.delayed(Duration.zero);
+      await bridge.stopScan(request.id);
+      expect(calls.last.method, 'stopScan');
+      expect(calls.last.arguments['requestId'], request.id);
+      expect(completed, isFalse);
+      pending.complete({
+        ..._result(scan!),
+        'value': [
+          {'id': 'AA:01', 'name': 'Latest', 'rssi': -42},
+        ],
+      });
+      final result = await request.result;
+      expect(result.requestId, request.id);
+      expect(result.isSuccess, isTrue);
+      expect((result.value as List).single['name'], 'Latest');
+    },
+  );
+
+  test(
+    'connection envelope preserves automatic information failure details',
+    () async {
+      messenger.setMockMethodCallHandler(
+        channel,
+        (call) async => {
+          ..._result(call),
+          'value': {
+            'model': 'LT_M90',
+            'printerInfoReadStatus': 'FAILED',
+            'printerInfoReadCode': 3000,
+            'printerInfoReadMessage': 'Invalid INFO frame',
+          },
+        },
+      );
+      final bridge = PrinterBridge(channel: channel);
+      final result = await bridge.start('connect').result;
+      expect(result.isSuccess, isTrue);
+      final value = result.value as Map;
+      expect(value['printerInfoReadStatus'], 'FAILED');
+      expect(value['printerInfoReadCode'], 3000);
+      expect(value['printerInfoReadMessage'], 'Invalid INFO frame');
+    },
+  );
+
+  test(
     'each request has its own identity and preserves the final SDK result',
     () async {
       final calls = <MethodCall>[];

@@ -67,7 +67,7 @@ final class DemoModel implements AutoCloseable, PrinterListener {
     private boolean configured;
     private long connectionVersion;
     private PaperType selectedMedia = PaperType.GAP_LABEL;
-    private DemoResult<Void> statusResult;
+    private DemoResult<StatusResult> statusResult;
     private DemoResult<PrinterCapabilities> capabilitiesResult;
     private DemoResult<SdkInfo> identityResult;
     private DemoResult<List<DiscoveredDevice>> discoveryResult;
@@ -358,7 +358,7 @@ final class DemoModel implements AutoCloseable, PrinterListener {
     void stopDiscovery() {
         if (discovery == null || discoveryStopping) return;
         discoveryStopping = true;
-        manager.cancel(discovery);
+        manager.stopScan(discovery);
     }
     /** 切换传输或加载配置时清除候选与选择，不因此扫描、连接或发送。 */
     void clearCandidates() {
@@ -455,8 +455,8 @@ final class DemoModel implements AutoCloseable, PrinterListener {
     @Override public void onRawCompleted(ManagerResult<Void> result) { completed(DemoResult.Kind.RAW, result); }
     @Override public void onPaperTypeCompleted(ManagerResult<Void> result) { completed(DemoResult.Kind.MEDIA, result); }
     @Override public void onLabelPositioningCompleted(ManagerResult<Void> result) { completed(DemoResult.Kind.FEED, result); }
-    @Override public void onStatusQueryCompleted(ManagerResult<Void> result) {
-        DemoResult<Void> completed = new DemoResult<>(DemoResult.Kind.STATUS, result); record(completed);
+    @Override public void onStatusQueryCompleted(ManagerResult<StatusResult> result) {
+        DemoResult<StatusResult> completed = new DemoResult<>(DemoResult.Kind.STATUS, result); record(completed);
         if (!takeResult(result)) { publish(); return; }
         statusResult = completed; latestResult = statusResult;
         publish();

@@ -73,7 +73,7 @@ final class DemoFormatter {
     }
     private static String successDescription(DemoResult.Kind kind) {
         switch (kind) {
-        case STATUS: return "已收到并验证本次状态回复；状态显示由监听更新";
+        case STATUS: return "已收到并验证本次状态回复；详见本次查询状态";
         case CONNECT: return "已连接；设备信息见本次连接快照";
         case PROFILE: return "已采用打印机型号；设备信息保留本次连接快照";
         case CAPABILITIES: return "已读取 SDK 能力";
@@ -94,7 +94,13 @@ final class DemoFormatter {
     static String printerInfo(DemoUiState state) {
         if (!state.connected) return "设备信息未知；连接后自动读取一次";
         PrinterInfo info = state.connectionInfo == null ? null : state.connectionInfo.printerInfo;
-        if (info == null) return "本次连接未获取设备信息";
+        if (info == null) {
+            ConnectionInfo connection = state.connectionInfo;
+            if (connection != null && connection.printerInfoReadStatus == ConnectionInfo.PrinterInfoReadStatus.FAILED)
+                return "设备信息读取失败（" + connection.printerInfoReadCode + "）：" + connection.printerInfoReadMessage +
+                    "；连接仍可用于打印，后续查询按其结果处理";
+            return "本次连接未尝试读取设备信息";
+        }
         return "连接信息快照 · 部分字段含义待确认\n本次读回不改变打印配置，不表示打印完成\n" +
             "制造商：" + known(info.manufacturer) + "\n设备名称：" + known(info.deviceName) +
             "\nUID（非序列号）：" + known(info.uidHex) + "\n协议报告版本号（含义待确认）：" + known(info.reportedVersion) +

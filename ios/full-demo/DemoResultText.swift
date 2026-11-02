@@ -9,7 +9,7 @@ enum DemoResultText {
         case .success: break
         }
         switch value {
-        case .action(.getStatus, _): return "状态查询回复已校验；盖纸状态由状态监听更新"
+        case .status: return "状态查询回复已校验；详见本次查询状态"
         case .capabilities: return "能力已读取；未知项保持未知"
         default:
             switch value.evidence.completion {
@@ -39,7 +39,7 @@ enum DemoResultText {
             case .disconnected: return "意外断连"
             case .disconnect: return "断开清理"
             }
-        case .status: return "状态"
+        case .status: return "查询状态"
         case .capabilities: return "能力"
         case .identity: return "SDK 身份"
         case .discovery: return "BLE 发现"
@@ -84,6 +84,16 @@ enum DemoResultText {
     }
     static func sdkVersion(_ value: SDKInfo?) -> String {
         value.map { "SDK \($0.distributionVersion)" } ?? "SDK 版本未知"
+    }
+    static func printerInfoRead(_ value: ConnectionInfo?) -> String {
+        guard let value else { return "尚未连接设备" }
+        switch value.printerInfoReadStatus {
+        case .notAttempted: return "本次连接未尝试读取设备信息"
+        case .succeeded: return "本次设备信息读取成功"
+        case .failed:
+            return "设备信息读取失败（" + String(value.printerInfoReadCode ?? 1000) + "）：" +
+                (value.printerInfoReadMessage ?? "未知原因") + "；连接仍可用于打印，后续查询按其结果处理"
+        }
     }
     static func printerInfo(_ value: PrinterInfo?) -> String? {
         guard let value else { return nil }

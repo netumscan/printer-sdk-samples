@@ -115,6 +115,10 @@ class PrinterBridge {
   Future<void> cancel(String requestId) =>
       _channel.invokeMethod<void>('cancel', {'requestId': requestId});
 
+  /// Finish an admitted native scan; await the original scan request for its list.
+  Future<void> stopScan(String requestId) =>
+      _channel.invokeMethod<void>('stopScan', {'requestId': requestId});
+
   Future<void> release() async {
     if (_released) return;
     onDisconnected = null;

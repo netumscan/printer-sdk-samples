@@ -1,13 +1,13 @@
 # iOS Swift API 参考
 
-发布候选版本 **0.3.0-preview.17**；原生 SDK **0.3.0**；C ABI **3/r3**。
+发布候选版本 **0.3.0-preview.20**；原生 SDK **0.3.0**；C ABI **3/r3**。
 
-本页逐项覆盖审定的编译器公共 API 基线，共 **141** 个文档条目。
+本页逐项覆盖审定的编译器公共 API 基线，共 **135** 个文档条目。
 声明、JVM descriptor、常量、枚举和编译器关系均来自基线，说明按稳定文档 ID 维护。
 机器可读的完整基线与说明见 [api-reference.json](api-reference.json)；运行
 `python3 tools/check-api-reference.py` 可检查覆盖范围、审定 SHA-256 和本页字节一致性。
 
-基线 SHA-256：`7b1c77683ba68efba97058edb0aa38bc4996c17655670c678d3eb82b90164cff`
+基线 SHA-256：`403105fad5cc346e027032f04ba65d01451db7eff3d81ad1bde1c309d4125591`
 
 运行约束与错误处理见 [API 与生命周期](api-lifecycle.md) 和 [错误码与排障](errors-troubleshooting.md)。
 本页是未发布的发布候选契约，不代表发布制品或公开历史证明。硬件验收仍暂缓，`hardware_verified=false`。
@@ -30,7 +30,7 @@
 - [StatusResult](#api-498d0aa8573deb1c5df3)
 - [Support](#api-eeb58ec4a51744fa2e58)
 
-公共模块为 `XLPrinterSDK`，C 桥接模块为 `CPrinterSDK`。
+公共模块为 `PrinterSDK`，C 桥接模块为 `CPrinterSDK`。
 本基线使用 iOS 15 arm64；符号附带的 Foundation 可用性不表示其他平台已完成分发或验收。
 未单列 availability 的符号以 SDK 的最低 iOS 版本 15 为接入前提。
 
@@ -318,6 +318,100 @@ struct ConnectionInfo
 
 符号种类：`swift.struct`；访问级别：`public`。
 
+<a id="api-033f1044166dab608a91"></a>
+
+### ConnectionInfo.PrinterInfoReadStatus
+
+自动信息读取状态。
+
+```swift
+enum PrinterInfoReadStatus
+```
+
+NOT_ATTEMPTED/notAttempted、SUCCEEDED/succeeded、FAILED/failed分别表示未尝试、成功和失败；失败不等于通信连接失败。
+
+文档 ID：`apple:symbol:s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO`
+
+符号种类：`swift.enum`；访问级别：`public`。
+
+<a id="api-fbdc862c3e2f14606fad"></a>
+
+### ConnectionInfo.PrinterInfoReadStatus.!=(_:_:)
+
+比较两个自动读取状态是否不同。
+
+```swift
+static func != (lhs: borrowing Self, rhs: borrowing Self) -> Bool
+```
+
+Swift枚举派生比较，不进行设备IO，不比较诊断消息、连接或硬件状态。
+
+文档 ID：`apple:symbol:s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO`
+
+符号种类：`swift.func.op`；访问级别：`public`。
+
+这是编译器为当前类型带入的协议扩展／合成公共成员。
+
+扩展来源（保留基线原值）：
+
+```json
+{"extendedModule":"Swift","typeKind":"swift.protocol"}
+```
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Bool | `s:Sb` |
+
+<a id="api-80ccf6ebaaa840e032e4"></a>
+
+### ConnectionInfo.PrinterInfoReadStatus.failed
+
+本次自动信息读取失败。
+
+```swift
+case failed
+```
+
+printerInfo为空，错误码和消息保留本次失败；普通读取失败仍保持连接及打印可用，后续查询可能要求显式重连。
+
+文档 ID：`apple:symbol:s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO6failedyA2EmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
+
+<a id="api-06884ef4af899fdcd480"></a>
+
+### ConnectionInfo.PrinterInfoReadStatus.notAttempted
+
+本次连接未尝试读取信息。
+
+```swift
+case notAttempted
+```
+
+未选择受支持信息协议；printerInfo、读取错误码和消息均为空，不推断信息读取失败。
+
+文档 ID：`apple:symbol:s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO12notAttemptedyA2EmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
+
+<a id="api-c69f44b928c448a1eb5c"></a>
+
+### ConnectionInfo.PrinterInfoReadStatus.succeeded
+
+本次自动信息读取成功。
+
+```swift
+case succeeded
+```
+
+printerInfo保存本次已校验数据，读取错误码和消息为空；信息仍不是型号认证或打印完成证据。
+
+文档 ID：`apple:symbol:s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO9succeededyA2EmF`
+
+符号种类：`swift.enum.case`；访问级别：`public`。
+
 <a id="api-454aa7f7c38ee624be99"></a>
 
 ### ConnectionInfo.device
@@ -383,6 +477,73 @@ let printerInfo: PrinterInfo?
 | 名称 | precise identifier |
 | --- | --- |
 | PrinterInfo | `s:12XLPrinterSDK11PrinterInfoV` |
+
+<a id="api-39b934ca5ead6b3c26d8"></a>
+
+### ConnectionInfo.printerInfoReadCode
+
+本次自动信息读取失败的稳定错误码。
+
+```swift
+let printerInfoReadCode: Int32?
+```
+
+仅FAILED/failed状态有值，保留本次原生读取的SDK错误码；未尝试或成功时为空。此值不替代连接请求的结果码，普通读取失败仍可连接和打印。
+
+文档 ID：`apple:symbol:s:12XLPrinterSDK14ConnectionInfoV07printerD8ReadCodes5Int32VSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| Int32 | `s:s5Int32V` |
+
+<a id="api-4d640793f4f9145258cb"></a>
+
+### ConnectionInfo.printerInfoReadMessage
+
+本次自动信息读取失败的诊断摘要。
+
+```swift
+let printerInfoReadMessage: String?
+```
+
+仅失败时有值，来自本次读取的有界诊断或稳定错误说明，不是旧连接缓存。读取失败后的后续查询仍按自己的请求结果处理，不自动重连。
+
+文档 ID：`apple:symbol:s:12XLPrinterSDK14ConnectionInfoV07printerD11ReadMessageSSSgvp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| String | `s:SS` |
+
+<a id="api-f127f2cdfa6382a49c22"></a>
+
+### ConnectionInfo.printerInfoReadStatus
+
+本次连接自动信息读取的状态。
+
+```swift
+let printerInfoReadStatus: ConnectionInfo.PrinterInfoReadStatus
+```
+
+区分未尝试、成功、失败；无已采用的信息协议为未尝试，超时／无效回复／不支持保留失败码和原因。换型号沿用本连接结果，重连重新读取。
+
+文档 ID：`apple:symbol:s:12XLPrinterSDK14ConnectionInfoV07printerD10ReadStatusAC07PrinterdfG0Ovp`
+
+符号种类：`swift.property`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
+| ConnectionInfo | `s:12XLPrinterSDK14ConnectionInfoV` |
+| PrinterInfoReadStatus | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` |
 
 <a id="api-e7eba043862754865338"></a>
 
@@ -787,7 +948,7 @@ let requestID: RequestID
 let value: Value?
 ```
 
-连接、能力、身份和发现请求成功时使用对应类型；getStatus、打印等Void操作以及失败／取消为空。状态值经setStatusListener通知，不在getStatus结果中重复返回。
+连接、状态查询、能力、身份和发现成功时使用各自类型；状态查询返回本次校验的StatusResult。打印等Void操作以及失败／取消的value为空。独立状态变化事件可以去重，不影响每次查询返回。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK13ManagerResultV5valuexSgvp`
 
@@ -1101,7 +1262,7 @@ var statusReporting: Support { get }
 @MainActor protocol PrinterDelegate : AnyObject
 ```
 
-每个Manager同时控制一台设备，公开动作返回关联请求ID，统一接收接口在主线程锁外交付强类型结果。内部每请求终态一次；接收者失效不重放通知，所有设备IO仍经原执行器。
+每个Manager同时控制一台设备，公开动作返回关联请求ID，统一接收接口在主线程锁外交付强类型结果。内部每请求终态一次；接收者失效不重放通知，所有设备IO仍经原执行器。 本版要求调用者显式实现全部回调，不提供默认空实现；未完整实现的类型无法通过编译。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP`
 
@@ -1123,42 +1284,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didDiscover device: DiscoveredPrinter, scanID: RequestID)
 ```
 
-携带所属扫描请求ID与SDK设备值；每轮地址或UUID首次出现通知一次，最终列表保留后续合并信息。旧扫描、取消和接收者失效后的进度不派发，不暴露平台句柄。
+携带所属扫描请求ID与SDK设备值；每轮地址或UUID首次出现通知一次，最终列表保留后续合并信息。旧扫描、取消和接收者失效后的进度不派发，不暴露平台句柄。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_11didDiscover6scanIDyAA0cF0C_AA010DiscoveredC0VAA07RequestJ0VtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| DiscoveredPrinter | `s:12XLPrinterSDK17DiscoveredPrinterV` |
-| MainActor | `s:ScM` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| RequestID | `s:12XLPrinterSDK9RequestIDV` |
-
-<a id="api-90c30e0ca53b1243cc75"></a>
-
-### PrinterDelegate.printerManager(_:didDiscover:scanID:)
-
-通知本轮首次发现的唯一设备。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didDiscover device: DiscoveredPrinter, scanID: RequestID)
-```
-
-携带所属扫描请求ID与SDK设备值；每轮地址或UUID首次出现通知一次，最终列表保留后续合并信息。旧扫描、取消和接收者失效后的进度不派发，不暴露平台句柄。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_11didDiscover6scanIDyAA0cF0C_AA010DiscoveredC0VAA07RequestJ0VtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1179,42 +1309,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishClosing result: ManagerResult<Void>)
 ```
 
-返回请求ID；必要状态重置和关闭结果交付后释放统一接收者。重复清理共享原屏障，不在UI线程同步等待，不承诺关闭后的历史补交。
+返回请求ID；必要状态重置和关闭结果交付后释放统一接收者。重复清理共享原屏障，不在UI线程同步等待，不承诺关闭后的历史补交。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_16didFinishClosingyAA0cF0C_AA0F6ResultVyytGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| Void | `s:s4Voida` |
-
-<a id="api-ba8b5f47ea8c2cff5916"></a>
-
-### PrinterDelegate.printerManager(_:didFinishClosing:)
-
-永久关闭并完成异步资源清理。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishClosing result: ManagerResult<Void>)
-```
-
-返回请求ID；必要状态重置和关闭结果交付后释放统一接收者。重复清理共享原屏障，不在UI线程同步等待，不承诺关闭后的历史补交。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_16didFinishClosingyAA0cF0C_AA0F6ResultVyytGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1235,42 +1334,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishConnecting result: ManagerResult<ConnectionInfo>)
 ```
 
-返回请求ID，成功值为ConnectionInfo。已知名称只推荐收录型号，可用显式型号重载；可选设备信息在原FIFO有界查询一次。意外断连通过独立事件通知，不自动停扫、重连或重放。
+返回请求ID，成功值为ConnectionInfo。已知名称只推荐收录型号，可用显式型号重载；可选设备信息在原FIFO有界查询一次。意外断连通过独立事件通知，不自动停扫、重连或重放。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_19didFinishConnectingyAA0cF0C_AA0F6ResultVyAA14ConnectionInfoVGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| ConnectionInfo | `s:12XLPrinterSDK14ConnectionInfoV` |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-
-<a id="api-36d74dad6d179e75c58d"></a>
-
-### PrinterDelegate.printerManager(_:didFinishConnecting:)
-
-完成显式设备连接。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishConnecting result: ManagerResult<ConnectionInfo>)
-```
-
-返回请求ID，成功值为ConnectionInfo。已知名称只推荐收录型号，可用显式型号重载；可选设备信息在原FIFO有界查询一次。意外断连通过独立事件通知，不自动停扫、重连或重放。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_19didFinishConnectingyAA0cF0C_AA0F6ResultVyAA14ConnectionInfoVGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1291,42 +1359,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishDisconnecting result: ManagerResult<Void>)
 ```
 
-返回请求ID；请求处理、必要状态重置和清理屏障完成后交付Void结果。接收者保留，实例可显式重新连接，不自动恢复任务。
+返回请求ID；请求处理、必要状态重置和清理屏障完成后交付Void结果。接收者保留，实例可显式重新连接，不自动恢复任务。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_22didFinishDisconnectingyAA0cF0C_AA0F6ResultVyytGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| Void | `s:s4Voida` |
-
-<a id="api-847e031b2bf72a317f9a"></a>
-
-### PrinterDelegate.printerManager(_:didFinishDisconnecting:)
-
-完成当前连接的异步清理。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishDisconnecting result: ManagerResult<Void>)
-```
-
-返回请求ID；请求处理、必要状态重置和清理屏障完成后交付Void结果。接收者保留，实例可显式重新连接，不自动恢复任务。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_22didFinishDisconnectingyAA0cF0C_AA0F6ResultVyytGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1347,42 +1384,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishPositioningLabel result: ManagerResult<Void>)
 ```
 
-返回请求ID并按设备配置经原FIFO执行；可能走纸，不由普通图片打印隐式追加。不支持返回稳定错误码，终态为Void结果。
+返回请求ID并按设备配置经原FIFO执行；可能走纸，不由普通图片打印隐式追加。不支持返回稳定错误码，终态为Void结果。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_25didFinishPositioningLabelyAA0cF0C_AA0F6ResultVyytGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| Void | `s:s4Voida` |
-
-<a id="api-867b0f6d547da0f2c41d"></a>
-
-### PrinterDelegate.printerManager(_:didFinishPositioningLabel:)
-
-完成显式下一标签定位。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishPositioningLabel result: ManagerResult<Void>)
-```
-
-返回请求ID并按设备配置经原FIFO执行；可能走纸，不由普通图片打印隐式追加。不支持返回稳定错误码，终态为Void结果。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_25didFinishPositioningLabelyAA0cF0C_AA0F6ResultVyytGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1403,7 +1409,7 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishPrinting result: ManagerResult<Void>)
 ```
 
-输入为Bitmap/UIImage或完整PNG/JPEG字节，页面宽高为有限正数mm；返回请求ID，后台准备及原FIFO执行。两种入口共用打印终态；保留completion与outputMayHaveOccurred，DATA_SENT不代表纸面完成。
+输入为Bitmap/UIImage或完整PNG/JPEG字节，页面宽高为有限正数mm；返回请求ID，后台准备及原FIFO执行。两种入口共用打印终态；保留completion与outputMayHaveOccurred，DATA_SENT不代表纸面完成。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_17didFinishPrintingyAA0cF0C_AA0F6ResultVyytGtF`
 
@@ -1418,50 +1424,19 @@ var statusReporting: Support { get }
 | PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
 | Void | `s:s4Voida` |
 
-<a id="api-67a62222d26b19536f6e"></a>
-
-### PrinterDelegate.printerManager(_:didFinishPrinting:)
-
-交付一次图像打印请求结果。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishPrinting result: ManagerResult<Void>)
-```
-
-输入为Bitmap/UIImage或完整PNG/JPEG字节，页面宽高为有限正数mm；返回请求ID，后台准备及原FIFO执行。两种入口共用打印终态；保留completion与outputMayHaveOccurred，DATA_SENT不代表纸面完成。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_17didFinishPrintingyAA0cF0C_AA0F6ResultVyytGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| Void | `s:s4Voida` |
-
-<a id="api-bca22ed92165297b23c5"></a>
+<a id="api-3b212f45b45f16be00b8"></a>
 
 ### PrinterDelegate.printerManager(_:didFinishQueryingStatus:)
 
 完成一次主动状态查询。
 
 ```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<Void>)
+@MainActor func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<StatusResult>)
 ```
 
-通过原FIFO发命令并验证本次应答，结果为Void；状态值只从统一状态事件交付。同值可能不再通知状态，所以不能等待下一次状态事件来结束请求。
+通过原FIFO验证本次应答；成功经统一查询完成回调返回ManagerResult<StatusResult>，value为本次事务已校验状态，不是全局缓存。相同状态连续查询仍各自返回独立请求ID和数据；失败或取消value为空。状态变化事件独立去重、合并，不代替查询结果。调用者必须显式实现回调。
 
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_23didFinishQueryingStatusyAA0cF0C_AA0F6ResultVyytGtF`
+文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_23didFinishQueryingStatusyAA0cF0C_AA0F6ResultVyAA0jK0VGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
 
@@ -1472,38 +1447,7 @@ var statusReporting: Support { get }
 | MainActor | `s:ScM` |
 | ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
 | PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| Void | `s:s4Voida` |
-
-<a id="api-4f7b382a47aa881c4e7e"></a>
-
-### PrinterDelegate.printerManager(_:didFinishQueryingStatus:)
-
-完成一次主动状态查询。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<Void>)
-```
-
-通过原FIFO发命令并验证本次应答，结果为Void；状态值只从统一状态事件交付。同值可能不再通知状态，所以不能等待下一次状态事件来结束请求。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_23didFinishQueryingStatusyAA0cF0C_AA0F6ResultVyytGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| Void | `s:s4Voida` |
+| StatusResult | `s:12XLPrinterSDK12StatusResultV` |
 
 <a id="api-d118354595a4bc3e19a2"></a>
 
@@ -1515,42 +1459,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishReadingCapabilities result: ManagerResult<PrinterCapabilities>)
 ```
 
-返回PrinterCapabilities，支持度使用未知/不支持/支持三态；未知范围为空。查询和上报分别描述，能力不等于硬件认证。
+返回PrinterCapabilities，支持度使用未知/不支持/支持三态；未知范围为空。查询和上报分别描述，能力不等于硬件认证。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_28didFinishReadingCapabilitiesyAA0cF0C_AA0F6ResultVyAA0cJ0VGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterCapabilities | `s:12XLPrinterSDK19PrinterCapabilitiesV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-
-<a id="api-0467f66d9a6994562d66"></a>
-
-### PrinterDelegate.printerManager(_:didFinishReadingCapabilities:)
-
-读取当前能力描述。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishReadingCapabilities result: ManagerResult<PrinterCapabilities>)
-```
-
-返回PrinterCapabilities，支持度使用未知/不支持/支持三态；未知范围为空。查询和上报分别描述，能力不等于硬件认证。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_28didFinishReadingCapabilitiesyAA0cF0C_AA0F6ResultVyAA0cJ0VGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1571,42 +1484,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishReadingSDKInfo result: ManagerResult<SDKInfo>)
 ```
 
-返回SdkInfo或SDKInfo，包括原生版本、分发版本和可空构建标识；不是打印机固件版本，不执行打印机IO。
+返回SdkInfo或SDKInfo，包括原生版本、分发版本和可空构建标识；不是打印机固件版本，不执行打印机IO。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_23didFinishReadingSDKInfoyAA0cF0C_AA0F6ResultVyAA0J0VGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| SDKInfo | `s:12XLPrinterSDK7SDKInfoV` |
-
-<a id="api-80108dc4648d59bebfa6"></a>
-
-### PrinterDelegate.printerManager(_:didFinishReadingSDKInfo:)
-
-读取实际SDK身份信息。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishReadingSDKInfo result: ManagerResult<SDKInfo>)
-```
-
-返回SdkInfo或SDKInfo，包括原生版本、分发版本和可空构建标识；不是打印机固件版本，不执行打印机IO。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_23didFinishReadingSDKInfoyAA0cF0C_AA0F6ResultVyAA0J0VGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1627,42 +1509,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishScanning result: ManagerResult<[DiscoveredPrinter]>)
 ```
 
-立即返回原有请求ID，终态经统一接收接口交付；成功值为最新合并候选列表。实时首见事件另行提供。失败或取消无部分成功列表，不自动连接设备。
+立即返回原有请求ID，终态经统一接收接口交付；成功值为最新合并候选列表。实时首见事件另行提供。失败或取消无部分成功列表，不自动连接设备。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_17didFinishScanningyAA0cF0C_AA0F6ResultVySayAA010DiscoveredC0VGGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| DiscoveredPrinter | `s:12XLPrinterSDK17DiscoveredPrinterV` |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-
-<a id="api-a63dc46dd784103fbc1f"></a>
-
-### PrinterDelegate.printerManager(_:didFinishScanning:)
-
-完成本次有限窗口BLE扫描。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishScanning result: ManagerResult<[DiscoveredPrinter]>)
-```
-
-立即返回原有请求ID，终态经统一接收接口交付；成功值为最新合并候选列表。实时首见事件另行提供。失败或取消无部分成功列表，不自动连接设备。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_17didFinishScanningyAA0cF0C_AA0F6ResultVySayAA010DiscoveredC0VGGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1683,42 +1534,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishSendingRaw result: ManagerResult<Void>)
 ```
 
-非空原始字节上限1MiB，固定发送一次，仍使用设备原FIFO；不解析命令语义、不绕过队列。保留部分输出和完成级别，不自动重试。
+非空原始字节上限1MiB，固定发送一次，仍使用设备原FIFO；不解析命令语义、不绕过队列。保留部分输出和完成级别，不自动重试。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_19didFinishSendingRawyAA0cF0C_AA0F6ResultVyytGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| Void | `s:s4Voida` |
-
-<a id="api-a4c473d7e86aa55d55b8"></a>
-
-### PrinterDelegate.printerManager(_:didFinishSendingRaw:)
-
-完成一次原始命令发送。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishSendingRaw result: ManagerResult<Void>)
-```
-
-非空原始字节上限1MiB，固定发送一次，仍使用设备原FIFO；不解析命令语义、不绕过队列。保留部分输出和完成级别，不自动重试。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_19didFinishSendingRawyAA0cF0C_AA0F6ResultVyytGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1739,42 +1559,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishSettingPaperType result: ManagerResult<Void>)
 ```
 
-这是独立设备FIFO请求，不由连接、页面尺寸或打印隐式触发；不自动校准或持久化。返回Void结果，保留错误码和完成证据。
+这是独立设备FIFO请求，不由连接、页面尺寸或打印隐式触发；不自动校准或持久化。返回Void结果，保留错误码和完成证据。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_25didFinishSettingPaperTypeyAA0cF0C_AA0F6ResultVyytGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| Void | `s:s4Voida` |
-
-<a id="api-af73c31d92d419701f5f"></a>
-
-### PrinterDelegate.printerManager(_:didFinishSettingPaperType:)
-
-完成显式纸张定位类型设置。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishSettingPaperType result: ManagerResult<Void>)
-```
-
-这是独立设备FIFO请求，不由连接、页面尺寸或打印隐式触发；不自动校准或持久化。返回Void结果，保留错误码和完成证据。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_25didFinishSettingPaperTypeyAA0cF0C_AA0F6ResultVyytGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1795,42 +1584,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didFinishSettingPrinterModel result: ManagerResult<ConnectionInfo>)
 ```
 
-仅连接空闲时允许；成功返回更新的ConnectionInfo并失效介质证据，失败保留原配置。不重新执行设备信息查询。结果与连接完成使用不同方法。
+仅连接空闲时允许；成功返回更新的ConnectionInfo并失效介质证据，失败保留原配置。不重新执行设备信息查询。结果与连接完成使用不同方法。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_016didFinishSettingC5ModelyAA0cF0C_AA0F6ResultVyAA14ConnectionInfoVGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| ConnectionInfo | `s:12XLPrinterSDK14ConnectionInfoV` |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-
-<a id="api-90928209e2a0498aeaee"></a>
-
-### PrinterDelegate.printerManager(_:didFinishSettingPrinterModel:)
-
-更新连接采用的内置型号配置。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didFinishSettingPrinterModel result: ManagerResult<ConnectionInfo>)
-```
-
-仅连接空闲时允许；成功返回更新的ConnectionInfo并失效介质证据，失败保留原配置。不重新执行设备信息查询。结果与连接完成使用不同方法。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_016didFinishSettingC5ModelyAA0cF0C_AA0F6ResultVyAA14ConnectionInfoVGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1851,42 +1609,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didLoseConnection result: ManagerResult<Void>)
 ```
 
-关联原成功连接的请求ID，每连接最多一次；主动断开和关闭走自己的完成方法。注册代次失效不把旧连接事件改投新接收者，不自动重连或重放。
+关联原成功连接的请求ID，每连接最多一次；主动断开和关闭走自己的完成方法。注册代次失效不把旧连接事件改投新接收者，不自动重连或重放。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_17didLoseConnectionyAA0cF0C_AA0F6ResultVyytGtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| ManagerResult | `s:12XLPrinterSDK13ManagerResultV` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| Void | `s:s4Voida` |
-
-<a id="api-ec245340afec058b68b9"></a>
-
-### PrinterDelegate.printerManager(_:didLoseConnection:)
-
-通知本连接的意外断开。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didLoseConnection result: ManagerResult<Void>)
-```
-
-关联原成功连接的请求ID，每连接最多一次；主动断开和关闭走自己的完成方法。注册代次失效不把旧连接事件改投新接收者，不自动重连或重放。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_17didLoseConnectionyAA0cF0C_AA0F6ResultVyytGtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -1907,41 +1634,11 @@ var statusReporting: Support { get }
 @MainActor func printerManager(_ manager: PrinterManager, didUpdateStatus status: StatusResult)
 ```
 
-注册时先异步交付当前快照；无证据时四项未知。连接成功通知执行后发布初始化样本，断开或换型号重置，重复状态可合并。不是某次getStatus的完成通知。
+注册时先异步交付当前快照；无证据时四项未知。连接成功通知执行后发布初始化样本，断开或换型号重置，重复状态可合并。不是某次getStatus的完成通知。 调用者必须显式实现本回调；接口不提供默认实现，遗漏方法会导致编译失败。不使用的事件也须由调用者显式声明空处理。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegateP14printerManager_15didUpdateStatusyAA0cF0C_AA0I6ResultVtF`
 
 符号种类：`swift.method`；访问级别：`public`。
-
-声明引用的编译器标识：
-
-| 名称 | precise identifier |
-| --- | --- |
-| MainActor | `s:ScM` |
-| PrinterManager | `s:12XLPrinterSDK14PrinterManagerC` |
-| StatusResult | `s:12XLPrinterSDK12StatusResultV` |
-
-<a id="api-1704c6c880278ce5afff"></a>
-
-### PrinterDelegate.printerManager(_:didUpdateStatus:)
-
-通知当前设备状态快照。
-
-```swift
-@MainActor func printerManager(_ manager: PrinterManager, didUpdateStatus status: StatusResult)
-```
-
-注册时先异步交付当前快照；无证据时四项未知。连接成功通知执行后发布初始化样本，断开或换型号重置，重复状态可合并。不是某次getStatus的完成通知。
-
-文档 ID：`apple:symbol:s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_15didUpdateStatusyAA0cF0C_AA0I6ResultVtF`
-
-符号种类：`swift.method`；访问级别：`public`。
-
-扩展来源（保留基线原值）：
-
-```json
-{"extendedModule":"XLPrinterSDK","typeKind":"swift.protocol"}
-```
 
 声明引用的编译器标识：
 
@@ -2562,7 +2259,7 @@ Android持有当前Listener，Swift弱引用Delegate。注册代次与请求绑�
 @discardableResult func getStatus() -> RequestID
 ```
 
-通过原FIFO发命令并验证本次应答，结果为Void；状态值只从统一状态事件交付。同值可能不再通知状态，所以不能等待下一次状态事件来结束请求。
+通过原FIFO验证本次应答；成功经统一查询完成回调返回ManagerResult<StatusResult>，value为本次事务已校验状态，不是全局缓存。相同状态连续查询仍各自返回独立请求ID和数据；失败或取消value为空。状态变化事件独立去重、合并，不代替查询结果。调用者必须显式实现回调。
 
 文档 ID：`apple:symbol:s:12XLPrinterSDK14PrinterManagerC9getStatusAA9RequestIDVyF`
 
@@ -2771,6 +2468,28 @@ init()
 | 名称 | precise identifier |
 | --- | --- |
 | PrinterModel | `s:12XLPrinterSDK12PrinterModelO` |
+| RequestID | `s:12XLPrinterSDK9RequestIDV` |
+
+<a id="api-eacae9a8ece29f234bcf"></a>
+
+### PrinterManager.stopScan(_:)
+
+正常停止当前扫描并返回最终列表。
+
+```swift
+func stopScan(_ scanID: RequestID)
+```
+
+只接受本Manager当前扫描ID，不生成新请求。原扫描完成回调成功交付停止时最新合并的设备列表，可为空。重复、外部、非扫描或已结束ID无操作；平台失败、显式cancel及清理仍保留其失败／取消结果。生命周期和注册代次保持。
+
+文档 ID：`apple:symbol:s:12XLPrinterSDK14PrinterManagerC8stopScanyyAA9RequestIDVF`
+
+符号种类：`swift.method`；访问级别：`public`。
+
+声明引用的编译器标识：
+
+| 名称 | precise identifier |
+| --- | --- |
 | RequestID | `s:12XLPrinterSDK9RequestIDV` |
 
 <a id="api-3f9717fd53ac6f2b1f4b"></a>
@@ -3419,6 +3138,14 @@ case unsupported
 | 1 | `dataSent` | `1` | `{"kind":"integer","negative":false,"value":"1"}` |
 | 2 | `deviceConfirmed` | `2` | `{"kind":"integer","negative":false,"value":"2"}` |
 
+### ConnectionInfo.PrinterInfoReadStatus
+
+| 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
+| --- | --- | --- | --- |
+| 0 | `notAttempted` | `无 raw 值` | `null` |
+| 1 | `succeeded` | `无 raw 值` | `null` |
+| 2 | `failed` | `无 raw 值` | `null` |
+
 ### ManagerOutcome
 
 | 声明顺序（从 0 起） | case | raw 值 | 编译器原值 |
@@ -3451,7 +3178,7 @@ case unsupported
 
 ## 编译器公共关系
 
-完整保留 **173** 条继承、协议遵循、成员及合成关系；
+完整保留 **171** 条继承、协议遵循、成员及合成关系；
 source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型也保持原值。
 
 | kind | source | target | 其他编译器字段 |
@@ -3472,6 +3199,10 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `conformsTo` | `s:12XLPrinterSDK13ManagerResultV` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:12XLPrinterSDK14ConnectionInfoV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:12XLPrinterSDK14ConnectionInfoV` | `s:s8SendableP` | `{}` |
+| `conformsTo` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `s:SH` | `{}` |
+| `conformsTo` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `s:SQ` | `{}` |
+| `conformsTo` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `s:s16SendableMetatypeP` | `{}` |
+| `conformsTo` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `s:s8SendableP` | `{}` |
 | `conformsTo` | `s:12XLPrinterSDK14ManagerOutcomeO` | `s:SH` | `{}` |
 | `conformsTo` | `s:12XLPrinterSDK14ManagerOutcomeO` | `s:SQ` | `{}` |
 | `conformsTo` | `s:12XLPrinterSDK14ManagerOutcomeO` | `s:s16SendableMetatypeP` | `{}` |
@@ -3503,21 +3234,6 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `conformsTo` | `s:12XLPrinterSDK9RequestIDV` | `s:SQ` | `{}` |
 | `conformsTo` | `s:12XLPrinterSDK9RequestIDV` | `s:s16SendableMetatypeP` | `{}` |
 | `conformsTo` | `s:12XLPrinterSDK9RequestIDV` | `s:s8SendableP` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_016didFinishSettingC5ModelyAA0cF0C_AA0F6ResultVyAA14ConnectionInfoVGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_016didFinishSettingC5ModelyAA0cF0C_AA0F6ResultVyAA14ConnectionInfoVGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_11didDiscover6scanIDyAA0cF0C_AA010DiscoveredC0VAA07RequestJ0VtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_11didDiscover6scanIDyAA0cF0C_AA010DiscoveredC0VAA07RequestJ0VtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_15didUpdateStatusyAA0cF0C_AA0I6ResultVtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_15didUpdateStatusyAA0cF0C_AA0I6ResultVtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_16didFinishClosingyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_16didFinishClosingyAA0cF0C_AA0F6ResultVyytGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_17didFinishPrintingyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_17didFinishPrintingyAA0cF0C_AA0F6ResultVyytGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_17didFinishScanningyAA0cF0C_AA0F6ResultVySayAA010DiscoveredC0VGGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_17didFinishScanningyAA0cF0C_AA0F6ResultVySayAA010DiscoveredC0VGGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_17didLoseConnectionyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_17didLoseConnectionyAA0cF0C_AA0F6ResultVyytGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_19didFinishConnectingyAA0cF0C_AA0F6ResultVyAA14ConnectionInfoVGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_19didFinishConnectingyAA0cF0C_AA0F6ResultVyAA14ConnectionInfoVGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_19didFinishSendingRawyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_19didFinishSendingRawyAA0cF0C_AA0F6ResultVyytGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_22didFinishDisconnectingyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_22didFinishDisconnectingyAA0cF0C_AA0F6ResultVyytGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_23didFinishQueryingStatusyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_23didFinishQueryingStatusyAA0cF0C_AA0F6ResultVyytGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_23didFinishReadingSDKInfoyAA0cF0C_AA0F6ResultVyAA0J0VGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_23didFinishReadingSDKInfoyAA0cF0C_AA0F6ResultVyAA0J0VGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_25didFinishPositioningLabelyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_25didFinishPositioningLabelyAA0cF0C_AA0F6ResultVyytGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_25didFinishSettingPaperTypeyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_25didFinishSettingPaperTypeyAA0cF0C_AA0F6ResultVyytGtF` | `{}` |
-| `defaultImplementationOf` | `s:12XLPrinterSDK15PrinterDelegatePAAE14printerManager_28didFinishReadingCapabilitiesyAA0cF0C_AA0F6ResultVyAA0cJ0VGtF` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_28didFinishReadingCapabilitiesyAA0cF0C_AA0F6ResultVyAA0cJ0VGtF` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK11PrinterInfoV10deviceNameSSSgvp` | `s:12XLPrinterSDK11PrinterInfoV` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK11PrinterInfoV10speedLevels5Int32VSgvp` | `s:12XLPrinterSDK11PrinterInfoV` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK11PrinterInfoV11reportedDpis6UInt32VSgvp` | `s:12XLPrinterSDK11PrinterInfoV` | `{}` |
@@ -3549,7 +3265,14 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:12XLPrinterSDK13ManagerResultV7outcomeAA0C7OutcomeOvp` | `s:12XLPrinterSDK13ManagerResultV` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK13ManagerResultV9isSuccessSbvp` | `s:12XLPrinterSDK13ManagerResultV` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK13ManagerResultV9requestIDAA07RequestF0Vvp` | `s:12XLPrinterSDK13ManagerResultV` | `{}` |
+| `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `s:12XLPrinterSDK14ConnectionInfoV` | `{}` |
+| `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO12notAttemptedyA2EmF` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `{}` |
+| `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO6failedyA2EmF` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `{}` |
+| `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO9succeededyA2EmF` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV07printerD0AA07PrinterD0VSgvp` | `s:12XLPrinterSDK14ConnectionInfoV` | `{}` |
+| `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV07printerD10ReadStatusAC07PrinterdfG0Ovp` | `s:12XLPrinterSDK14ConnectionInfoV` | `{}` |
+| `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV07printerD11ReadMessageSSSgvp` | `s:12XLPrinterSDK14ConnectionInfoV` | `{}` |
+| `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV07printerD8ReadCodes5Int32VSgvp` | `s:12XLPrinterSDK14ConnectionInfoV` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV5modelAA12PrinterModelOSgvp` | `s:12XLPrinterSDK14ConnectionInfoV` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK14ConnectionInfoV6deviceAA17DiscoveredPrinterVvp` | `s:12XLPrinterSDK14ConnectionInfoV` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK14ManagerOutcomeO7failureyA2CmF` | `s:12XLPrinterSDK14ManagerOutcomeO` | `{}` |
@@ -3570,6 +3293,7 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:12XLPrinterSDK14PrinterManagerC7sdkInfoAA9RequestIDVyF` | `s:12XLPrinterSDK14PrinterManagerC` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK14PrinterManagerC7sendRawyAA9RequestIDV10Foundation4DataVF` | `s:12XLPrinterSDK14PrinterManagerC` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK14PrinterManagerC8delegateAA0C8Delegate_pSgvp` | `s:12XLPrinterSDK14PrinterManagerC` | `{}` |
+| `memberOf` | `s:12XLPrinterSDK14PrinterManagerC8stopScanyyAA9RequestIDVF` | `s:12XLPrinterSDK14PrinterManagerC` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK14PrinterManagerC9getStatusAA9RequestIDVyF` | `s:12XLPrinterSDK14PrinterManagerC` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK14PrinterManagerCACycfc` | `s:12XLPrinterSDK14PrinterManagerC` | `{}` |
 | `memberOf` | `s:12XLPrinterSDK15CompletionLevelO15deviceConfirmedyA2CmF` | `s:12XLPrinterSDK15CompletionLevelO` | `{}` |
@@ -3600,6 +3324,7 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:12XLPrinterSDK11PrinterInfoV` | `s:12XLPrinterSDK11PrinterInfoV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:12XLPrinterSDK12PrinterModelO` | `s:12XLPrinterSDK12PrinterModelO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:12XLPrinterSDK12StatusResultV` | `s:12XLPrinterSDK12StatusResultV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
+| `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `s:12XLPrinterSDK14ConnectionInfoV07PrinterD10ReadStatusO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:12XLPrinterSDK14ManagerOutcomeO` | `s:12XLPrinterSDK14ManagerOutcomeO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:12XLPrinterSDK15CompletionLevelO` | `s:12XLPrinterSDK15CompletionLevelO` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
 | `memberOf` | `s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ::SYNTHESIZED::s:12XLPrinterSDK7SDKInfoV` | `s:12XLPrinterSDK7SDKInfoV` | `{"sourceOrigin":{"displayName":"Equatable.!=(_:_:)","identifier":"s:SQsRi_zRi0_zrlE2neoiySbx_xtFZ"}}` |
@@ -3624,7 +3349,7 @@ source 和 target 使用精确编译器标识，外部 Swift/Foundation 类型�
 | `requirementOf` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_19didFinishConnectingyAA0cF0C_AA0F6ResultVyAA14ConnectionInfoVGtF` | `s:12XLPrinterSDK15PrinterDelegateP` | `{}` |
 | `requirementOf` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_19didFinishSendingRawyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP` | `{}` |
 | `requirementOf` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_22didFinishDisconnectingyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP` | `{}` |
-| `requirementOf` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_23didFinishQueryingStatusyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP` | `{}` |
+| `requirementOf` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_23didFinishQueryingStatusyAA0cF0C_AA0F6ResultVyAA0jK0VGtF` | `s:12XLPrinterSDK15PrinterDelegateP` | `{}` |
 | `requirementOf` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_23didFinishReadingSDKInfoyAA0cF0C_AA0F6ResultVyAA0J0VGtF` | `s:12XLPrinterSDK15PrinterDelegateP` | `{}` |
 | `requirementOf` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_25didFinishPositioningLabelyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP` | `{}` |
 | `requirementOf` | `s:12XLPrinterSDK15PrinterDelegateP14printerManager_25didFinishSettingPaperTypeyAA0cF0C_AA0F6ResultVyytGtF` | `s:12XLPrinterSDK15PrinterDelegateP` | `{}` |

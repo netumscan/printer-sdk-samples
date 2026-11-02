@@ -1,6 +1,6 @@
 # printer-sdk-samples
 
-NETUM 打印机 SDK 的 MIT 许可应用示例。Android、iOS 与 Flutter 均固定接入在线 SDK **0.3.0-preview.17**。克隆本仓库即可构建，无需访问 SDK 私有开发仓库。
+NETUM 打印机 SDK 的 MIT 许可应用示例。Android、iOS 与 Flutter 均固定接入在线 SDK **0.3.0-preview.20**。克隆本仓库即可构建，无需访问 SDK 私有开发仓库。
 
 | 平台 | 最小接入 | 完整示例 |
 | --- | --- | --- |
@@ -32,8 +32,8 @@ Windows 使用 `android\gradlew.bat -p android` 加相同任务。原生 iOS 使
 
 ## 当前 SDK 与行为
 
-- Android：`com.netumscan:printer-sdk-android:0.3.0-preview.17`，来自 Maven Central。
-- iOS：公开 `https://github.com/netumscan/printer-sdk-ios`，Exact Version `0.3.0-preview.17`。
+- Android：`com.netumscan:printer-sdk-android:0.3.0-preview.20`，来自 Maven Central。
+- iOS：公开 `https://github.com/netumscan/printer-sdk-ios`，Exact Version `0.3.0-preview.20`。
 - 身份与制品摘要见根 [sdk-lock.json](sdk-lock.json)；Flutter 的 [独立锁](flutter/sdk-lock.json) 与根锁一致。
 - 传图片与页面毫米宽高；SDK 管理型号通信、点密度和流式编码。设置纸型与定位均为独立请求，打印不隐式 FORM 或切纸。
 - Android 支持 BLE／SPP，iOS 支持 BLE；未知型号不猜参数。`DATA_SENT` 仅表示数据交付，取消或失败后可能已有部分输出，不自动重连、续打或重放。
@@ -44,7 +44,7 @@ Windows 使用 `android\gradlew.bat -p android` 加相同任务。原生 iOS 使
 python3 tools/check-samples.py
 ```
 
-该检查校验完整清单、来源摘要、精确在线依赖、文档链接与源码边界。原生 Samples CI 保留两端完整构建及运行检查；Flutter CI 增加静态分析、18项测试、精确 SDK APK 验证和 iOS Simulator／6项 RunnerTests。失败定位与证据说明见 [VERIFICATION.md](VERIFICATION.md)。CI 不连接打印机、不发布 APK/IPA、不使用生产签名。
+该检查校验完整清单、来源摘要、精确在线依赖、文档链接与源码边界。原生 Samples CI 保留两端完整构建及运行检查；Flutter CI 增加静态分析、22项测试、精确 SDK APK 验证和 iOS Simulator／6项 RunnerTests。失败定位与证据说明见 [VERIFICATION.md](VERIFICATION.md)。CI 不连接打印机、不发布 APK/IPA、不使用生产签名。
 
 规范应用源码在 SDK 开发仓库维护。`samples-manifest.json` 的 `canonical_full_demos` 及 `flutter_demo` 记录来源摘要；维护流程先导出并验证候选，再推送 `codex/samples-sync-*` 分支，CI 通过后普通快进 `main`。现有标签与 Release 保持原样。
 
@@ -55,3 +55,9 @@ python3 tools/check-samples.py
 自有示例代码、资源和工程配置采用 [MIT](LICENSE)，详见 [许可边界](LICENSING.md)；Gradle Wrapper 保留 [Apache-2.0 许可](android/gradle/wrapper/LICENSE)。**SDK 保持闭源商用许可，MIT 不适用于下载的 SDK、包装层、C 头文件或第三方组件。**
 
 当前 native SDK `0.3.0`、C ABI `3/r3`，`hardware_verified=false`。构建及模拟器通过不表示真实无线、固件、纸面输出或手机峰值内存完成验收。M90 取消后重连的短斜痕仍待解决。ESC/POS 尚无硬件验收。
+
+## `.20` 接口与迁移
+
+Android `PrinterListener` 的16个方法和 iOS `PrinterDelegate` 的15个方法全部必需实现，没有默认空实现。查询完成为 `ManagerResult<StatusResult>`，成功值来自本次事务，相同状态连续查询也分别返回；独立状态变化通知仍去重。
+
+正常停止调用 `stopScan`，原扫描请求成功返回最新合并列表；bridge 只确认停止信号，Dart 仍等待原 Future。取消／后台清理保持取消语义。连接结果保留 `printerInfoReadStatus`、`printerInfoReadCode`、`printerInfoReadMessage`；普通信息读取失败显示原因且保持连接和打印。换型号保留读取结果，重连重新读取。

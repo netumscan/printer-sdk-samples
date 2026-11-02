@@ -120,6 +120,20 @@ public final class RuntimeGate extends Instrumentation {
         ManagerResult<T> await()throws Exception{require(done.await(8,TimeUnit.SECONDS),"Manager callback missing");require(count.get()==1&&mainThread,"Expected exactly one main-thread callback");return result;}
     }
     private static final class Replies implements PrinterListener {
+        // Unused callbacks are explicit: this owner does not submit or observe these actions.
+        @Override public void onScanCompleted(ManagerResult<java.util.List<DiscoveredDevice>> result) { }
+        @Override public void onBondedDevicesCompleted(ManagerResult<java.util.List<DiscoveredDevice>> result) { }
+        @Override public void onModelConfigurationCompleted(ManagerResult<ConnectionInfo> result) { }
+        @Override public void onPaperTypeCompleted(ManagerResult<Void> result) { }
+        @Override public void onPrintCompleted(ManagerResult<Void> result) { }
+        @Override public void onStatusQueryCompleted(ManagerResult<StatusResult> result) { }
+        @Override public void onLabelPositioningCompleted(ManagerResult<Void> result) { }
+        @Override public void onCapabilitiesCompleted(ManagerResult<PrinterCapabilities> result) { }
+        @Override public void onDisconnectCompleted(ManagerResult<Void> result) { }
+        @Override public void onStatusChanged(StatusResult status) { }
+        @Override public void onDisconnected(ManagerResult<Void> result) { }
+        @Override public void onDeviceDiscovered(RequestId scanId, DiscoveredDevice device) { }
+
         private final IdentityHashMap<RequestId, Reply<?>> pending = new IdentityHashMap<>();
         synchronized <T> void submit(Supplier<RequestId> start, Reply<T> reply) { pending.put(start.get(), reply); }
         private <T> void complete(ManagerResult<T> result) {
@@ -143,7 +157,7 @@ public final class RuntimeGate extends Instrumentation {
         Replies replies = new Replies(); manager.setListener(replies);
         try {
             Reply<SdkInfo> identity=new Reply<>();replies.submit(manager::sdkInfo,identity);info=identity.await().value;
-            require(nativeAbi(info,"abiVersion")==Integer.parseInt("3")&&nativeAbi(info,"abiRevision")==Integer.parseInt("3")&&"0.3.0".equals(info.nativeVersion)&&"0.3.0-preview.17".equals(info.distributionVersion),"Loaded SDK identity differs");
+            require(nativeAbi(info,"abiVersion")==Integer.parseInt("3")&&nativeAbi(info,"abiRevision")==Integer.parseInt("3")&&"0.3.0".equals(info.nativeVersion)&&"0.3.0-preview.20".equals(info.distributionVersion),"Loaded SDK identity differs");
             Reply<ConnectionInfo> connection=new Reply<>();replies.submit(()->manager.connectSpp(new DiscoveredDevice("AA:BB:CC:DD:EE:01","Memory transport")),connection);require(connection.await().code==0,"Connect failed");
             require(fake.calls==0&&fake.bytes.size()==0,"Unmodelled Raw fixture unexpectedly sent connection INFO or another command");
             Reply<Void> first=new Reply<>(),second=new Reply<>();replies.submit(()->manager.sendRaw(new byte[]{1,2,3,4,5,6,7,8,9}),first);
@@ -194,7 +208,7 @@ public final class RuntimeGate extends Instrumentation {
             runOnMainSync(() -> { owner[0].setListener(replies); replies.submit(owner[0]::sdkInfo, identity); });
             SdkInfo loaded = identity.await().value;
             require(loaded != null && nativeAbi(loaded,"abiVersion") == Integer.parseInt("3") && nativeAbi(loaded,"abiRevision") == Integer.parseInt("3") &&
-                    "0.3.0".equals(loaded.nativeVersion) && "0.3.0-preview.17".equals(loaded.distributionVersion),
+                    "0.3.0".equals(loaded.nativeVersion) && "0.3.0-preview.20".equals(loaded.distributionVersion),
                     "Demo Manager runtime identity differs");
             owner[0].setListener((PrinterListener)field(current, "model"));
             runOnMainSync(current::finish); waitForIdleSync();

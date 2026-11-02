@@ -125,7 +125,7 @@ final class DemoModel: ObservableObject, PrinterDelegate {
     func stopScan() {
         guard let scanRequest, !scanStopping else { return }
         scanStopping = true; status = "正在停止扫描…"
-        manager.cancel(scanRequest)
+        manager.stopScan(scanRequest)
     }
     func connect() {
         guard canConnect, let selected else { return }
@@ -396,7 +396,7 @@ final class DemoModel: ObservableObject, PrinterDelegate {
     func printerManager(_ manager: PrinterManager, didFinishPrinting result: ManagerResult<Void>) { finish(.action(.printLabel, result)) }
     func printerManager(_ manager: PrinterManager, didFinishSendingRaw result: ManagerResult<Void>) { finish(.action(.raw, result)) }
     func printerManager(_ manager: PrinterManager, didFinishPositioningLabel result: ManagerResult<Void>) { finish(.action(.feed, result)) }
-    func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<Void>) { finish(.action(.getStatus, result)) }
+    func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<StatusResult>) { finish(.status(result)) }
     func printerManager(_ manager: PrinterManager, didFinishReadingCapabilities result: ManagerResult<PrinterCapabilities>) { finish(.capabilities(result)) }
     func printerManager(_ manager: PrinterManager, didFinishReadingSDKInfo result: ManagerResult<SDKInfo>) {
         guard infoRequest == result.requestID, phase != .closed else { return }
@@ -444,6 +444,9 @@ final class DemoModel: ObservableObject, PrinterDelegate {
     private func clearStatusRecoveryNotice() {
         statusNoticeTask?.cancel(); statusNoticeTask = nil; statusRecoveryNotice = nil
     }
+
+    // This owner explicitly ignores callbacks outside its observed workflow.
+    func printerManager(_ manager: PrinterManager, didFinishClosing result: ManagerResult<Void>) {}
 }
 
 // Demo-only persistence and diagnostics. These helpers never control the printer.
@@ -595,7 +598,7 @@ extension DemoModel {
         let operation: String
         switch result {
         case .action(let action, _), .connection(let action, _): operation = String(describing: action)
-        case .status: operation = "status"
+        case .status: operation = "getStatus"
         case .capabilities: operation = "capabilities"
         case .identity: operation = "sdk_info"
         case .discovery: operation = "scan"

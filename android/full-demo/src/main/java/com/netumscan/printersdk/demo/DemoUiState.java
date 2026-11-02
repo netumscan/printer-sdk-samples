@@ -74,7 +74,7 @@ final class DemoUiState {
     final DemoResult<?> latestResult;
     final DemoResult<?> lastRequest;
     final DemoResult<Void> disconnectedResult, cleanupResult;
-    final DemoResult<Void> statusResult;
+    final DemoResult<StatusResult> statusResult;
     final StatusResult liveStatus;
     final DemoResult<PrinterCapabilities> capabilitiesResult;
     final DemoResult<SdkInfo> identityResult;
@@ -84,7 +84,7 @@ final class DemoUiState {
 
     DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
             String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
-            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
+            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
             DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest) {
@@ -94,7 +94,7 @@ final class DemoUiState {
     }
     DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
             String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
-            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
+            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
             DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests) {
@@ -104,7 +104,7 @@ final class DemoUiState {
     }
     DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
             String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
-            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
+            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
             DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests,
@@ -115,7 +115,7 @@ final class DemoUiState {
     }
     DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
             String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
-            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
+            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
             DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests,
@@ -126,7 +126,7 @@ final class DemoUiState {
     }
     DemoUiState(Phase phase, boolean foreground, boolean discovering, boolean cancelling, String inputError,
             String selectedID, List<DiscoveredDevice> candidates, DemoResult.Kind activeKind, DemoResult<?> latestResult,
-            DemoResult<?> lastRequest, DemoResult<Void> statusResult,
+            DemoResult<?> lastRequest, DemoResult<StatusResult> statusResult,
             DemoResult<PrinterCapabilities> capabilitiesResult, DemoResult<SdkInfo> identityResult,
             DemoResult<List<DiscoveredDevice>> discoveryResult, DemoResult<Void> disconnectedResult, DemoResult<Void> cleanupResult,
             MediaRequest mediaRequest, boolean connected, boolean printingAllowed, List<PrintRequest> printRequests,

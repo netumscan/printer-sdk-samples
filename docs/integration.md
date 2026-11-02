@@ -1,12 +1,12 @@
 # Android／iOS App 接入
 
-[返回指南](README.md) · 适用版本 `0.3.0-preview.17` · native `0.3.0` · ABI `3/r3`
+[返回指南](README.md) · 适用版本 `0.3.0-preview.20` · native `0.3.0` · ABI `3/r3`
 
 Android 最低 API21、Java8；iOS 最低 iOS15，支持 Swift5／6。实际发布后使用精确同版 Maven／SwiftPM 依赖，
 核对制品摘要和实际身份；候选契约不表示线上已发布。App 负责权限、设备选择、系统配对和后台策略，
 iOS 配置 `NSBluetoothAlwaysUsageDescription`。
 
-稳定 owner 在提交请求前注册统一 Listener／Delegate，操作只返回请求 ID；按动作接收完整结果并关联 ID。
+稳定 owner 在提交请求前注册统一 Listener／Delegate，并完整实现全部回调：Android16个、iOS15个。SDK 不提供默认空方法或公共空实现适配器；未使用的事件须在 App 自己的方法中明确处理或忽略。漏写任意方法时 Java／Kotlin／Swift 均编译失败。操作只返回请求 ID；按动作接收完整结果并关联 ID。
 扫描时将实时发现直接展示，成功终态刷新最终合并信息；停止后再显式连接，发现和选择不会自动连接或打印。
 设备原名可推荐内置型号，已确认型号的改名设备可显式指定；未知型号不猜通信参数。
 
@@ -26,6 +26,18 @@ import com.netumscan.printersdk.*;
 
 /** Application notification target; the SDK owns image processing and all printer IO. */
 public final class LabelSession implements AutoCloseable, PrinterListener {
+    // Unused callbacks are explicit: this owner does not submit or observe these actions.
+    @Override public void onScanCompleted(ManagerResult<java.util.List<DiscoveredDevice>> result) { }
+    @Override public void onBondedDevicesCompleted(ManagerResult<java.util.List<DiscoveredDevice>> result) { }
+    @Override public void onStatusQueryCompleted(ManagerResult<StatusResult> result) { }
+    @Override public void onRawCompleted(ManagerResult<Void> result) { }
+    @Override public void onCapabilitiesCompleted(ManagerResult<PrinterCapabilities> result) { }
+    @Override public void onSdkInfoCompleted(ManagerResult<SdkInfo> result) { }
+    @Override public void onDisconnectCompleted(ManagerResult<Void> result) { }
+    @Override public void onCloseCompleted(ManagerResult<Void> result) { }
+    @Override public void onStatusChanged(StatusResult status) { }
+    @Override public void onDeviceDiscovered(RequestId scanId, DiscoveredDevice device) { }
+
     public interface Ui {
         void connection(ManagerResult<ConnectionInfo> result);
         void configuration(ManagerResult<ConnectionInfo> result);
@@ -152,6 +164,18 @@ final class AppPrinter: PrinterDelegate {
         for completion in waiters { completion(result) }
         closingOwner = nil
     }
+
+    // This owner explicitly ignores callbacks outside its observed workflow.
+    func printerManager(_ manager: PrinterManager, didDiscover device: DiscoveredPrinter, scanID: RequestID) {}
+    func printerManager(_ manager: PrinterManager, didFinishScanning result: ManagerResult<[DiscoveredPrinter]>) {}
+    func printerManager(_ manager: PrinterManager, didFinishSettingPrinterModel result: ManagerResult<ConnectionInfo>) {}
+    func printerManager(_ manager: PrinterManager, didFinishSettingPaperType result: ManagerResult<Void>) {}
+    func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<StatusResult>) {}
+    func printerManager(_ manager: PrinterManager, didFinishPositioningLabel result: ManagerResult<Void>) {}
+    func printerManager(_ manager: PrinterManager, didFinishSendingRaw result: ManagerResult<Void>) {}
+    func printerManager(_ manager: PrinterManager, didFinishReadingCapabilities result: ManagerResult<PrinterCapabilities>) {}
+    func printerManager(_ manager: PrinterManager, didFinishReadingSDKInfo result: ManagerResult<SDKInfo>) {}
+    func printerManager(_ manager: PrinterManager, didUpdateStatus status: StatusResult) {}
 }
 ```
 
@@ -166,7 +190,7 @@ detach 或关闭期间隔离迟到结果。无需 Base64、裸 RGBA 或插件重
 SwiftPM 产品和 Swift 模块为 `XLPrinterSDK`。CocoaPods 接入使用同版公开仓库标签：
 
 ```ruby
-pod 'XLPrinterSDK', :git => 'https://github.com/netumscan/printer-sdk-ios.git', :tag => 'v0.3.0-preview.17'
+pod 'XLPrinterSDK', :git => 'https://github.com/netumscan/printer-sdk-ios.git', :tag => 'v0.3.0-preview.20'
 ```
 
 候选契约本身不证明线上发布；远程标签必须实际发布后才能使用。本地 `:path` 接入须先将校验后的原生附件解压到包的 `Binaries/`，详见包根目录 README。

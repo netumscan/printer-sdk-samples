@@ -84,7 +84,7 @@ final class QuickStartModel: ObservableObject, PrinterDelegate {
     func stopScan() {
         guard let scanRequest, !scanStopping else { return }
         scanStopping = true; status = "正在停止扫描…"
-        manager.cancel(scanRequest)
+        manager.stopScan(scanRequest)
     }
     func foregroundEntry() { foreground = true }
     func background() { foreground = false; disconnect() }
@@ -100,7 +100,12 @@ final class QuickStartModel: ObservableObject, PrinterDelegate {
         guard phase != .closed else { return }
         connectionResult = result; lastAction = .connect
         guard connection == result.requestID, phase == .connecting else { return }
-        if result.isSuccess { phase = .ready; status = "已连接；请手动打印" }
+        if result.isSuccess {
+            phase = .ready; status = "已连接；请手动打印"
+            if let info = result.value, info.printerInfoReadStatus == .failed {
+                status += "；设备信息读取失败（" + String(info.printerInfoReadCode ?? 1000) + "）：" + (info.printerInfoReadMessage ?? "未知原因")
+            }
+        }
         else {
             let failure = "\(result.message)（\(result.code)）"
             connection = nil; phase = .disconnecting; status = failure
@@ -180,4 +185,14 @@ final class QuickStartModel: ObservableObject, PrinterDelegate {
         for y in 0..<height { for x in 0..<width where (x / 16 + y / 16) % 2 == 0 { pixels[y * width + x] = 0 } }
         return pixels
     }
+
+    // This owner explicitly ignores callbacks outside its observed workflow.
+    func printerManager(_ manager: PrinterManager, didFinishSettingPrinterModel result: ManagerResult<ConnectionInfo>) {}
+    func printerManager(_ manager: PrinterManager, didFinishSettingPaperType result: ManagerResult<Void>) {}
+    func printerManager(_ manager: PrinterManager, didFinishQueryingStatus result: ManagerResult<StatusResult>) {}
+    func printerManager(_ manager: PrinterManager, didFinishPositioningLabel result: ManagerResult<Void>) {}
+    func printerManager(_ manager: PrinterManager, didFinishSendingRaw result: ManagerResult<Void>) {}
+    func printerManager(_ manager: PrinterManager, didFinishReadingCapabilities result: ManagerResult<PrinterCapabilities>) {}
+    func printerManager(_ manager: PrinterManager, didFinishReadingSDKInfo result: ManagerResult<SDKInfo>) {}
+    func printerManager(_ manager: PrinterManager, didUpdateStatus status: StatusResult) {}
 }

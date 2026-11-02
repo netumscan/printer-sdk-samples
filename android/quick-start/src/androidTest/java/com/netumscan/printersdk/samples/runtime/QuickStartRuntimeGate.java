@@ -13,6 +13,11 @@ import com.netumscan.printersdk.ManagerResult;
 import com.netumscan.printersdk.PrinterManager;
 import com.netumscan.printersdk.PrinterListener;
 import com.netumscan.printersdk.SdkInfo;
+import com.netumscan.printersdk.ConnectionInfo;
+import com.netumscan.printersdk.DiscoveredDevice;
+import com.netumscan.printersdk.PrinterCapabilities;
+import com.netumscan.printersdk.RequestId;
+import com.netumscan.printersdk.StatusResult;
 import java.io.FileOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -91,6 +96,23 @@ public final class QuickStartRuntimeGate extends Instrumentation {
             final int[] identityCode = new int[]{-1};
             onMainChecked(() -> {
                 owner[0].setListener(new PrinterListener() {
+                    // Unused callbacks are explicit: this owner does not submit or observe these actions.
+                    @Override public void onScanCompleted(ManagerResult<java.util.List<DiscoveredDevice>> result) { }
+                    @Override public void onBondedDevicesCompleted(ManagerResult<java.util.List<DiscoveredDevice>> result) { }
+                    @Override public void onConnectionCompleted(ManagerResult<ConnectionInfo> result) { }
+                    @Override public void onModelConfigurationCompleted(ManagerResult<ConnectionInfo> result) { }
+                    @Override public void onPaperTypeCompleted(ManagerResult<Void> result) { }
+                    @Override public void onPrintCompleted(ManagerResult<Void> result) { }
+                    @Override public void onStatusQueryCompleted(ManagerResult<StatusResult> result) { }
+                    @Override public void onLabelPositioningCompleted(ManagerResult<Void> result) { }
+                    @Override public void onRawCompleted(ManagerResult<Void> result) { }
+                    @Override public void onCapabilitiesCompleted(ManagerResult<PrinterCapabilities> result) { }
+                    @Override public void onDisconnectCompleted(ManagerResult<Void> result) { }
+                    @Override public void onCloseCompleted(ManagerResult<Void> result) { }
+                    @Override public void onStatusChanged(StatusResult status) { }
+                    @Override public void onDisconnected(ManagerResult<Void> result) { }
+                    @Override public void onDeviceDiscovered(RequestId scanId, DiscoveredDevice device) { }
+
                     @Override public void onSdkInfoCompleted(ManagerResult<SdkInfo> value) {
                         loaded[0] = value.value; identityCode[0] = value.code; identity.countDown();
                     }
@@ -98,7 +120,7 @@ public final class QuickStartRuntimeGate extends Instrumentation {
                 owner[0].sdkInfo();
             });
             if (!identity.await(8, TimeUnit.SECONDS) || identityCode[0] != 0 || loaded[0] == null || !Integer.valueOf(3).equals(field(loaded[0], "abiVersion")) ||
-                    !Integer.valueOf(3).equals(field(loaded[0], "abiRevision")) || !"0.3.0-preview.17".equals(loaded[0].distributionVersion) ||
+                    !Integer.valueOf(3).equals(field(loaded[0], "abiRevision")) || !"0.3.0-preview.20".equals(loaded[0].distributionVersion) ||
                     !"0.3.0".equals(loaded[0].nativeVersion))
                 throw new AssertionError("Quick Start Manager runtime identity differs");
             onMainChecked(() -> {

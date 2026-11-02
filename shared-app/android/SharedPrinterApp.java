@@ -7,6 +7,18 @@ import java.util.List;
 
 /** Application owns one Manager and retains results independently of page lifetimes. */
 public final class SharedPrinterApp implements AutoCloseable, PrinterListener {
+    // Unused callbacks are explicit: this owner does not submit or observe these actions.
+    @Override public void onScanCompleted(ManagerResult<java.util.List<DiscoveredDevice>> result) { }
+    @Override public void onBondedDevicesCompleted(ManagerResult<java.util.List<DiscoveredDevice>> result) { }
+    @Override public void onStatusQueryCompleted(ManagerResult<StatusResult> result) { }
+    @Override public void onLabelPositioningCompleted(ManagerResult<Void> result) { }
+    @Override public void onRawCompleted(ManagerResult<Void> result) { }
+    @Override public void onCapabilitiesCompleted(ManagerResult<PrinterCapabilities> result) { }
+    @Override public void onSdkInfoCompleted(ManagerResult<SdkInfo> result) { }
+    @Override public void onCloseCompleted(ManagerResult<Void> result) { }
+    @Override public void onStatusChanged(StatusResult status) { }
+    @Override public void onDeviceDiscovered(RequestId scanId, DiscoveredDevice device) { }
+
     @FunctionalInterface public interface Completion<T> { void onComplete(ManagerResult<T> result); }
     public interface Page {
         void connection(ManagerResult<?> result);

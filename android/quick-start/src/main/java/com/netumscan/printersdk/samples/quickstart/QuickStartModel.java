@@ -9,18 +9,33 @@ import com.netumscan.printersdk.ManagerResult;
 import com.netumscan.printersdk.PrinterManager;
 import com.netumscan.printersdk.PrinterListener;
 import com.netumscan.printersdk.RequestId;
+import com.netumscan.printersdk.PrinterCapabilities;
+import com.netumscan.printersdk.SdkInfo;
+import com.netumscan.printersdk.StatusResult;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /** Main-thread sample state. One Manager owns discovery, requests and the device IO queue. */
 final class QuickStartModel implements PrinterListener {
+    // Unused callbacks are explicit: this owner does not submit or observe these actions.
+    @Override public void onBondedDevicesCompleted(ManagerResult<java.util.List<DiscoveredDevice>> result) { }
+    @Override public void onModelConfigurationCompleted(ManagerResult<ConnectionInfo> result) { }
+    @Override public void onPaperTypeCompleted(ManagerResult<Void> result) { }
+    @Override public void onStatusQueryCompleted(ManagerResult<StatusResult> result) { }
+    @Override public void onLabelPositioningCompleted(ManagerResult<Void> result) { }
+    @Override public void onRawCompleted(ManagerResult<Void> result) { }
+    @Override public void onCapabilitiesCompleted(ManagerResult<PrinterCapabilities> result) { }
+    @Override public void onSdkInfoCompleted(ManagerResult<SdkInfo> result) { }
+    @Override public void onStatusChanged(StatusResult status) { }
+
     static final int SAMPLE_WIDTH = 384, SAMPLE_HEIGHT = 64;
     private final PrinterManager manager;
     private Runnable changed;
     private RequestId connectionRequestId;
     private boolean connectionAllowed;
     boolean foreground, destroyed, connected, disconnecting;
+    boolean scanStopping;
     RequestId scanRequest, connectRequest, printRequest, cleanupRequest, closeRequest;
     ManagerResult<List<DiscoveredDevice>> lastScanResult;
     ManagerResult<ConnectionInfo> lastConnectResult;
@@ -81,7 +96,7 @@ final class QuickStartModel implements PrinterListener {
         if (!canSelect() || scanRequest != null) return;
         candidates = Collections.emptyList(); selectedAddress = null; lastScanResult = null;
         status = "正在扫描 BLE 设备，实时显示候选，5 秒后结束…";
-        scanRequest = manager.scanBle();
+        scanStopping = false; scanRequest = manager.scanBle();
         notifyChanged();
     }
 
@@ -124,6 +139,12 @@ final class QuickStartModel implements PrinterListener {
             printRequest = manager.printImage(bitmap, 48, 8);
         } finally { bitmap.recycle(); }
         notifyChanged();
+    }
+
+    void stopScan() {
+        if (scanRequest == null || scanStopping) return;
+        scanStopping = true; status = "正在停止扫描…";
+        manager.stopScan(scanRequest); notifyChanged();
     }
 
     void cancel() {
@@ -175,7 +196,7 @@ final class QuickStartModel implements PrinterListener {
 
     @Override public void onScanCompleted(ManagerResult<List<DiscoveredDevice>> result) {
         if (scanRequest != result.requestId) return;
-        scanRequest = null;
+        scanRequest = null; scanStopping = false;
         lastScanResult = result;
         if (!destroyed && !disconnecting && foreground) {
             if (result.outcome == ManagerResult.Outcome.SUCCESS) {
@@ -201,6 +222,9 @@ final class QuickStartModel implements PrinterListener {
             connectionInfo = result.value;
             status = canPrint() ? "已连接；采用明确选择的 LT-M90。确认纸张后，手动打印固定示例" :
                 "已连接，但当前打印配置不适用于此示例；请断开并使用 Full Demo";
+            if (connectionInfo != null && connectionInfo.printerInfoReadStatus == ConnectionInfo.PrinterInfoReadStatus.FAILED)
+                status += "；设备信息读取失败（" + connectionInfo.printerInfoReadCode + "）：" + connectionInfo.printerInfoReadMessage;
+
         } else {
             connected = false;
             connectionInfo = null;
@@ -257,7 +281,7 @@ final class QuickStartModel implements PrinterListener {
     }
 
     @Override public void onDeviceDiscovered(RequestId id, DiscoveredDevice device) {
-        if (scanRequest != id || destroyed || disconnecting || !foreground) return;
+        if (scanRequest != id || scanStopping || destroyed || disconnecting || !foreground) return;
         ArrayList<DiscoveredDevice> discovered = new ArrayList<>(candidates);
         int existing = -1;
         for (int index = 0; index < discovered.size(); index++)

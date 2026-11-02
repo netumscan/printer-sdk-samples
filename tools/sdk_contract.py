@@ -6,9 +6,9 @@ import re
 
 MINIMAL_API_ABI = {"0.3.0-preview.10": (3, 2), "0.3.0-preview.11": (3, 2),
                    "0.3.0-preview.14": (3, 3), "0.3.0-preview.15": (3, 3),
-                   "0.3.0-preview.16": (3, 3), "0.3.0-preview.17": (3, 3)}
+                   "0.3.0-preview.16": (3, 3), "0.3.0-preview.17": (3, 3), "0.3.0-preview.20": (3, 3)}
 MINIMAL_API_VERSIONS = frozenset(MINIMAL_API_ABI)
-UNIFIED_RECEIVER_VERSIONS = frozenset({"0.3.0-preview.17"})
+UNIFIED_RECEIVER_VERSIONS = frozenset({"0.3.0-preview.17", "0.3.0-preview.20"})
 UNIFIED_FLUTTER_VERSIONS = frozenset({"0.3.0-preview.11", "0.3.0-preview.14", "0.3.0-preview.16"}) | UNIFIED_RECEIVER_VERSIONS
 IOS_OVERLAY_VERSIONS = frozenset({"0.3.0-preview.15", "0.3.0-preview.16"})
 

@@ -522,10 +522,10 @@ extension PrinterSamplesTests {
         XCTAssertFalse(model.canScan); XCTAssertFalse(model.canConnect); XCTAssertTrue(model.scanMessage.contains("正在停止"))
         try await until { !model.scanning }
         let cancelled = try XCTUnwrap(model.scanResult)
-        XCTAssertEqual(cancelled.code, 1005); XCTAssertNil(cancelled.value)
+        XCTAssertEqual(cancelled.code, 0); XCTAssertEqual(cancelled.value?.map(\.identifier), [current.identifier, late.identifier])
         model.printerManager(manager, didDiscover: late, scanID: cancelled.requestID); scan.expire(0)
         for _ in 0..<5 { await Task.yield() }
-        XCTAssertEqual(model.deviceRows.map(\.id), [current.identifier]); XCTAssertEqual(model.selected, current.identifier)
+        XCTAssertEqual(model.deviceRows.map(\.id), [current.identifier, late.identifier]); XCTAssertEqual(model.selected, current.identifier)
         XCTAssertTrue(model.canConnect); XCTAssertEqual(channel.openCount, 0)
         model.scan(); try await until { scan.count == 2 }; scan.discover(current)
         try await until { model.deviceRows.count == 1 }; model.selectDevice(current.identifier)
