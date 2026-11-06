@@ -2,8 +2,7 @@ name: Samples
 
 on:
   push:
-    branches: [main, 'codex/samples-sync-*']
-  pull_request:
+    branches: ['codex/samples-sync-*']
   workflow_dispatch:
 
 permissions:

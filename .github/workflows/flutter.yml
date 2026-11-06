@@ -2,8 +2,9 @@ name: Flutter
 
 on:
   push:
-    branches: [main, 'codex/samples-sync-*']
-  pull_request:
+    branches:
+      - 'codex/samples-sync-*'
+      - '!codex/samples-sync-docs-*'
   workflow_dispatch:
 
 permissions:
